@@ -4,6 +4,40 @@ des stages d’été, des PFA , des PFE et des compétences acquises
 Il y a 3 Acteur : administrateur, enseignant et étudiant
 Administrateur
 
-Team :  Ahmed Gafsi | Oumaima Mzoughi |  Siwar labessi  | Ali Mekni | Med Aziz Rezgui | Ilyes Hafsi | Chiraz ben boubaker
+Team : Ahmed Gafsi | Oumaima Mzoughi | Siwar labessi | Ali Mekni | Med Aziz Rezgui | Ilyes Hafsi | Chiraz ben boubaker
 
-Group : 1 | class : 2 ING 2
+---
+
+## How to start the Project :
+
+### 1- Clone the repo
+
+```
+git clone https://github.com/gafsiahmed/isamm-student-managment-platform.git
+
+```
+
+### 2- Install dependencies
+
+```
+npm i
+
+```
+
+### 3- create a .env file in the root directory and past this :
+
+```
+PORT = 5000
+DATABASE_URL = "mongodb+srv://Aziz:azizrezgui@cluster0.0n5vq.mongodb.net/PlatformIsamm"
+JWT_SECRET = 'JWT_SECRET'
+
+```
+
+### 4- start the project by running
+
+```
+npm run dev
+
+```
+
+### for each user story create a new branch with the us name and enjoy coding
