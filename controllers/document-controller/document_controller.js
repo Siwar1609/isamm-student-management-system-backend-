@@ -63,14 +63,42 @@ export const addStudentDocument = async (req, res) => {
   }
 }
 
+export const getAllDocuments = async (req, res) => {
+  try {
+    // Retrieve all documents from the database
+    const documents = await Document.find()
+      .populate('uploadedBy', 'login fullName email') // Populate student details
+      .populate('internship', 'startDate endDate') // Populate internship period
+      .populate('encadrant', 'fullName email role') // Populate encadrant details (only specific fields)
+      .exec() // Execute the query
+
+    if (!documents || documents.length === 0) {
+      return res.status(404).json({ message: 'No documents found.' })
+    }
+
+    res.status(200).json({
+      documents,
+      message: 'All documents retrieved successfully!',
+    })
+  } catch (error) {
+    console.error('Error:', error.message)
+    res.status(500).json({
+      error: error.message,
+      message: 'Error retrieving documents.',
+    })
+  }
+}
+
 export const getDocumentsByStudentId = async (req, res) => {
   try {
     const studentId = req.params.studentId // Get student ID from URL
 
     // Find documents for the specific student and populate related fields
     const documents = await Document.find({ uploadedBy: studentId })
-      .populate('uploadedBy', 'login') // Populate student login
+      .populate('uploadedBy', 'login fullName email') // Populate student login
       .populate('internship', 'startDate endDate') // Populate internship period dates (if applicable)
+      .populate('encadrant', 'login fullName email') // Populate encadrant information endDate') // Populate internship period dates (if applicable)
+
       .exec()
 
     if (!documents || documents.length === 0) {
@@ -91,6 +119,7 @@ export const getDocumentsByStudentId = async (req, res) => {
   }
 }
 
+// Nodemailer Transporter
 const transporter = nodemailer.createTransport({
   service: 'Gmail',
   auth: {
@@ -100,61 +129,42 @@ const transporter = nodemailer.createTransport({
 })
 
 // Scheduled Task
-cron.schedule('* * * * *', async () => {
-  console.log('Starting the check for students without uploaded documents...')
+cron.schedule('0 0 * * *', async () => {
+  console.log('Starting the check for students without postulations...')
 
   try {
     const today = new Date()
     console.log(`Today's date: ${today.toISOString()}`)
 
-    // Trouver tous les stages expirés
-    const expiredInternships = await Internship.find({
-      endDate: { $lt: today },
-    }).exec()
+    // Get all students
+    const students = await User.find({ role: 'etudiant' }).exec()
 
-    if (expiredInternships.length === 0) {
-      console.log('No expired internships found.')
+    if (students.length === 0) {
+      console.log('No students found.')
       return
     }
 
-    for (const internship of expiredInternships) {
-      const internshipId = internship._id
-      console.log(
-        `Processing internship: ${internshipId} (End date: ${internship.endDate})`,
+    for (const student of students) {
+      // Check if the student has any documents associated with internships
+      const documents = await Document.find({ uploadedBy: student._id })
+        .populate('internship', 'title endDate')
+        .exec()
+
+      const hasPostulated = documents.some(
+        (doc) => doc.internship && new Date(doc.internship.endDate) >= today,
       )
 
-      // Récupérer les IDs des utilisateurs ayant téléchargé des documents
-      const documents = await Document.find({
-        internship: internshipId,
-      }).exec()
-      const uploadedByIds = documents.map((doc) => doc.uploadedBy.toString())
+      if (!hasPostulated) {
+        console.log(`Student ${student.fullName} has not postulated.`)
 
-      console.log(
-        `Uploaded by IDs for internship ${internshipId}: ${uploadedByIds}`,
-      )
-
-      // Trouver les étudiants sans documents
-      const studentsWithoutDocs = await User.find({
-        _id: { $nin: uploadedByIds },
-        role: 'etudiant',
-      }).exec()
-
-      if (studentsWithoutDocs.length === 0) {
-        console.log(
-          `All students have uploaded documents for internship ${internshipId}.`,
-        )
-        continue
-      }
-
-      for (const student of studentsWithoutDocs) {
-        console.log(`Found student without document: ${student.login}`)
+        // Send email reminder
         if (student.email) {
           try {
             await transporter.sendMail({
               from: process.env.EMAIL_USER,
               to: student.email,
-              subject: 'Document Submission Reminder',
-              text: `Dear ${student.fullName},\n\nWe want to remind you that the deadline for submitting your internship documents has passed. Please contact the administrator for further instructions.\n\nBest regards,\nYour Team`,
+              subject: 'Internship Postulation Reminder',
+              text: `Dear ${student.fullName},\n\nWe noticed that you have not postulated for any internship. Please ensure to submit your documents before the deadlines.\n\nBest regards,\nYour Team`,
             })
             console.log(`Email sent successfully to ${student.email}`)
           } catch (emailError) {
@@ -163,13 +173,17 @@ cron.schedule('* * * * *', async () => {
             )
           }
         } else {
-          console.log(`No email address found for student: ${student.login}`)
+          console.log(`No email address found for student: ${student.fullName}`)
         }
+      } else {
+        console.log(
+          `Student ${student.fullName} has postulated successfully for at least one internship.`,
+        )
       }
     }
   } catch (error) {
     console.error(
-      'Error occurred while checking for students without uploaded documents:',
+      'Error occurred while checking for students without postulations:',
       error,
     )
   }

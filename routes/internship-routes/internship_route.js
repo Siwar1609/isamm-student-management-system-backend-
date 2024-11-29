@@ -5,6 +5,7 @@ import {
   getInternshipById,
   deleteInternship,
 } from '../../controllers/internship-period-controller/internship_controller.js'
+import { getAllStudents } from '../../controllers/internship-period-controller/students_info.js'
 import express from 'express'
 
 import { isAdmin } from '../../middlewares/users-middlewares/auth_controller.js' //
@@ -16,5 +17,7 @@ router.put('/:id', isAdmin, updateInternship)
 router.get('/:id', isAdmin, getInternshipById)
 router.get('/', isAdmin, getAllInternships)
 router.delete('/:id', isAdmin, deleteInternship)
+
+router.get('/students/all', isAdmin, getAllStudents)
 
 export default router
