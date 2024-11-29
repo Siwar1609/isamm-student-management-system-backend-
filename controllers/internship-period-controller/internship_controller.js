@@ -3,7 +3,7 @@ import Document from '../../models/document-models/document_model.js'
 
 export const addInternship = async (req, res) => {
   try {
-    const { startDate, endDate } = req.body
+    const { startDate, endDate, name } = req.body
 
     // Validate that the start date is before the end date
     if (new Date(startDate) >= new Date(endDate)) {
@@ -13,10 +13,35 @@ export const addInternship = async (req, res) => {
       })
     }
 
-    // Create a new internship period
+    // Check if an internship with the same date range already exists
+    const existingInternship = await Internship.findOne({
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+    })
+
+    if (existingInternship) {
+      return res.status(400).json({
+        message: 'An internship with the same date range already exists.',
+      })
+    }
+
+    // Determine the status
+    const today = new Date()
+    let status
+    if (today > new Date(endDate)) {
+      status = 'ended'
+    } else if (today >= new Date(startDate)) {
+      status = 'active'
+    } else {
+      status = 'pending'
+    }
+
+    // Create the internship
     const newInternship = await Internship.create({
+      name,
       startDate,
       endDate,
+      status,
     })
 
     res.status(201).json({
@@ -24,17 +49,17 @@ export const addInternship = async (req, res) => {
       message: 'Internship period successfully added!',
     })
   } catch (error) {
+    console.error('Error during addInternship:', error)
     res.status(400).json({
       error: error.message,
       message: 'Error adding internship period',
     })
   }
 }
-
 export const updateInternship = async (req, res) => {
   try {
     const internshipId = req.params.id
-    const { startDate, endDate, ...otherUpdates } = req.body
+    const { startDate, endDate, name, ...otherUpdates } = req.body
 
     // Find the internship by ID
     const existingInternship = await Internship.findById(internshipId)
@@ -50,10 +75,37 @@ export const updateInternship = async (req, res) => {
       })
     }
 
+    // Check if an internship with the same date range already exists (excluding the current one)
+    if (startDate && endDate) {
+      const duplicateInternship = await Internship.findOne({
+        _id: { $ne: internshipId }, // Exclude the current internship
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+      })
+
+      if (duplicateInternship) {
+        return res.status(400).json({
+          message: 'An internship with the same date range already exists.',
+        })
+      }
+    }
+
     // Update fields
     if (startDate) existingInternship.startDate = new Date(startDate)
     if (endDate) existingInternship.endDate = new Date(endDate)
+    if (name) existingInternship.name = name
+
     Object.assign(existingInternship, otherUpdates)
+
+    // Update the status based on the updated dates
+    const today = new Date()
+    if (today > new Date(existingInternship.endDate)) {
+      existingInternship.status = 'ended'
+    } else if (today >= new Date(existingInternship.startDate)) {
+      existingInternship.status = 'active'
+    } else {
+      existingInternship.status = 'pending'
+    }
 
     // Save the updated internship
     await existingInternship.save()
@@ -63,7 +115,7 @@ export const updateInternship = async (req, res) => {
       message: 'Internship successfully updated!',
     })
   } catch (error) {
-    console.error('Error during updateInternship:', error) // Log the error
+    console.error('Error during updateInternship:', error)
     res.status(400).json({
       error: error.message,
       message: 'Error updating internship',

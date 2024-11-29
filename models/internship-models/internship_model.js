@@ -10,6 +10,15 @@ const internshipSchema = mongoose.Schema({
     type: Date,
     required: true,
   },
+  status: {
+    type: String,
+    enum: ['ended', 'pending', 'active'],
+  },
+  name: {
+    type: String,
+    enum: ['PFA', 'PFE', 'Stage', 'option'], // Liste des options possibles
+    required: true,
+  },
 })
 
 export default mongoose.model('Internship', internshipSchema)
