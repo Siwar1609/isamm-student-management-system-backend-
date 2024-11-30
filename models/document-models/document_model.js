@@ -1,32 +1,29 @@
 import mongoose from 'mongoose'
 
-const documentSchema = mongoose.Schema({
-  name: {
+const document_Schema = mongoose.Schema({
+  id: {
+    type: string,
+    required: true,
+  },
+  type: {
     type: String,
+    enum: [
+      'rapport de stage',
+      'attestation de stage',
+      'affectation de stage',
+      'rapport de pfe',
+      'PV',
+    ],
     required: true,
   },
-  url: {
-    type: String,
+  link: {
+    type: string,
     required: true,
   },
-  uploadedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // References the student
+  current: {
+    type: Boolean,
     required: true,
-  },
-  internship: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Internship', // References the internship
-    required: true,
-  },
-  encadrant: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // References the encadrant (teacher)
-  },
-  uploadedAt: {
-    type: Date,
-    default: Date.now,
   },
 })
 
-export default mongoose.model('Document', documentSchema)
+export default mongoose.model('Document', document_Schema)
