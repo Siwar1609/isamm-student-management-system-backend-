@@ -2,7 +2,7 @@ import Joi from 'joi'
 
 // Définir le schéma Joi
 const periodValidator = Joi.object({
-  type: Joi.string()
+  name: Joi.string()
     .valid(
       'Dépôt des Sujet des PFA',
       'Choix sujet PFA',
@@ -30,7 +30,6 @@ const periodValidator = Joi.object({
       'date.greater':
         'La date de fin doit être postérieure à la date de début.',
     }),
-
   
 })
 

@@ -3,6 +3,8 @@ import mongoose from 'mongoose'
 import cors from 'cors'
 import routerAuth from './routes/users-routes/users_route.js'
 import dotenv from 'dotenv'
+import pfa_route from './routes/pfa-routes/pfa_routes.js'
+import pfa_period_route from './routes/period-routes/period_routes.js'
 
 dotenv.config()
 
@@ -22,6 +24,7 @@ mongoose
 app.use(cors())
 app.use(express.json())
 app.use('/api/auth', routerAuth)
-// app.use("/api/internship", loggedMiddleware, isAdmin, routerInternship);
 
+app.use('/api/v1/', pfa_route)
+app.use('/api/v1/', pfa_period_route)
 export default app

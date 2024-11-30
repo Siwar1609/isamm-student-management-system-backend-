@@ -1,6 +1,5 @@
 import mongoose from 'mongoose'
 import idValidator from 'mongoose-id-validator'
-import { setAcademicYear } from './utils/setAcademicYear'
 
 // Schéma PFA
 const PFA_Schema = mongoose.Schema({
@@ -50,6 +49,11 @@ const PFA_Schema = mongoose.Schema({
     default: false,
   },
   published: {
+    type: Boolean,
+    default: false,
+  },
+  // Au lieu de status 
+  rejected: {
     type: Boolean,
     default: false,
   },

@@ -1,8 +1,6 @@
-import mongoose from 'mongoose'
-
 const document_Schema = mongoose.Schema({
   id: {
-    type: string,
+    type: String,
     required: true,
   },
   type: {
@@ -17,7 +15,7 @@ const document_Schema = mongoose.Schema({
     required: true,
   },
   link: {
-    type: string,
+    type: String,
     required: true,
   },
   current: {
@@ -25,5 +23,3 @@ const document_Schema = mongoose.Schema({
     required: true,
   },
 })
-
-export default mongoose.model('Document', document_Schema)

@@ -1,6 +1,9 @@
 import User from '../../models/users-models/user_model.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 const JWT_SECRET = process.env.JWT_SECRET
 //signUp
