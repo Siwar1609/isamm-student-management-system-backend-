@@ -3,6 +3,8 @@ import mongoose from 'mongoose'
 import morgan from 'morgan'
 import cors from 'cors'
 import routerAuth from './routes/users-routes/auth_route.js'
+import routerSubject from './routes/subject-routes/subject.js'
+import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
 import dotenv from 'dotenv'
 import routerInternship from './routes/internship-routes/internship_route.js'
 import routerDocument from './routes/document-routes/document_route.js'
@@ -46,4 +48,6 @@ app.use('/api', loggedMiddleware, routerDocument)
 app.use('/PFE', gestionPFERoutes)
 app.use('/api/v1/', pfa_route)
 app.use('/api/v1/', pfa_period_route)
+app.use('/api/subject', routerSubject)
+app.use('/api/academicyear', routerAcademicYear)
 export default app
