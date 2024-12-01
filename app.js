@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import cors from 'cors'
 import routerAuth from './routes/users-routes/users_route.js'
 import routerSubject from './routes/subject-routes/subject.js'
+import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -25,4 +26,6 @@ app.use(express.json())
 app.use('/api/auth', routerAuth)
 // app.use("/api/internship", loggedMiddleware, isAdmin, routerInternship);
 app.use('/api/subject', routerSubject)
+app.use('/api/academicyear', routerAcademicYear)
+
 export default app
