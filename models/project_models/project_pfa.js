@@ -52,7 +52,7 @@ const PFA_Schema = mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  // Au lieu de status 
+  // Au lieu de status
   rejected: {
     type: Boolean,
     default: false,
