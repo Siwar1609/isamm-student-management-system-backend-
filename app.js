@@ -5,7 +5,8 @@ import routerAuth from './routes/users-routes/users_route.js'
 import routerSubject from './routes/subject-routes/subject.js'
 import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
 import dotenv from 'dotenv'
-
+import routerSkill from './routes/skill-routes/skill.js'
+import routerChapter from './routes/chapter-routes/chapter.js'
 dotenv.config()
 
 const DATABASE_URL = process.env.DATABASE_URL
@@ -27,5 +28,6 @@ app.use('/api/auth', routerAuth)
 // app.use("/api/internship", loggedMiddleware, isAdmin, routerInternship);
 app.use('/api/subject', routerSubject)
 app.use('/api/academicyear', routerAcademicYear)
-
+app.use('/api/skill', routerSkill)
+app.use('/api/chapter',routerChapter)
 export default app

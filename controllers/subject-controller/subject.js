@@ -101,6 +101,7 @@ export const deleteSubject = async (req, res) => {
   export const getSubjectbyID = async (req, res) => {
     try {
       const subject = await Subject.findOne({ _id: req.params.id })
+        .populate('chapId')
         .populate('skillId')
         .populate('curriculumId')
         .exec();

@@ -1,9 +1,9 @@
 import mongoose from 'mongoose'
 
 const ChapterSchema = new mongoose.Schema({
-    id: { type: Number, required: true },
-    ordre: { type: Number, required: true },
-    titre: { type: String, required: true },
+    
+    order: { type: Number, required: true },
+    title: { type: String, required: true },
     section: [
       {
         content: { type: String },

@@ -7,9 +7,12 @@ const SubjectSchema = new mongoose.Schema({
   description: { type: String, required: true },
   level: { type: Number, required: true },
   semester: { type: Number, required: true },
+  chapId:[{ type: mongoose.Schema.Types.ObjectId, ref: 'Chapter', required: true
+    
+  }],
   teacherId: { type: Number},
   skillId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Skill' }], // Reference to Skill
-  evaluation_matiereID: { type: Number },
+  Assesment_ID: { type: Number },
   published: { type: Boolean, default: false },
   academicYearId:[{ type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYear', required: true
     

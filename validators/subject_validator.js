@@ -9,8 +9,7 @@ const subjectValidator = Joi.object({
   description: Joi.string().min(10).max(500).required().messages({
     "any.required": 'Le champ "description" est obligatoire.',
     "string.min": 'Le champ "description" doit avoir au moins 10 caractères.',
-    "string.max":
-      'Le champ "description" doit avoir au maximum 500 caractères.',
+    "string.max": 'Le champ "description" doit avoir au maximum 500 caractères.',
   }),
   level: Joi.number().integer().min(1).max(5).required().messages({
     "any.required": 'Le champ "level" est obligatoire.',
@@ -19,24 +18,24 @@ const subjectValidator = Joi.object({
   }),
   semester: Joi.number().integer().min(1).max(2).required().messages({
     "any.required": 'Le champ "semester" est obligatoire.',
-    "number.min":
-      'Le champ "semester" doit être un entier supérieur ou égal à 1.',
-    "number.max":
-      'Le champ "semester" doit être un entier inférieur ou égal à 2.',
+    "number.min": 'Le champ "semester" doit être un entier supérieur ou égal à 1.',
+    "number.max": 'Le champ "semester" doit être un entier inférieur ou égal à 2.',
   }),
-  teacherId: Joi.number().integer().messages({
-    "number.integer": 'Le champ "teacherId" doit être un entier.',
-  }),
+  teacherId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .optional()
+    .messages({
+      "string.pattern.base":
+        'Le champ "teacherId" doit être un identifiant valide.',
+    }),
   skillId: Joi.array()
     .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional()
     .messages({
-      "array.items":
-        'Le champ "skillId" doit être un tableau d\'identifiants valides.',
+      "array.items": 'Le champ "skillId" doit contenir des identifiants valides.',
     }),
   evaluation_matiereID: Joi.number().optional().messages({
-    "number.base":
-      'Le champ "evaluation_matiereID" doit être un nombre valide.',
+    "number.base": 'Le champ "evaluation_matiereID" doit être un nombre valide.',
   }),
   published: Joi.boolean().optional().messages({
     "boolean.base": 'Le champ "published" doit être un booléen valide.',
@@ -55,6 +54,13 @@ const subjectValidator = Joi.object({
       "string.pattern.base":
         'Le champ "academicYearId" doit être un identifiant valide.',
       "any.required": 'Le champ "academicYearId" est obligatoire.',
+    }),
+  chapId: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+    .optional()
+    .messages({
+      "array.base": 'Le champ "chapId" doit être un tableau.',
+      "array.items": 'Chaque élément du champ "chapId" doit être un identifiant valide.',
     }),
 });
 
