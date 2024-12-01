@@ -1,4 +1,4 @@
-import Internship from '../../models/internship-models/internship_model.js'
+import Internship from '../../models/internship-models/internship_period_model.js'
 import Document from '../../models/document-models/document_model.js'
 import User from '../../models/users-models/user_model.js'
 import cron from 'node-cron'
@@ -15,11 +15,29 @@ export const addStudentDocument = async (req, res) => {
     const { name, url, encadrant } = req.body
     const studentId = req.auth.userId
 
+    // Find the internship and check if it exists
     const internship = await Internship.findById(internshipId)
     if (!internship) {
       return res.status(404).json({ message: 'Internship not found' })
     }
 
+    // Check if the student's level matches the internship's level
+    const student = await User.findById(studentId)
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    if (student.role === 'student') {
+      // Check if the internship's level matches the student's level
+      if (internship.level !== student.level) {
+        return res.status(403).json({
+          message:
+            'You cannot postulate for this internship because the level does not match.',
+        })
+      }
+    }
+
+    // Check if the current date is within the internship period
     const currentDate = new Date()
     if (currentDate > new Date(internship.endDate)) {
       return res.status(403).json({
@@ -27,17 +45,20 @@ export const addStudentDocument = async (req, res) => {
           'You cannot upload documents after the internship period has ended.',
       })
     }
+
+    // Validate the encadrant (teacher) if provided
     let encadrantUser = null
     if (encadrant) {
       encadrantUser = await User.findById(encadrant)
       console.log('Encadrant Found:', encadrantUser)
-      if (!encadrantUser || encadrantUser.role !== 'enseignant') {
+      if (!encadrantUser || encadrantUser.role !== 'teacher') {
         return res
           .status(400)
           .json({ message: 'Invalid encadrant ID provided.' })
       }
     }
 
+    // Prepare the document payload
     const documentPayload = {
       name,
       url,
@@ -48,6 +69,7 @@ export const addStudentDocument = async (req, res) => {
 
     console.log('Document Payload:', documentPayload)
 
+    // Create the document and save it to the database
     const newDocument = await Document.create(documentPayload)
 
     res.status(201).json({
@@ -69,7 +91,7 @@ export const getAllDocuments = async (req, res) => {
     const documents = await Document.find()
       .populate('uploadedBy', 'login fullName email') // Populate student details
       .populate('internship', 'startDate endDate') // Populate internship period
-      .populate('encadrant', 'fullName email role') // Populate encadrant details (only specific fields)
+      .populate('encadrant', 'fullName email') // Populate encadrant details (only specific fields)
       .exec() // Execute the query
 
     if (!documents || documents.length === 0) {

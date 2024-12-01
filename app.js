@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import cors from 'cors'
 import routerAuth from './routes/users-routes/users_route.js'
 import dotenv from 'dotenv'
-import routerInternship from './routes/internship-routes/internship_route.js'
+import routerInternship from './routes/internship-routes/internship_period_route.js'
 import routerDocument from './routes/document-routes/document_route.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_controller.js'
 

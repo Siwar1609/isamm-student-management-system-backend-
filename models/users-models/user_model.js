@@ -24,13 +24,23 @@ const userSchema = mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'enseignant', 'etudiant'],
-    default: 'etudiant',
+    enum: ['admin', 'teacher', 'student'],
+    default: 'student',
   },
 
   fullName: {
     type: String,
     required: true,
+  },
+
+  level: {
+    type: String,
+    enum: ['1st year', '2nd year'],
+    required: function () {
+      // Only require the level field if the role is 'student'
+      return this.role === 'student'
+    },
+    message: 'Level is required for students only.',
   },
 })
 

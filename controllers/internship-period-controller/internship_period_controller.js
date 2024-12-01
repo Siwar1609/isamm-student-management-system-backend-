@@ -1,4 +1,4 @@
-import Internship from '../../models/internship-models/internship_model.js'
+import Internship from '../../models/internship-models/internship_period_model.js'
 import Document from '../../models/document-models/document_model.js'
 
 export const addInternship = async (req, res) => {
@@ -38,7 +38,6 @@ export const addInternship = async (req, res) => {
 
     // Create the internship
     const newInternship = await Internship.create({
-      name,
       startDate,
       endDate,
       status,
@@ -56,10 +55,11 @@ export const addInternship = async (req, res) => {
     })
   }
 }
+
 export const updateInternship = async (req, res) => {
   try {
     const internshipId = req.params.id
-    const { startDate, endDate, name, ...otherUpdates } = req.body
+    const { startDate, endDate, ...otherUpdates } = req.body
 
     // Find the internship by ID
     const existingInternship = await Internship.findById(internshipId)
@@ -93,7 +93,6 @@ export const updateInternship = async (req, res) => {
     // Update fields
     if (startDate) existingInternship.startDate = new Date(startDate)
     if (endDate) existingInternship.endDate = new Date(endDate)
-    if (name) existingInternship.name = name
 
     Object.assign(existingInternship, otherUpdates)
 

@@ -14,9 +14,9 @@ const internshipSchema = mongoose.Schema({
     type: String,
     enum: ['ended', 'pending', 'active'],
   },
-  name: {
+  level: {
     type: String,
-    enum: ['PFA', 'PFE', 'Stage', 'option'], // Liste des options possibles
+    enum: ['1st year', '2nd year'], // Academic levels
     required: true,
   },
 })
