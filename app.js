@@ -9,6 +9,7 @@ import routerDocument from './routes/document-routes/document_route.js'
 import usersRouter from './routes/users-routes/users_route.js'
 import studentsRouter from './routes/users-routes/students_route.js'
 import teachersRouter from './routes/users-routes/teachers_route.js'
+import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_controller.js'
 
 dotenv.config()
@@ -40,4 +41,5 @@ app.use('/api/students', studentsRouter)
 app.use('/api/auth', routerAuth)
 app.use('/api/internship', loggedMiddleware, routerInternship)
 app.use('/api', loggedMiddleware, routerDocument)
+app.use('/PFE', gestionPFERoutes)
 export default app
