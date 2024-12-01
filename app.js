@@ -11,6 +11,8 @@ import studentsRouter from './routes/users-routes/students_route.js'
 import teachersRouter from './routes/users-routes/teachers_route.js'
 import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_controller.js'
+import pfa_route from './routes/pfa-routes/pfa_routes.js'
+import pfa_period_route from './routes/period-routes/period_routes.js'
 
 dotenv.config()
 
@@ -42,4 +44,6 @@ app.use('/api/auth', routerAuth)
 app.use('/api/internship', loggedMiddleware, routerInternship)
 app.use('/api', loggedMiddleware, routerDocument)
 app.use('/PFE', gestionPFERoutes)
+app.use('/api/v1/', pfa_route)
+app.use('/api/v1/', pfa_period_route)
 export default app

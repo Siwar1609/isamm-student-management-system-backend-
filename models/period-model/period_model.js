@@ -19,12 +19,6 @@ const PeriodSchema = new mongoose.Schema({
   end_date: {
     type: Date,
     required: true,
-    validate: {
-      validator: function (value) {
-        return value > this.start_date // Vérifie que end_date est après start_date
-      },
-      message: 'La date de fin doit être supérieure à la date de début.',
-    },
   },
 })
 

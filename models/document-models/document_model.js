@@ -1,5 +1,3 @@
-import mongoose from 'mongoose'
-
 const document_Schema = mongoose.Schema({
   id: {
     type: String,
@@ -25,5 +23,3 @@ const document_Schema = mongoose.Schema({
     required: true,
   },
 })
-
-export default mongoose.model('Document', document_Schema)
