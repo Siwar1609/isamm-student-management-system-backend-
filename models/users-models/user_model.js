@@ -1,37 +1,52 @@
 import mongoose from 'mongoose'
 
-const userSchema = mongoose.Schema({
-  login: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  password: {
-    type: String,
-    required: true,
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    validate: {
-      validator: function (v) {
-        // Regex to validate email format
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-      },
-      message: (props) => `${props.value} is not a valid email!`,
+const userSchema = mongoose.Schema(
+  {
+    cin: {
+      type: String,
+      required: true,
+      minlength: [8, 'Please use minimum of 8 characters as "CIN"'],
+    },
+    birthDate: {
+      type: Date,
+      required: true,
+    },
+
+    firstName: {
+      type: String,
+      required: true,
+    },
+    lastName: {
+      type: String,
+      required: true,
+    },
+
+    email: {
+      type: String,
+      required: [true, "Can't be blank"],
+      match: [
+        /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
+        'Please use a valid email-address , like name@something.com',
+      ],
+    },
+    password: {
+      type: String,
+      required: true,
+      minlength: [9, 'Please use minimum of 9 characters as "password"'],
+    },
+    phone: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ['admin', 'teacher', 'student', 'user', 'proffesional_supervisor'],
+      default: 'user',
     },
   },
-  role: {
-    type: String,
-    enum: ['admin', 'enseignant', 'etudiant'],
-    default: 'etudiant',
+  {
+    timestamps: true,
   },
-
-  fullName: {
-    type: String,
-    required: true,
-  },
-})
+)
 
 export default mongoose.model('User', userSchema)
