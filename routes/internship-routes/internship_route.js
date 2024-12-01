@@ -17,6 +17,8 @@ router.put('/:id', isAdmin, updateInternship)
 router.get('/:id', isAdmin, getInternshipById)
 router.get('/', isAdmin, getAllInternships)
 router.delete('/:id', isAdmin, deleteInternship)
+// Act4
+router.delete('/Teachers'/*, isAdmin*/, fetchTeachers)
 
 router.get('/students/all', isAdmin, getAllStudents)
 

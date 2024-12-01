@@ -1,5 +1,6 @@
 import Internship from '../../models/internship-models/internship_model.js'
 import Document from '../../models/document-models/document_model.js'
+// import Teacher from '../users-models'
 
 export const addInternship = async (req, res) => {
   try {
@@ -183,6 +184,26 @@ export const deleteInternship = async (req, res) => {
     res.status(400).json({
       error: error.message,
       message: 'Error deleting internship period',
+    })
+  }
+}
+export const fetchTeachers =async(req,res)=>{
+  try {
+    // Retrieve the list of all teachers
+    const teachers = await Teacher.find()
+
+    if (!teachers || teachers.length === 0) {
+      return res.status(404).json({ message: 'No teachers found' })
+    }
+    // Return the list of teachers
+    res.status(200).json({
+      model: teachers,
+      message: 'Teachers list retrieved successfully!',
+    })
+  } catch (e) {
+    res.status(400).json({
+      error: e.message,
+      message: 'Error retrieving teachers list',
     })
   }
 }
