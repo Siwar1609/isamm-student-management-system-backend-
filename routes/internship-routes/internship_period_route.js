@@ -4,7 +4,7 @@ import {
   getAllInternships,
   getInternshipById,
   deleteInternship,
-} from '../../controllers/internship-period-controller/internship_controller.js'
+} from '../../controllers/internship-period-controller/internship_period_controller.js'
 import { getAllStudents } from '../../controllers/internship-period-controller/students_info.js'
 import express from 'express'
 
@@ -12,8 +12,8 @@ import { isAdmin } from '../../middlewares/users-middlewares/auth_controller.js'
 
 const router = express.Router()
 
-router.post('/add', isAdmin, addInternship)
-router.put('/:id', isAdmin, updateInternship)
+router.post('/open', isAdmin, addInternship)
+router.put('/:id/open', isAdmin, updateInternship)
 router.get('/:id', isAdmin, getInternshipById)
 router.get('/', isAdmin, getAllInternships)
 router.delete('/:id', isAdmin, deleteInternship)

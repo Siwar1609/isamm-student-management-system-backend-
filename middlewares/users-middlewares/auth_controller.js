@@ -56,7 +56,7 @@ export const isAdmin = (req, res, next) => {
 
 export const isStudent = (req, res, next) => {
   try {
-    if (req.auth.role === 'etudiant') {
+    if (req.auth.role === 'student') {
       next()
     } else {
       res.status(403).json({ error: 'no access to this route' })
@@ -68,7 +68,7 @@ export const isStudent = (req, res, next) => {
 
 export const isTeacher = (req, res, next) => {
   try {
-    if (req.auth.role === 'enseignant') {
+    if (req.auth.role === 'teacher') {
       next()
     } else {
       res.status(403).json({ error: 'no access to this route' })

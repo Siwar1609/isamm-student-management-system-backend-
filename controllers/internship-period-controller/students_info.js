@@ -1,11 +1,11 @@
-import Internship from '../../models/internship-models/internship_model.js'
+import Internship from '../../models/internship-models/internship_period_model.js'
 import Document from '../../models/document-models/document_model.js'
 import User from '../../models/users-models/user_model.js'
 
 export const getAllStudents = async (req, res) => {
   try {
     // Find all users with the role 'etudiant'
-    const students = await User.find({ role: 'etudiant' })
+    const students = await User.find({ role: 'student' })
       .select('fullName email login') // Select specific fields to return
       .exec()
 
