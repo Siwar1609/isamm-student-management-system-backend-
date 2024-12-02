@@ -247,4 +247,48 @@ export const assignTeacherToInternship = async (req, res) => {
   }
 };
 
+export const updateTeacherForInternship = async (req, res) => {
+  try {
+    const { type } = req.params; // Retrieve the internship level (1 or 2)
+    const { internshipId, teacherId } = req.body; // Get the internship ID and teacher ID from the request body
+
+    // Step 1: Find the internship by its ID and check the level
+    const internship = await Internship.findOne({ 
+      _id: internshipId, 
+      level: parseInt(type, 10) 
+    });
+
+    if (!internship) {
+      return res.status(404).json({ message: "Internship not found or does not match the specified level." });
+    }
+
+    // Step 2: Check if the teacher exists
+    const teacher = await Teacher.findById(teacherId);
+
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found." });
+    }
+
+    // Step 3: Assign the teacher to the internship
+    internship.teacherId = teacher._id;
+
+    // Step 4: Save the updated internship
+    await internship.save(); // Save the changes to the internship document
+
+    // Step 5: Update the teacher's internships list (optional)
+    teacher.internships.push(internship._id); // Add the internship to the teacher's list
+    await teacher.save(); // Save the teacher's updated record
+
+    // Success response
+    res.status(200).json({
+      message: "Teacher successfully assigned to the internship.",
+      internship: internship,
+    });
+  } catch (error) {
+    console.error("Error assigning teacher to internship:", error);
+    res.status(500).json({ error: "An error occurred." });
+  }
+};
+
+
 

@@ -5,6 +5,7 @@ import {
   getInternshipById,
   deleteInternship,
   assignTeacherToInternship,
+  updateTeacherForInternship,
 } from '../../controllers/internship-period-controller/internship_controller.js'
 import { getAllStudents } from '../../controllers/internship-period-controller/students_info.js'
 import express from 'express'
@@ -20,6 +21,8 @@ router.get('/', isAdmin, getAllInternships)
 router.delete('/:id', isAdmin, deleteInternship)
 // Act4
 router.post('/:type/planning/assign ', isAdmin, assignTeacherToInternship)
+router.patch('/:type/planning/update ', isAdmin, updateTeacherForInternship)
+
 
 router.get('/students/all', isAdmin, getAllStudents)
 
