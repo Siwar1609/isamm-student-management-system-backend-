@@ -1,5 +1,8 @@
 import Internship from '../../models/internship-models/internship_model.js'
 import Document from '../../models/document-models/document_model.js'
+import Teacher from '../../models/users-models/teacher_model.js'
+
+
 // import Teacher from '../users-models'
 
 export const addInternship = async (req, res) => {
