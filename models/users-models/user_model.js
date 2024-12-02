@@ -6,6 +6,8 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
       minlength: [8, 'Please use minimum of 8 characters as "CIN"'],
+      maxlength: [8, 'Please use maximum of 8 characters as "CIN"'],
+      unique: true,
     },
     birthDate: {
       type: Date,

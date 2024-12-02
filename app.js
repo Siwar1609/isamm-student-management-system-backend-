@@ -12,7 +12,10 @@ import usersRouter from './routes/users-routes/users_route.js'
 import studentsRouter from './routes/users-routes/students_route.js'
 import teachersRouter from './routes/users-routes/teachers_route.js'
 import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
-import { loggedMiddleware } from './middlewares/users-middlewares/auth_controller.js'
+import {
+  accessByRole,
+  loggedMiddleware,
+} from './middlewares/users-middlewares/auth_controller.js'
 import pfa_route from './routes/pfa-routes/pfa_routes.js'
 import pfa_period_route from './routes/period-routes/period_routes.js'
 
@@ -40,11 +43,11 @@ app.get('/', (req, res) => {
 })
 
 app.use('/api/accounts', usersRouter)
-app.use('/api/teachers', teachersRouter)
 app.use('/api/students', studentsRouter)
 app.use('/api/auth', routerAuth)
 app.use('/api/internship', loggedMiddleware, routerInternship)
 app.use('/api', loggedMiddleware, routerDocument)
+app.use('/api/teachers', loggedMiddleware, teachersRouter)
 app.use('/PFE', gestionPFERoutes)
 app.use('/api/v1/', pfa_route)
 app.use('/api/v1/', pfa_period_route)
