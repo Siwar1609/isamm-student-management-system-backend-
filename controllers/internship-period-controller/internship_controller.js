@@ -207,3 +207,9 @@ export const fetchTeachers =async(req,res)=>{
     })
   }
 }
+
+export const assignTeacherToInternship =(req,res)=>{
+
+  console.log("body:", req.body);
+  
+}
