@@ -10,7 +10,7 @@ import {
   choosePFE,
   getPFEDetailsForStudent,
 } from '../../controllers/pfe-controller/pfe_controller.js'
-
+import {loggedMiddleware,isTeacher,isAdmin} from "../../middlewares/users-middlewares/auth_controller.js";
 const router = express.Router()
 
 // Endpoint pour ouvrir une période de dépôt PFE:
@@ -25,7 +25,7 @@ router.patch('/:id', updatePFE)
 router.post('/post', addPFE)
 
 //route pour recuperer tous les pfe
-router.get('/', getPFEDetailsForStudent)
+router.get('/',loggedMiddleware,isTeacher, getPFEDetailsForStudent)
 // Endpoint pour qu'un enseignant choisisse un PFE
 router.patch('/:id/choice', choosePFE)
 

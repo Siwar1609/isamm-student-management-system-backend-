@@ -1,7 +1,7 @@
 import Period from '../../models/period-model/period_model.js'
 import PFE from '../../models/project_models/project_pfe.js'
-
-import { validatePFEPeriod } from '../../validators/periodValidation.js'
+import Student from '../../models/users-models/student_model.js'
+import  {pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
 import { updatePFEValidation } from '../../validators/updatepfeValidation.js'
 
 // Ajouter un PFE
@@ -19,21 +19,23 @@ export const addPFE = async (req, res) => {
       academicYear,
       documentId,
       periodId,
-    } = req.body
+    } = req.body;
+
     // Validation des données du corps de la requête
-    const { error } = validatePFEPeriod.validate(req.body)
+    const { error } = pfeValidationSchema.validate(req.body);
     if (error) {
-      return res.status(400).json({ message: error.details[0].message })
+      return res.status(400).json({ message: error.details[0].message });
     }
+
     // Vérifier si la période est ouverte
-    const period = await Period.findById(req.body.periodId)
+    const period = await Period.findById(req.body.periodId);
     if (!period) {
-      return res.status(404).json({ message: 'Période non trouvée' })
+      return res.status(404).json({ message: '❌ Période non trouvée.' });
     }
     if (period.start_date > new Date()) {
       return res
         .status(400)
-        .json({ message: "La période de dépôt n'est pas encore ouverte." })
+        .json({ message: "⏳ La période de dépôt n'est pas encore ouverte." });
     }
 
     // Créer un nouveau PFE
@@ -49,19 +51,28 @@ export const addPFE = async (req, res) => {
       academicYear,
       documentId,
       periodId,
-    })
+    });
 
     // Sauvegarder le PFE dans la base de données
-    const savedPFE = await newPFE.save()
+    const savedPFE = await newPFE.save();
 
-    return res
-      .status(201)
-      .json({ message: 'PFE ajouté avec succès', pfe: savedPFE })
+    // Populate les champs studentId, documentId, et periodId
+    const populatedPFE = await PFE.findById(savedPFE._id)
+      .populate('studentId')
+      .populate('teacherId', 'firstName lastName email cv') 
+      .populate('documentId') 
+      .populate('periodId', 'name start_date end_date')// récupérer le nom et les dates de la période
+      .populate('academicYear');
+
+    return res.status(201).json({
+      message: '✅ PFE ajouté avec succès 🎉.',
+      pfe: populatedPFE,
+    });
   } catch (err) {
-    console.error(err)
-    return res.status(500).json({ message: 'Erreur du serveur' })
+    console.error(err);
+    return res.status(500).json({ message: '❗ Erreur du serveur.', error: err.message });
   }
-}
+};
 
 // Méthode pour mettre à jour un PFE
 export const updatePFE = async (req, res) => {
@@ -126,17 +137,14 @@ export const getPFEDetailsForStudent = async (req, res) => {
             message: 'Aucun PFE trouvé pour cet étudiant.',
           }
         }
+        console.log(student);
+        console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+        console.log(pfeDetails);
+        console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         return {
-          student: student.name,
-          pfeTitle: pfeDetails.title,
-          company: pfeDetails.company_name,
-          description: pfeDetails.description,
-          date_of_submission: pfeDetails.createdAt,
-          affected: pfeDetails.affected,
-          teacher: pfeDetails.teacherId
-            ? pfeDetails.teacherId.name
-            : 'Non affecté',
+          student: student,
+          pfeDetails: pfeDetails,          
         }
       }),
     )

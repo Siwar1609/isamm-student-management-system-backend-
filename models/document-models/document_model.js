@@ -1,10 +1,6 @@
 import mongoose from 'mongoose'
 
 const document_Schema = mongoose.Schema({
-  id: {
-    type: String,
-    required: true,
-  },
   type: {
     type: String,
     enum: [
