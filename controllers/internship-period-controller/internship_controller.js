@@ -193,12 +193,12 @@ export const deleteInternship = async (req, res) => {
 
 export const assignTeacherToInternship = async (req, res) => {
   try {
-    const { type } = req.params; // Retrieve type of the internship(1 ou 2)
+    const { level } = req.params; // Retrieve level of the internship(1 ou 2)
     const { teacherIds } = req.body; // List of IDs teachers
 
     // first step 1 : found internships not  already assigned for a level
     const internships = await Internship.find({
-      level: parseInt(type, 10),
+      level: parseInt(level, 10),
       teacherId: null,
     });
 
@@ -249,13 +249,13 @@ export const assignTeacherToInternship = async (req, res) => {
 
 export const updateTeacherForInternship = async (req, res) => {
   try {
-    const { type } = req.params; // Retrieve the internship level (1 or 2)
+    const { level } = req.params; // Retrieve the internship level (1 or 2)
     const { internshipId, teacherId } = req.body; // Get the internship ID and teacher ID from the request body
 
     // Step 1: Find the internship by its ID and check the level
     const internship = await Internship.findOne({ 
       _id: internshipId, 
-      level: parseInt(type, 10) 
+      level: parseInt(level, 10) 
     });
 
     if (!internship) {
