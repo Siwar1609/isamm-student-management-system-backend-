@@ -191,8 +191,60 @@ export const deleteInternship = async (req, res) => {
   }
 }
 
-export const assignTeacherToInternship =(req,res)=>{
+export const assignTeacherToInternship = async (req, res) => {
+  try {
+    const { type } = req.params; // Retrieve type of the internship(1 ou 2)
+    const { teacherIds } = req.body; // List of IDs teachers
 
-  console.log("body:", req.body);
-  
-}
+    // first step 1 : found internships not  already assigned for a level
+    const internships = await Internship.find({
+      level: parseInt(type, 10),
+      teacherId: null,
+    });
+
+    if (internships.length === 0) {
+      return res.status(404).json({ message: "there is no internship in this level" });
+    }
+
+    // step 2 : Retrieve teachers by their IDs
+    const teachers = await Teacher.find({ _id: { $in: teacherIds } });
+
+    if (teachers.length === 0) {
+      return res.status(404).json({ message: "No teacher found with these IDs" });
+    }
+
+    // Step 3: Calculate the proportion based on the number of subjects taught
+    const totalSubjects = teachers.reduce((acc, teacher) => acc + teacher.subjects.length, 0);
+    const assignments = {};
+    // Iterate through the teachers to calculate their maximum assignments
+    teachers.forEach(teacher => {
+      const maxAssignments = Math.round((teacher.subjects.length / totalSubjects) * internships.length);
+      assignments[teacher._id] = { maxAssignments, assigned: 0 };
+    });
+
+    // Step 4: Assign internships to teachers
+    for (const internship of internships) {
+      const availableTeacher = teachers.find(teacher =>
+        assignments[teacher._id].assigned < assignments[teacher._id].maxAssignments
+      );
+
+      if (availableTeacher) {
+        internship.teacherId = availableTeacher._id; // Assign the teacher
+        await internship.save(); // Save the updated internship in the database--> only the field teacher_id change
+
+        assignments[availableTeacher._id].assigned += 1;// number of assigned internship
+      }
+    }
+
+    // Success response
+    res.status(200).json({
+      message: "Internships successfully assigned..",
+      details: assignments,
+    });
+  } catch (error) {
+    console.error("Error assigning internships:", error);
+    res.status(500).json({ error: "An error occurred." });
+  }
+};
+
+
