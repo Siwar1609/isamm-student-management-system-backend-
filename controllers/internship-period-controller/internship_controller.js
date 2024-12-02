@@ -290,5 +290,41 @@ export const updateTeacherForInternship = async (req, res) => {
   }
 };
 
+export const publishOrUnpublishInternshipPlanning = async (req, res) => {
+  try {
+    const { type, response } = req.params; // Extract internship level and publish action
+
+    // Step 1: Validate the response parameter ('publish' or 'unpublish')
+    const publishStatus = response === "publish" ? true : response === "unpublish" ? false : null;
+
+    if (publishStatus === null) {
+      return res.status(400).json({ message: "Invalid response. Use 'publish' or 'unpublish'." });
+    }
+
+    // Step 2: Find and update internships of the specified level
+    const result = await Internship.updateMany(
+      { level: parseInt(type, 10) }, // Filter by internship level
+      { $set: { published: publishStatus } } // Update the `published` field
+    );
+
+    // Step 3: Check if any documents were updated
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({ message: "No internships found for the specified level." });
+    }
+
+    // Step 4: Respond with a success message
+    res.status(200).json({
+      message: `Internship planning successfully ${response === "publish" ? "published" : "unpublished"}.`,
+      details: {
+        updatedCount: result.modifiedCount,
+      },
+    });
+  } catch (error) {
+    console.error("Error publishing/unpublishing internship planning:", error);
+    res.status(500).json({ error: "An error occurred." });
+  }
+};
+
+
 
 
