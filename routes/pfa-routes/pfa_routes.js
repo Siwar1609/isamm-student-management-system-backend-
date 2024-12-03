@@ -13,6 +13,7 @@ import {
   fetch_my_pfa,
   fetch_my_pfa_byId,
   get_pfa_ByID,
+  publish_pfa,
   update_my_pfa,
   update_pfa,
 } from '../../controllers/pfa-controller/pfa_controller.js'
@@ -20,7 +21,7 @@ import {
 const pfa_route = express.Router()
 
 //-------- Teacher Routes -----------------
-pfa_route.post('/pfa/post', isTeacher, add_my_pfa)
+pfa_route.post('/pfa/post', isTeacher,loggedMiddleware, add_my_pfa)
 pfa_route.get('/pfa/mine', isTeacher , fetch_my_pfa)
 pfa_route.get('/pfa/mine/:id', isTeacher, fetch_my_pfa_byId)
 pfa_route.patch('/pfa/:id/mine', isTeacher , update_my_pfa)
@@ -31,6 +32,7 @@ pfa_route.get('/pfa', isAdmin, fetch_all_pfa)
 pfa_route.get('/pfa/:id', isAdmin, get_pfa_ByID)
 pfa_route.patch('/pfa/:id', isAdmin, update_pfa)
 pfa_route.post('/pfa/post', isAdmin, add_my_pfa)
+pfa_route.patch('/pfa/publish/:response', isAdmin, publish_pfa)
 
 
 export default pfa_route
