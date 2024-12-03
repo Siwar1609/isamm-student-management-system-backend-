@@ -7,17 +7,16 @@ import {
 } from '../../controllers/internship-period-controller/internship_period_controller.js'
 import { getAllStudents } from '../../controllers/internship-period-controller/students_info.js'
 import express from 'express'
-
-import { isAdmin } from '../../middlewares/users-middlewares/auth_controller.js' //
+import { accessByRole } from '../../middlewares/users-middlewares/auth_controller.js'
 
 const router = express.Router()
 
-router.post('/open', isAdmin, addInternship)
-router.put('/:id/open', isAdmin, updateInternship)
-router.get('/:id', isAdmin, getInternshipById)
-router.get('/', isAdmin, getAllInternships)
-router.delete('/:id', isAdmin, deleteInternship)
+router.post('/open', accessByRole(['admin']), addInternship)
+router.put('/:id/open', accessByRole(['admin']), updateInternship)
+router.get('/:id', accessByRole(['admin']), getInternshipById)
+router.get('/', accessByRole(['admin']), getAllInternships)
+router.delete('/:id', accessByRole(['admin']), deleteInternship)
 
-router.get('/students/all', isAdmin, getAllStudents)
+router.get('/students/all', accessByRole(['admin']), getAllStudents)
 
 export default router
