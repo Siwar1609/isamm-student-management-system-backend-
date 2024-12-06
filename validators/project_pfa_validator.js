@@ -64,6 +64,11 @@ const PFAValidator = Joi.object({
     'boolean.base': 'Le champ "published" doit être un booléen.',
   }),
 
+  rejected: Joi.boolean().default(false).messages({
+    'boolean.base': 'Le champ "rejected" doit être un booléen.',
+  }),
+
+
   academicyear: Joi.string()
     .regex(/^[0-9a-fA-F]{24}$/) // Format ObjectId
     .required()

@@ -3,11 +3,7 @@ import user_model from './user_model'
 
 const adminSchema = mongoose.Schema(
   {
-    userID: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
+
     role: {
       type: String,
       enum: ['admin'],

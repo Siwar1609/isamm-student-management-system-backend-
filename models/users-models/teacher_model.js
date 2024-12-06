@@ -12,6 +12,18 @@ const teacherSchme = mongoose.Schema(
       type: String,
       required: true,
     },
+    subjects: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Subject', // Référence à un modèle Subject (optionnel)
+      },
+    ],
+    internships: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Internship', // Liste des stages encadrés
+      },
+    ],
   },
   {
     timestamps: true,
