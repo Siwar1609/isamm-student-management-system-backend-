@@ -1,12 +1,12 @@
 import mongoose from 'mongoose'
 
 const InternshipSchema = new mongoose.Schema({
-  id: {
+  title: {
     type: String,
     required: true,
   },
-  periodeOuverte: {
-    type: Boolean,
+  description: {
+    type: String,
     required: true,
   },
   startDate: {
@@ -24,23 +24,21 @@ const InternshipSchema = new mongoose.Schema({
   },
   level: {
     type: Number,
-    enum: [1, 2],
+    enum: [1, 2], // First year ou second year
     required: true,
   },
-  teacherId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Teacher',
-    required: false, // car apres on va assigner un stage à un teacher
-  },
+  
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student',
     required: true,
   },
-  published: { type: Boolean, required: true },
+  submissionDate: {
+    type: Date,
+  },
   Validate: {
-    value: { type: Boolean, required: true },
-    reason: { type: String },
+    type: Boolean,
+    default: false,
   },
   documents: [
     {
@@ -49,7 +47,7 @@ const InternshipSchema = new mongoose.Schema({
       required: true,
     },
   ],
-  periodeId: {
+  periodId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Period',
     required: true,

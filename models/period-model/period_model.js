@@ -12,6 +12,14 @@ const PeriodSchema = new mongoose.Schema({
     ],
     required: true,
   },
+  // car on necessite champs type uniquement le cas Dépôt de stage dans API
+  type: {
+    type: String,
+    enum: ['1ère année', '2ème année'],
+    required: function () {
+      return this.name === 'Dépôt de stage';
+    },
+  },
   start_date: {
     type: Date,
     required: true,
