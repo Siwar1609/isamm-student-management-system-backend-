@@ -20,14 +20,14 @@ const InternshipSchema = new mongoose.Schema({
   academicYear: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AcademicYear',
+    required: false,
+  },
+  type: {
+    type: String,
+    enum: ['1st_year', '2nd_year'],
     required: true,
   },
-  level: {
-    type: Number,
-    enum: [1, 2], // First year ou second year
-    required: true,
-  },
-  
+
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student',
@@ -44,13 +44,13 @@ const InternshipSchema = new mongoose.Schema({
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Document',
-      required: true,
+      required: false,
     },
   ],
   periodId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Period',
-    required: true,
+    required: false,
   },
 })
 
