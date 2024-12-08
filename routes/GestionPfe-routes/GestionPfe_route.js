@@ -9,6 +9,10 @@ import {
   addPFE,
   choosePFE,
   getPFEDetailsForStudent,
+  assignTeachersToPFE,
+  assignTeacherToPFEManually,
+  assignTeacherToPFEManually2,
+  publishOrHidePFEAssignments
 } from '../../controllers/pfe-controller/pfe_controller.js'
 import {loggedMiddleware,isTeacher,isAdmin} from "../../middlewares/users-middlewares/auth_controller.js";
 const router = express.Router()
@@ -25,8 +29,17 @@ router.patch('/:id', updatePFE)
 router.post('/post', addPFE)
 
 //route pour recuperer tous les pfe
-router.get('/',loggedMiddleware,isTeacher, getPFEDetailsForStudent)
+router.get('/', getPFEDetailsForStudent)
 // Endpoint pour qu'un enseignant choisisse un PFE
 router.patch('/:id/choice', choosePFE)
+//route pour assignTeachersToPFE automatically
+router.patch('/planning/assign', assignTeachersToPFE)
+//route pour assigner un enseignant à un pfe manuellement
+router.patch('/:id/planning/assign', assignTeacherToPFEManually)
+//route pour assigner un enseignant à un pfe manuellement2
+router.patch('/planning/update', assignTeacherToPFEManually2)
+//route pour publier ou masquer les pfes
+router.post('/planning/publish/:response', publishOrHidePFEAssignments)
 
+//
 export default router

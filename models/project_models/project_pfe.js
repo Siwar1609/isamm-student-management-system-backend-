@@ -42,6 +42,16 @@ const PFESchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Period',
   },
+  published: { 
+    type: Boolean,
+    default: false 
+  },
+  isApproved: { 
+    type: Boolean,
+    default: false 
+  }  
+}, {
+  timestamps: true,
 });
 
 export default mongoose.model('PFE', PFESchema);

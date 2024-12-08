@@ -2,7 +2,14 @@ import Period from '../../models/period-model/period_model.js'
 import PFE from '../../models/project_models/project_pfe.js'
 import Student from '../../models/users-models/student_model.js'
 import  {pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
-import { updatePFEValidation } from '../../validators/updatepfeValidation.js'
+import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
+import mongoose from 'mongoose'
+import { jsPDF } from "jspdf";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import "jspdf-autotable";
+import { Console } from 'console';
 
 // Ajouter un PFE
 export const addPFE = async (req, res) => {
@@ -116,48 +123,72 @@ export const updatePFE = async (req, res) => {
     return res.status(500).json({ message: 'Erreur serveur.' })
   }
 }
+// export const getPFEDetailsForStudent = async (req, res) => {
+//   try {
+//     const students = await Student.find()
+
+//     // Pour chaque étudiant, on récupère les détails de son PFE
+//     const studentDetails = await Promise.all(
+//       students.map(async (student) => {
+//         const pfeDetails = await PFE.findOne({
+//           studentId: student._id,
+//         })
+//           .populate('teacherId')
+//           .populate('documentId')
+//           .populate('periodId')
+//           .populate('academicYear')
+
+//         if (!pfeDetails) {
+//           return {
+//             student: student.name,
+//             message: 'Aucun PFE trouvé pour cet étudiant.',
+//           }
+//         }
+//         console.log(student);
+//         console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+//         console.log(pfeDetails);
+//         console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+
+//         return {
+//           student: student,
+//           pfeDetails: pfeDetails,          
+//         }
+//       }),
+//     )
+
+//     res.status(200).json(studentDetails)
+//   } catch (error) {
+//     console.error(error)
+//     res.status(500).json({
+//       message: 'Erreur lors de la récupération des informations PFE.',
+//       error,
+//     })
+//   }
+// }
 export const getPFEDetailsForStudent = async (req, res) => {
   try {
-    const students = await Student.find()
+    // Recherche des PFEs non affectés avec les étudiants associés
+    const availablePFEs = await PFE.find({ affected: false })
+      .populate('studentId')
+      .populate('teacherId')
+      .populate('documentId')
+      .populate('periodId')
+      .populate('academicYear')
 
-    // Pour chaque étudiant, on récupère les détails de son PFE
-    const studentDetails = await Promise.all(
-      students.map(async (student) => {
-        const pfeDetails = await PFE.findOne({
-          studentId: student._id,
-        })
-          .populate('teacherId')
-          .populate('documentId')
-          .populate('periodId')
-          .populate('academicYear')
+    if (availablePFEs.length === 0) {
+      return res.status(404).json({ message: 'Aucun PFE disponible.' })
+    }
 
-        if (!pfeDetails) {
-          return {
-            student: student.name,
-            message: 'Aucun PFE trouvé pour cet étudiant.',
-          }
-        }
-        console.log(student);
-        console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-        console.log(pfeDetails);
-        console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-
-        return {
-          student: student,
-          pfeDetails: pfeDetails,          
-        }
-      }),
-    )
-
-    res.status(200).json(studentDetails)
+    res.status(200).json(availablePFEs)
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      message: 'Erreur lors de la récupération des informations PFE.',
+      message: 'Erreur lors de la récupération des PFEs disponibles.',
       error,
     })
   }
 }
+
 // Fonction pour qu'un enseignant choisisse un PFE
 export const choosePFE = async (req, res) => {
   const { id } = req.params
@@ -187,3 +218,267 @@ export const choosePFE = async (req, res) => {
       .json({ message: 'Erreur lors de la mise à jour du PFE.', error })
   }
 }
+
+//User Story 4.2: sélectionner les PFE et valider le choix des encadrants. Le statut des PFE va changer
+export const assignTeachersToPFE = async (req, res) => {
+  try {
+    const { pfeIds } = req.body; // Liste des IDs de PFEs
+
+    if (!Array.isArray(pfeIds) || pfeIds.length === 0) {
+      return res.status(400).json({
+        message: 'La liste des IDs de PFEs est vide ou invalide.',
+      });
+    }
+
+    // Recherche des PFEs à mettre à jour
+    const pfes = await PFE.find({ _id: { $in: pfeIds } });
+
+    // Vérifier si tous les PFEs existent et si un enseignant est assigné
+    const errors = [];
+    pfes.forEach((pfe) => {
+      if (!pfe.teacherId) {
+        errors.push({
+          id: pfe._id,
+          title: pfe.title,
+          message: "Aucun enseignant assigné à ce PFE.",
+        });
+      }
+    });
+
+    // Si des erreurs sont trouvées, renvoyer un message d'erreur
+    if (errors.length > 0) {
+      return res.status(400).json({
+        message: "Certains PFEs n'ont pas d'enseignants assignés.",
+        errors,
+      });
+    }
+
+    // Mettre à jour les PFEs pour marquer qu'ils sont affectés
+    await PFE.updateMany(
+      { _id: { $in: pfeIds } },
+      { $set: { affected: true ,isApproved: true} } // Marquer comme affecté
+    );
+
+    res.status(200).json({
+      message: 'Les enseignants ont été assignés avec succès aux PFEs sélectionnés.',
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Erreur lors de l'affectation des enseignants aux PFEs.",
+      error,
+    });
+  }
+};
+//affecter manuellement  un sujet à un enseignant
+export const assignTeacherToPFEManually = async (req, res) => {
+  try {
+    const { id } = req.params; // ID du PFE
+    const { teacherId, force } = req.body; // ID du nouvel enseignant et option "force"
+
+      // Vérification que teacherId est un ObjectId valide
+      if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+        return res.status(400).json({
+          message: "L'ID de l'enseignant est invalide. Assurez-vous qu'il s'agit d'un ObjectId valide.",
+        });
+      }
+
+    // Recherche du PFE par ID
+    const pfe = await PFE.findById(id).populate('teacherId');
+    if (!pfe) {
+      return res.status(404).json({
+        message: 'Le PFE demandé est introuvable.',
+      });
+    }
+
+    // Vérification si le PFE est déjà affecté
+    if (pfe.affected && pfe.teacherId && force !== true) {
+      return res.status(400).json({
+        message: `Le PFE est déjà affecté à ${pfe.teacherId.name}. Utilisez 'force: true' pour réaffecter.`,
+      });
+    }
+
+    // Si force = true, réaffecter le PFE
+    if (pfe.affected && pfe.teacherId && force === true) {
+      console.log(`Réaffectation : PFE retiré de l'enseignant précédent ${pfe.teacherId.name}`);
+    }
+
+    // Mise à jour du PFE avec le nouvel enseignant
+    pfe.teacherId = teacherId;
+    pfe.affected = true;
+    await pfe.save();
+
+    res.status(200).json({
+      message: `Le PFE a été assigné avec succès à l'enseignant avec l'ID ${teacherId}.`,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Erreur lors de l'affectation de l'enseignant au PFE.",
+      error,
+    });
+  }
+};
+//affecter manuellement  un sujet à un enseignant2
+export const assignTeacherToPFEManually2 = async (req, res) => {
+  try {
+    const { idStage, teacherId, force } = req.body;
+
+    // Vérification que `idStage` et `teacherId` sont des ObjectId valides
+    if (!mongoose.Types.ObjectId.isValid(idStage)) {
+      return res.status(400).json({
+        message: "L'ID du stage est invalide. Assurez-vous qu'il s'agit d'un ObjectId valide.",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+      return res.status(400).json({
+        message: "L'ID de l'enseignant est invalide. Assurez-vous qu'il s'agit d'un ObjectId valide.",
+      });
+    }
+
+    // Recherche du PFE à l'aide de l'ID
+    const pfe = await PFE.findById(idStage).populate('teacherId');
+    if (!pfe) {
+      return res.status(404).json({
+        message: 'Le PFE demandé est introuvable.',
+      });
+    }
+
+    // Vérification si le PFE est déjà affecté
+    if (pfe.affected && pfe.teacherId && String(pfe.teacherId._id) !== teacherId && force !== true) {
+      return res.status(400).json({
+        message: `Le PFE est déjà affecté à ${pfe.teacherId.name}. Utilisez 'force: true' pour réaffecter.`,
+      });
+    }
+
+    // Réaffectation si `force` est défini sur true
+    if (pfe.affected && pfe.teacherId && String(pfe.teacherId._id) !== teacherId && force === true) {
+      console.log(`Réaffectation : PFE retiré de l'enseignant précédent ${pfe.teacherId.name}`);
+    }
+
+    // Mise à jour du PFE avec le nouvel enseignant
+    pfe.teacherId = teacherId;
+    pfe.affected = true;
+    await pfe.save();
+
+    res.status(200).json({
+      message: `Le PFE a été assigné avec succès à l'enseignant avec l'ID ${teacherId}.`,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Erreur lors de l'affectation de l'enseignant au PFE.",
+      error,
+    });
+  }
+};
+//publier ou masquer les PFEs
+
+
+export const publishOrHidePFEAssignments = async (req, res) => {
+  try {
+    const { response } = req.params;
+
+    // Vérification de la validité du paramètre `response`
+    if (!["publish", "hide"].includes(response)) {
+      return res.status(400).json({
+        message: "Valeur invalide pour 'response'. Utilisez 'publish' ou 'hide'.",
+      });
+    }
+
+    // Définir la valeur de `published` en fonction de `response`
+    const published = response === "publish";
+
+    // Mise à jour de tous les PFEs
+    const result = await PFE.updateMany({}, { $set: { published } });
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        message: "Aucun PFE trouvé dans la base de données.",
+      });
+    }
+
+    // Si le planning est publié, générer un PDF
+    let pdfLink = null;
+    if (published) {
+      const pfes = await PFE.find().populate("teacherId").populate("studentId");
+    
+      const doc = new jsPDF();
+      doc.setFontSize(8); // Set small font size
+    
+      // Add title
+      doc.setTextColor(40, 40, 40); // Gray text color
+      doc.text("Planning d'Affectation des PFEs", 14, 10);
+     
+
+      const tableData = pfes.map((pfe, index) => {
+        // Convert Mongoose document to plain object
+        const pfeObject = pfe.toObject();
+        console.log(pfeObject);
+      
+        // Fallback for teacher name if not populated
+        const teacherName = pfeObject.teacherId
+          ? `${pfeObject.teacherId.firstName || ""} ${pfeObject.teacherId.lastName || ""}`
+          : "Non assigné";
+      
+        // Fallback for student name if not populated
+        const studentName = pfeObject.studentId
+          ? `${pfeObject.studentId[0]?.firstName || ""} ${pfeObject.studentId[0]?.lastName || ""}`
+          : "Non assigné";
+      
+        // Return data for the table
+        return [index + 1, pfeObject.title || "Sans titre", teacherName, studentName];
+      });
+    
+      console.log(tableData);
+      // Définir les colonnes et options du tableau
+      doc.autoTable({
+        head: [["#", "PFE", "Enseignant", "Étudiant"]], 
+        body: tableData, 
+        startY: 15, 
+        theme: "grid", 
+        headStyles: {
+          fillColor: [41, 128, 185], 
+          textColor: [255, 255, 255], 
+          fontSize: 8, 
+        },
+        bodyStyles: {
+          fontSize: 7, 
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+      });
+
+      
+
+      // Enregistrer le fichier PDF sur le serveur
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const filePath = path.join(__dirname, "../uploads/planning.pdf");
+
+      // Créer le répertoire "uploads" s'il n'existe pas
+      if (!fs.existsSync(path.dirname(filePath))) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      }
+
+      doc.save(filePath);
+
+      // Lien vers le fichier PDF
+      pdfLink = `/uploads/planning.pdf`;
+    }
+
+    res.status(200).json({
+      message: `Tous les PFEs ont été ${published ? "publiés" : "masqués"} avec succès.`,
+      pdfLink, // Retourner le lien du PDF si disponible
+      result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Erreur lors de la mise à jour de l'état de publication des PFEs.",
+      error,
+    });
+  }
+};

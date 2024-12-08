@@ -10,7 +10,7 @@ export const pfeValidationSchema = Joi.object({
   type: Joi.string().valid('PFE').required(),
   teacherId: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/)
-    .required()
+    .optional()
     .messages({
       'string.pattern.base': "L'ID du professeur doit être un ObjectId valide.",
     }),
@@ -27,6 +27,7 @@ export const pfeValidationSchema = Joi.object({
     .required(),
   numberOfStudents: Joi.string().valid('Binome', 'Monome').required(),
   affected: Joi.boolean().optional(),
+  published: Joi.boolean().optional(),
   academicYear: Joi.string().required(),
   documentId: Joi.array()
     .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
