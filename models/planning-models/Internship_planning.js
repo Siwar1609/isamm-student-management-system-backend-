@@ -54,4 +54,4 @@ const InternshipPlanningSchema = new mongoose.Schema({
   },
 })
 
-module.exports = mongoose.model('InternshipPlanning', InternshipPlanningSchema)
+export default mongoose.model('InternshipPlanning', InternshipPlanningSchema)
