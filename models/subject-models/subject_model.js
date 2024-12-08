@@ -12,7 +12,7 @@ const SubjectSchema = new mongoose.Schema({
   }],
   teacherId: { type: Number},
   skillId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Skill' }], // Reference to Skill
-  Assesment_Id: { type: Number },
+  Assesment_Id: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SubjectAssessment' }],
   published: { type: Boolean, default: false },
   academicYearId:[{ type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYear', required: true
     

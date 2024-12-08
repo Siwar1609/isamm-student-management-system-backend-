@@ -1,5 +1,7 @@
 import Skill from '../../models/subject-models/skill_model.js';
-import skillValidator from '../../validators/skill_validator.js';  // Import the Joi validator
+import skillValidator from '../../validators/skill_validator.js';  
+import Subject from '../../models/subject-models/subject_model.js';  // Assurez-vous que ce chemin est correct
+// Import the Joi validator
 
 // Fetch all skills
 export const fetchSkill = async (req, res) => {
@@ -38,14 +40,40 @@ export const getSkillbyID = async (req, res) => {
 // Delete a skill by ID
 export const deleteSkill = async (req, res) => {
   try {
-    const skill = await Skill.findByIdAndDelete(req.params.id);
-
+    // Fetch the skill by ID
+    const skill = await Skill.findById(req.params.id);
+    
+    // Check if the skill exists
     if (!skill) {
       return res.status(404).json({ message: 'Skill not found' });
     }
 
+    // Check if the skill is assigned to a subject
+    const subjectWithSkill = await Subject.findOne({ skillId: req.params.id });
+
+    // Extract the 'force' query parameter from the request
+    const { force } = req.query;
+
+    if (subjectWithSkill) {
+      // If 'force' is not provided or set to false, archive instead of delete
+      if (!force || force === 'false') {
+        // Archive the skill instead of deleting
+        skill.archived = true;
+        await skill.save();
+
+        return res.status(200).json({
+          model: skill,
+          message: `Skill has been archived. Use 'force=true' to permanently delete it.`,
+          warning: "Pay attention! The skill is assigned to a subject.",
+        });
+      }
+      console.log(`Skill assigned to subject "${subjectWithSkill.title}". Deletion is forced.`);
+    }
+
+    // Delete the skill if it's not assigned to any subject or 'force' is true
+    await Skill.findByIdAndDelete(req.params.id);
+
     res.status(200).json({
-      model: skill,
       message: 'Skill Deleted',
     });
   } catch (error) {
@@ -53,7 +81,9 @@ export const deleteSkill = async (req, res) => {
   }
 };
 
+
 // Update a skill by ID
+
 export const updateSkill = async (req, res) => {
   try {
     console.log("body: ", req.body);
@@ -65,20 +95,38 @@ export const updateSkill = async (req, res) => {
       return res.status(400).json({ message: error.details[0].message });
     }
 
+    const { force } = req.body;
+
+    // Vérifiez si la compétence est associée à une matière
+    const subjectWithSkill = await Subject.findOne({ skillId: req.params.id });
+
+    if (subjectWithSkill) {
+      if (!force) {
+        // Si "force" est false ou absent, avertir l'admin
+        return res.status(400).json({
+          message: `Warning ! Skill is assigned to this subject :"${subjectWithSkill.title}". Use "force: true" to force the update.`,
+          warning: "Pay attention !",
+        });
+      }
+      console.log(`Skill assigned to subject"${subjectWithSkill.title}". The update is forced.`);
+    }
+
+    // Mettre à jour la compétence
     const skill = await Skill.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true });
 
     if (!skill) {
-      res.status(404).json({ message: "Skill not found" });
-    } else {
-      res.status(200).json({
-        model: skill,
-        message: "Skill Updated",
-      });
+      return res.status(404).json({ message: "Skill not found" });
     }
+
+    res.status(200).json({
+      model: skill,
+      message: "Skill Updated",
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
+
 
 // Add a new skill
 export const addSkill = async (req, res) => {

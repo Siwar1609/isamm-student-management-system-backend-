@@ -17,5 +17,6 @@ const CurriculumSchema = new mongoose.Schema({
       modification_date: { type: Date, default: Date.now }, // Date de la modification
     },
   ],
+  
 })
 export default mongoose.model('Curriculum', CurriculumSchema)
