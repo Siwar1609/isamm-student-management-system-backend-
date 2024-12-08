@@ -8,6 +8,8 @@ import dotenv from 'dotenv'
 import routerSkill from './routes/skill-routes/skill.js'
 import routerChapter from './routes/chapter-routes/chapter.js'
 import routerCurriculum from './routes/curriculum-routes/currilculum_route.js'
+import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill_route.js'
+import routerAssesmentSubject from './routes/subject-assesment-route/subjectAssesment_route.js'
 dotenv.config()
 
 const DATABASE_URL = process.env.DATABASE_URL
@@ -32,4 +34,6 @@ app.use('/api/academicyear', routerAcademicYear)
 app.use('/api/skill', routerSkill)
 app.use('/api/chapter',routerChapter)
 app.use('/api/curriculum',routerCurriculum)
+app.use('/api/assesmentskill', routerAssesmentSkill)
+app.use('/api/assesmentsubject', routerAssesmentSubject)
 export default app

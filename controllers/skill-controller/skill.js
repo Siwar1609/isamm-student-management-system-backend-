@@ -68,9 +68,7 @@ export const deleteSkill = async (req, res) => {
         });
       }
       console.log(`Skill assigned to subject "${subjectWithSkill.title}". Deletion is forced.`);
-    }
-
-    // Delete the skill if it's not assigned to any subject or 'force' is true
+        }
     await Skill.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
@@ -82,14 +80,13 @@ export const deleteSkill = async (req, res) => {
 };
 
 
-// Update a skill by ID
 
 export const updateSkill = async (req, res) => {
   try {
     console.log("body: ", req.body);
     console.log("id:", req.params.id);
 
-    // Validate the request body
+  
     const { error } = skillValidator.validate(req.body);
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
@@ -97,12 +94,11 @@ export const updateSkill = async (req, res) => {
 
     const { force } = req.body;
 
-    // Vérifiez si la compétence est associée à une matière
     const subjectWithSkill = await Subject.findOne({ skillId: req.params.id });
 
     if (subjectWithSkill) {
       if (!force) {
-        // Si "force" est false ou absent, avertir l'admin
+       
         return res.status(400).json({
           message: `Warning ! Skill is assigned to this subject :"${subjectWithSkill.title}". Use "force: true" to force the update.`,
           warning: "Pay attention !",
@@ -111,7 +107,6 @@ export const updateSkill = async (req, res) => {
       console.log(`Skill assigned to subject"${subjectWithSkill.title}". The update is forced.`);
     }
 
-    // Mettre à jour la compétence
     const skill = await Skill.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true });
 
     if (!skill) {
@@ -128,12 +123,12 @@ export const updateSkill = async (req, res) => {
 };
 
 
-// Add a new skill
+
 export const addSkill = async (req, res) => {
   try {
     console.log("body: ", req.body);
 
-    // Validate the request body
+   
     const { error } = skillValidator.validate(req.body);
     if (error) {
       return res.status(400).json({ message: error.details[0].message });

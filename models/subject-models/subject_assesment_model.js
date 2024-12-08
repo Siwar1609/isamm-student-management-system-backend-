@@ -1,23 +1,25 @@
-import mongoose from 'mongoose'
+import mongoose from 'mongoose';
+import Subject from './subject_model.js';
+// Check if the model is already compiled before defining it
+const SubjectAssessment = mongoose.models.SubjectAssessment || mongoose.model('SubjectAssessment', new mongoose.Schema({
+  studentId: { type: Number }, // Corrected to Number
+  subjectId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Subject', 
+    required: true 
+  },
+  grade: { 
+    type: Number, 
+    min: 0, 
+    max: 20, 
+    required: true 
+  }, // Grade between 0 and 20
+  
+  academicYearId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'AcademicYear', 
+    required: true 
+  },
+}));
 
-const SubjectAssessmentSchema = new mongoose.Schema({
-  subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' }, // Référence à Subject
-  eval: [
-    {
-      skill: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Skill',
-        required: true,
-      }, // Référence à Skill
-      grade: { type: Number, min: 0, max: 5, required: true }, // Note entre 0 et 5
-    },
-  ],
-  anneeAcademiqueId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'AnneeAcademique',
-    required: true,
-  }, // Référence à AnneeAcademique
-})
-
-export default mongoose.model('SubjectAssessment', SubjectAssessmentSchema)
+export default SubjectAssessment;

@@ -2,14 +2,14 @@ import User from '../../models/users-models/user_model.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import dotenv from 'dotenv'
-import signUpValidator from '../../validators/signup_validator.js'
+import signupValidator from '../../validators/signup_validator.js'
 
 dotenv.config()
 
 const JWT_SECRET = process.env.JWT_SECRET
 //signUp
 export const signUp = async (req, res, next) => {
-  const { error, value } = signUpValidator.validate(req.body);
+  const { error, value } = signupValidator.validate(req.body);
   if (error) {
     return res.status(400).json({ message: error.message });
   }

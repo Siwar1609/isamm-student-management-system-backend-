@@ -3,10 +3,10 @@ import subjectValidator from '../../validators/subject_validator.js'; // Import 
 
 export const addSubject = async (req, res) => {
   try {
-    // Validate the request body using Joi
+    
     const { error } = subjectValidator.validate(req.body);
     
-    // If validation fails, return an error response
+   
     if (error) {
       return res.status(400).json({
         error: error.message,
@@ -14,13 +14,12 @@ export const addSubject = async (req, res) => {
       });
     }
 
-    // Create a new Subject instance with the validated data
     const subject = new Subject(req.body);
 
-    // Save the subject to the database
+ 
     await subject.save();
 
-    // Return a success response with the created subject
+    
     res.status(201).json({
       subject,
       message: 'Subject added successfully',
@@ -35,10 +34,9 @@ export const addSubject = async (req, res) => {
 
 export const updateSubject = async (req, res) => {
   try {
-    // Validate the request body using Joi
+   
     const { error } = subjectValidator.validate(req.body);
     
-    // If validation fails, return an error response
     if (error) {
       return res.status(400).json({
         error: error.message,
@@ -46,7 +44,7 @@ export const updateSubject = async (req, res) => {
       });
     }
 
-    // Attempt to update the subject by its ID
+
     const subject = await Subject.findOneAndUpdate(
       { _id: req.params.id },
       req.body,
@@ -67,7 +65,7 @@ export const updateSubject = async (req, res) => {
 };
 export const deleteSubject = async (req, res) => {
     try {
-      // Attempt to delete the subject by its ID
+      
       const subject = await Subject.findByIdAndDelete(req.params.id);
   
       if (!subject) {

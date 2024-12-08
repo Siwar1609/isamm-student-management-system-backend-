@@ -1,6 +1,6 @@
-import Chapter from "../../models/subject-models/chapter_model.js"; // Assurez-vous que le modèle Chapter est correctement importé
+import Chapter from "../../models/subject-models/chapter_model.js";
 import chapterValidator from "../../validators/chapter_validator.js";
-// Récupérer tous les chapitres
+
 export const fetchChapter = async (req, res) => {
   try {
     const chapters = await Chapter.find();
@@ -10,7 +10,7 @@ export const fetchChapter = async (req, res) => {
   }
 };
 
-// Récupérer un chapitre par ID
+
 export const getChapterById = async (req, res) => {
   try {
     const chapter = await Chapter.findOne({ _id: req.params.id });
@@ -24,7 +24,7 @@ export const getChapterById = async (req, res) => {
   }
 };
 
-// Ajouter un nouveau chapitre
+
 export const addChapter = async (req, res) => {
     try {
       const { error } = chapterValidator.validate(req.body);
@@ -44,8 +44,7 @@ export const addChapter = async (req, res) => {
     }
   };
 
-// Mettre à jour un chapitre existant
-export const updateChapter = async (req, res) => {
+export const updateProgressChapter = async (req, res) => {
     try {
       const { error } = chapterValidator.validate(req.body);
   
@@ -69,7 +68,7 @@ export const updateChapter = async (req, res) => {
     }
   };
 
-// Supprimer un chapitre
+
 export const deleteChapter = async (req, res) => {
   try {
     const chapter = await Chapter.findByIdAndDelete(req.params.id);

@@ -1,13 +1,13 @@
-import Curriculum from '../../models/subject-models/curriculum_model.js'; // Import the Curriculum model
-import curriculumValidator from '../../validators/curriculum_validator.js'; // Import the validation schema
+import Curriculum from '../../models/subject-models/curriculum_model.js'; 
+import curriculumValidator from '../../validators/curriculum_validator.js'; 
 
-// Add a new Curriculum
+
 export const addCurriculum = async (req, res) => {
   try {
-    // Validate the request body using Joi
+ 
     const { error } = curriculumValidator.validate(req.body);
 
-    // If validation fails, return an error response
+
     if (error) {
       return res.status(400).json({
         error: error.message,
@@ -15,13 +15,12 @@ export const addCurriculum = async (req, res) => {
       });
     }
 
-    // Create a new Curriculum instance with the validated data
     const curriculum = new Curriculum(req.body);
 
-    // Save the curriculum to the database
+   
     await curriculum.save();
 
-    // Return a success response with the created curriculum
+    
     res.status(201).json({
       curriculum,
       message: 'Curriculum added successfully',
@@ -34,13 +33,13 @@ export const addCurriculum = async (req, res) => {
   }
 };
 
-// Update an existing Curriculum by ID
+
 export const updateCurriculum = async (req, res) => {
   try {
-    // Validate the request body using Joi
+  
     const { error } = curriculumValidator.validate(req.body);
 
-    // If validation fails, return an error response
+    
     if (error) {
       return res.status(400).json({
         error: error.message,
@@ -48,7 +47,7 @@ export const updateCurriculum = async (req, res) => {
       });
     }
 
-    // Attempt to update the curriculum by its ID
+ 
     const curriculum = await Curriculum.findOneAndUpdate(
       { _id: req.params.id },
       req.body,
@@ -68,10 +67,10 @@ export const updateCurriculum = async (req, res) => {
   }
 };
 
-// Delete a Curriculum by ID
+
 export const deleteCurriculum = async (req, res) => {
   try {
-    // Attempt to delete the curriculum by its ID
+    
     const curriculum = await Curriculum.findByIdAndDelete(req.params.id);
 
     if (!curriculum) {
@@ -103,7 +102,7 @@ export const fetchCurriculums = async (req, res) => {
   }
 };
 
-// Get a Curriculum by ID
+
 export const getCurriculumByID = async (req, res) => {
   try {
     const curriculum = await Curriculum.findOne({ _id: req.params.id })
