@@ -1,57 +1,72 @@
-import Internship from '../../models/internship-models/internship_period_model.js'
+import Internship from '../../models/internship-models/internship_model.js'
 import Document from '../../models/document-models/document_model.js'
-import User from '../../models/users-models/user_model.js'
-import cron from 'node-cron'
-import nodemailer from 'nodemailer'
-import dotenv from 'dotenv'
-
-dotenv.config()
-
+import Student from '../../models/users-models/student_model.js'
+import Teacher from '../../models/users-models/teacher_model.js'
+import Period from '../../models/period-model/period_model.js'
 export const addStudentDocument = async (req, res) => {
   try {
     console.log('Request Body:', req.body)
 
-    const { id: internshipId } = req.params
-    const { name, url, encadrant } = req.body
-    const studentId = req.auth.userId
+    const { id: internshipId } = req.params // Internship ID from URL
+    const { name, url, encadrant } = req.body // Document details
+    const studentId = req.auth.userId // Extracted from Bearer token
+
+    // Log the extracted student ID
+    console.log('Extracted Student ID (from token):', studentId)
 
     // Find the internship and check if it exists
     const internship = await Internship.findById(internshipId)
     if (!internship) {
+      console.log('Internship not found for ID:', internshipId)
       return res.status(404).json({ message: 'Internship not found' })
     }
 
-    // Check if the student's level matches the internship's level
-    const student = await User.findById(studentId)
-    if (!student) {
-      return res.status(404).json({ message: 'Student not found' })
-    }
+    // Log the student ID in the internship
+    console.log('Student ID in Internship:', internship.studentId)
 
-    if (student.role === 'student') {
-      // Check if the internship's level matches the student's level
-      if (internship.level !== student.level) {
-        return res.status(403).json({
-          message:
-            'You cannot postulate for this internship because the level does not match.',
-        })
-      }
+    // Check if the student exists
+    const student = await Student.findById(studentId)
+    if (!student) {
+      console.log('Student not found for ID:', studentId)
+      return res.status(404).json({ message: 'Student not found' })
     }
 
     // Check if the current date is within the internship period
     const currentDate = new Date()
-    if (currentDate > new Date(internship.endDate)) {
-      return res.status(403).json({
-        message:
-          'You cannot upload documents after the internship period has ended.',
+
+    // Fetch the associated period using internship.periodeId
+    const period = await Period.findById(internship.periodeId)
+    if (!period) {
+      return res.status(404).json({
+        message: 'The period associated with this internship was not found.',
       })
     }
+
+    // Validate the current date is within the period
+    if (
+      currentDate < new Date(period.startDate) ||
+      currentDate > new Date(period.endDate)
+    ) {
+      console.log('Current date is outside the allowed period:', {
+        startDate: period.startDate,
+        endDate: period.endDate,
+      })
+      return res.status(403).json({
+        message: 'You cannot upload documents outside the allowed period.',
+      })
+    }
+
+    console.log('Current date is within the period:', {
+      startDate: period.startDate,
+      endDate: period.endDate,
+    })
 
     // Validate the encadrant (teacher) if provided
     let encadrantUser = null
     if (encadrant) {
-      encadrantUser = await User.findById(encadrant)
+      encadrantUser = await Teacher.findById(encadrant)
       console.log('Encadrant Found:', encadrantUser)
-      if (!encadrantUser || encadrantUser.role !== 'teacher') {
+      if (!encadrantUser) {
         return res
           .status(400)
           .json({ message: 'Invalid encadrant ID provided.' })
@@ -72,9 +87,13 @@ export const addStudentDocument = async (req, res) => {
     // Create the document and save it to the database
     const newDocument = await Document.create(documentPayload)
 
+    // Push the new document ID into the internship's documents array
+    internship.documents.push(newDocument._id)
+    await internship.save()
+
     res.status(201).json({
       model: newDocument,
-      message: 'Document uploaded successfully!',
+      message: 'Document uploaded successfully and linked to the internship!',
     })
   } catch (error) {
     console.error('Error:', error.message)
@@ -119,7 +138,7 @@ export const getDocumentsByStudentId = async (req, res) => {
     const documents = await Document.find({ uploadedBy: studentId })
       .populate('uploadedBy', 'login fullName email') // Populate student login
       .populate('internship', 'startDate endDate') // Populate internship period dates (if applicable)
-      .populate('encadrant', 'login fullName email') // Populate encadrant information endDate') // Populate internship period dates (if applicable)
+      .populate('encadrant', 'login fullName email') // Populate encadrant information
 
       .exec()
 
@@ -142,71 +161,3 @@ export const getDocumentsByStudentId = async (req, res) => {
 }
 
 // Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-  service: 'Gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
-
-// Scheduled Task
-cron.schedule('0 0 * * *', async () => {
-  console.log('Starting the check for students without postulations...')
-
-  try {
-    const today = new Date()
-    console.log(`Today's date: ${today.toISOString()}`)
-
-    // Get all students
-    const students = await User.find({ role: 'etudiant' }).exec()
-
-    if (students.length === 0) {
-      console.log('No students found.')
-      return
-    }
-
-    for (const student of students) {
-      // Check if the student has any documents associated with internships
-      const documents = await Document.find({ uploadedBy: student._id })
-        .populate('internship', 'title endDate')
-        .exec()
-
-      const hasPostulated = documents.some(
-        (doc) => doc.internship && new Date(doc.internship.endDate) >= today,
-      )
-
-      if (!hasPostulated) {
-        console.log(`Student ${student.fullName} has not postulated.`)
-
-        // Send email reminder
-        if (student.email) {
-          try {
-            await transporter.sendMail({
-              from: process.env.EMAIL_USER,
-              to: student.email,
-              subject: 'Internship Postulation Reminder',
-              text: `Dear ${student.fullName},\n\nWe noticed that you have not postulated for any internship. Please ensure to submit your documents before the deadlines.\n\nBest regards,\nYour Team`,
-            })
-            console.log(`Email sent successfully to ${student.email}`)
-          } catch (emailError) {
-            console.error(
-              `Failed to send email to ${student.email}: ${emailError.message}`,
-            )
-          }
-        } else {
-          console.log(`No email address found for student: ${student.fullName}`)
-        }
-      } else {
-        console.log(
-          `Student ${student.fullName} has postulated successfully for at least one internship.`,
-        )
-      }
-    }
-  } catch (error) {
-    console.error(
-      'Error occurred while checking for students without postulations:',
-      error,
-    )
-  }
-})

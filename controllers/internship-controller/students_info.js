@@ -1,12 +1,11 @@
-import Internship from '../../models/internship-models/internship_period_model.js'
 import Document from '../../models/document-models/document_model.js'
-import User from '../../models/users-models/user_model.js'
+import Student from '../../models/users-models/student_model.js'
 
 export const getAllStudents = async (req, res) => {
   try {
-    // Find all users with the role 'etudiant'
-    const students = await User.find({ role: 'student' })
-      .select('fullName email login') // Select specific fields to return
+    // Find all users with the role 'student'
+    const students = await Student.find({ role: 'student' })
+      .select('firstName lastName cin email ') // Select specific fields to return
       .exec()
 
     if (!students || students.length === 0) {
@@ -17,8 +16,8 @@ export const getAllStudents = async (req, res) => {
     const enhancedStudents = await Promise.all(
       students.map(async (student) => {
         const documents = await Document.find({ uploadedBy: student._id })
-          .populate('internship', 'title startDate endDate') // Populate internship details
-          .populate('encadrant', 'fullName email') // Populate enseignant details
+          .populate('internship', 'title startDate endDate description') // Populate internship details
+          .populate('encadrant', 'firstName lastName cin email') // Populate enseignant details
           .exec()
 
         // Determine postulation status
