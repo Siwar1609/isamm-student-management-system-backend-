@@ -14,6 +14,11 @@ export const signUp = async (req, res, next) => {
     return res.status(400).json({ message: error.message })
   }
   try {
+    const hashedPassword = await bcrypt.hash(value.password, 10)
+    // Mise à jour du mot de passe dans les données validées
+    value.password = hashedPassword
+
+    // Création de l'utilisateur
     const user = await User.create(value)
     res.status(201).json(user)
   } catch (error) {
