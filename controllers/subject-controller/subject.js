@@ -83,18 +83,42 @@ export const deleteSubject = async (req, res) => {
   
   export const fetchSubjects = async (req, res) => {
     try {
-      const subjects = await Subject.find();
+      // Récupérer le rôle de l'utilisateur et son ID
+      const userRole = req.auth.role;
+      const userId = req.auth.id; // ID de l'utilisateur connecté
+  
+      let filter = {};
+  
+      if (userRole === 'admin') {
+        // L'admin peut voir toutes les matières, publiées ou non
+        filter = {};
+      } else if (userRole === 'teacher') {
+        // L'enseignant ne voit que ses matières publiées
+        filter = { teacherId: userId, published: true };
+      } else if (userRole === 'student') {
+        // L'étudiant ne voit que ses matières publiées
+        filter = { studentId: userId, published: true };
+      } else {
+        return res.status(403).json({
+          message: 'Access Denied',
+        });
+      }
+  
+      // Récupérer les matières en fonction du filtre
+      const subjects = await Subject.find(filter);
+  
       res.status(200).json({
         model: subjects,
-        message: 'Subjects fetched successfully',
+        message: 'Subjects Fetched Successfully',
       });
-    } catch (e) {
+    } catch (error) {
       res.status(400).json({
-        error: e.message,
-        message: 'Failed to fetch subjects',
+        error: error.message,
+        message: 'Error fetching subjects/',
       });
     }
   };
+  
   
   export const getSubjectbyID = async (req, res) => {
     try {
@@ -116,3 +140,38 @@ export const deleteSubject = async (req, res) => {
       res.status(400).json({ error: error.message });
     }
   };
+  // Publish a subject
+
+export const togglePublishSubject = async (req, res) => {
+  try {
+    const { response } = req.params;  // Get the "response" parameter (publish or unpublish)
+    const { id } = req.body;  // Assume the ID of the subject comes in the request body (you can modify this if needed)
+
+    // Validate if response is either "publish" or "unpublish"
+    if (response !== 'publish' && response !== 'unpublish') {
+      return res.status(400).json({ message: 'Invalid response parameter' });
+    }
+
+    // Find the subject by ID
+    const subject = await Subject.findById(id);
+
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    // Publish or unpublish the subject based on the response parameter
+    const updatedSubject = await Subject.findByIdAndUpdate(
+      id,
+      { published: response === 'publish' },
+      { new: true }
+    );
+
+    // Return a success message with the updated subject
+    res.status(200).json({
+      subject: updatedSubject,
+      message: `Subject ${response === 'publish' ? 'published' : 'unpublished'} successfully`,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};

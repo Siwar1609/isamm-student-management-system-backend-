@@ -11,7 +11,7 @@ import { loggedMiddleware, accessByRole} from '../../middlewares/users-middlewar
 const router = express.Router()
 
 
-router.get('/', loggedMiddleware, accessByRole(['admin']), fetchSkill)
+router.get('/', loggedMiddleware, accessByRole(['admin','teacher']), fetchSkill)
 
 router.get('/:id', loggedMiddleware, accessByRole(['admin']), getSkillbyID)
 

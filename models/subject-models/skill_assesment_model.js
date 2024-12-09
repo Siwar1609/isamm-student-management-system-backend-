@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const SkillAssessmentSchema = new mongoose.Schema({
-  studentId: { type: Number }, // Corrected 'number' to 'Number'
+  studentId: { type: Number }, 
   evaluation: [
     {
       skill: {
@@ -17,6 +17,6 @@ const SkillAssessmentSchema = new mongoose.Schema({
     ref: 'AcademicYear', 
     required: true,
   },
-});
 
-export default mongoose.model('SubjectAssessment', SkillAssessmentSchema);
+});
+export default mongoose.model('SkillAssessment', SkillAssessmentSchema);

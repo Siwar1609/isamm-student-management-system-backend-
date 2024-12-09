@@ -1,7 +1,7 @@
 import Joi from 'joi';
 import mongoose from 'mongoose';
 
-// Fonction pour valider les ObjectId
+// Function to validate ObjectId
 const objectIdValidator = (value, helpers) => {
   if (!mongoose.Types.ObjectId.isValid(value)) {
     return helpers.error("any.invalid");
@@ -15,29 +15,38 @@ const skillValidator = Joi.object({
     .max(100)
     .required()
     .messages({
-      "any.required": 'Le champ "name" est obligatoire.',
-      "string.min": 'Le champ "name" doit avoir au moins 1 caractère.',
-      "string.max": 'Le champ "name" doit avoir au maximum 100 caractères.',
+      "any.required": '"name" is required.',
+      "string.min": '"name" must be at least 1 character long.',
+      "string.max": '"name" must not exceed 100 characters.',
     }),
+
   description: Joi.string()
     .min(10)
     .max(500)
     .required()
     .messages({
-      "any.required": 'Le champ "description" est obligatoire.',
-      "string.min": 'Le champ "description" doit avoir au moins 10 caractères.',
-      "string.max": 'Le champ "description" doit avoir au maximum 500 caractères.',
+      "any.required": '"description" is required.',
+      "string.min": '"description" must be at least 10 characters long.',
+      "string.max": '"description" must not exceed 500 characters.',
     }),
+    skillAssesmentId: Joi.array()
+    .items(Joi.string().custom(objectIdValidator, "ObjectId validation"))
+    .optional()
+    .messages({
+      "any.invalid": 'Each element in "skillAssesmentId" must be a valid ObjectId.',
+    }),
+
   subjectId: Joi.array()
     .items(Joi.string().custom(objectIdValidator, "ObjectId validation"))
     .optional()
     .messages({
-      "any.invalid": 'Chaque élément dans "subjectId" doit être un ObjectId valide.',
+      "any.invalid": 'Each element in "subjectId" must be a valid ObjectId.',
     }),
+
   force: Joi.boolean()
     .optional()
     .messages({
-      "boolean.base": 'Le champ "force" doit être un booléen.',
+      "boolean.base": '"force" must be a Boolean.',
     }),
 });
 

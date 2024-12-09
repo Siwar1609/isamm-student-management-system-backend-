@@ -1,12 +1,22 @@
-import {
-  login,
-  signUp,
-} from '../../controllers/users-controller/auth_controller.js'
 import express from 'express'
+
+import {
+  getUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+} from '../../controllers/users-controller/users_controller.js'
+
 
 const router = express.Router()
 
-router.post('/signup', signUp)
-router.post('/login', login)
+// users accounts management routes
+router.get('/', getUsers)
+router.get('/:id', getUser)
+router.post('/', createUser)
+router.put('/:id', updateUser)
+router.delete('/:id', deleteUser)
+
 
 export default router

@@ -1,7 +1,7 @@
 import express from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
-import routerAuth from './routes/users-routes/users_route.js'
+import routerAuth from './routes/users-routes/auth_route.js'
 import routerSubject from './routes/subject-routes/subject.js'
 import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
 import dotenv from 'dotenv'
@@ -10,6 +10,11 @@ import routerChapter from './routes/chapter-routes/chapter.js'
 import routerCurriculum from './routes/curriculum-routes/currilculum_route.js'
 import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill_route.js'
 import routerAssesmentSubject from './routes/subject-assesment-route/subjectAssesment_route.js'
+import usersRouter from './routes/users-routes/users_route.js'
+import studentsRouter from './routes/users-routes/students_route.js'
+import teachersRouter from './routes/users-routes/teachers_route.js'
+import RouterPublishSubject from './routes/subject-routes/subject.js'
+
 dotenv.config()
 
 const DATABASE_URL = process.env.DATABASE_URL
@@ -36,4 +41,9 @@ app.use('/api/chapter',routerChapter)
 app.use('/api/curriculum',routerCurriculum)
 app.use('/api/assesmentskill', routerAssesmentSkill)
 app.use('/api/assesmentsubject', routerAssesmentSubject)
+app.use('/api/accounts', usersRouter)
+app.use('/api/students', studentsRouter)
+app.use('/api/teachers', teachersRouter)
+app.use('/api/subject/publish/:response', RouterPublishSubject)
+
 export default app

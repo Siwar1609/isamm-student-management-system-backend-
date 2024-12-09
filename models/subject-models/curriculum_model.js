@@ -7,8 +7,9 @@ const CurriculumSchema = new mongoose.Schema({
   subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' }, // Référence au modèle Subject
   chapId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Chapter' }], // Liste des chapitres liés (références)
   academicYearId:[{ type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYear', required: true
-    
+
   }],
+  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
   modification: [
     {
       proposition: { type: String, required: true }, // Proposition de modification

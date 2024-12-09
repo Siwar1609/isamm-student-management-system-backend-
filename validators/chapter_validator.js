@@ -2,32 +2,32 @@ import Joi from "joi";
 
 const chapterValidator = Joi.object({
   order: Joi.number().integer().positive().required().messages({
-    "any.required": 'Le champ "order" est obligatoire.',
-    "number.base": 'Le champ "order" doit être un nombre entier.',
-    "number.positive": 'Le champ "order" doit être un entier positif.',
+    "any.required": '"order" is required.',
+    "number.base": '"order" must be an integer.',
+    "number.positive": '"order" must be a positive integer.',
   }),
   title: Joi.string().min(3).max(100).required().messages({
-    "any.required": 'Le champ "title" est obligatoire.',
-    "string.min": 'Le champ "title" doit avoir au moins 3 caractères.',
-    "string.max": 'Le champ "title" doit avoir au maximum 100 caractères.',
+    "any.required": '"title" is required.',
+    "string.min": '"title" must have at least 3 characters.',
+    "string.max": '"title" must have at most 100 characters.',
   }),
   section: Joi.array()
     .items(
       Joi.object({
         content: Joi.string().max(500).messages({
-          "string.max": 'Le champ "content" doit avoir au maximum 500 caractères.',
+          "string.max": '"content" must have at most 500 characters.',
         }),
         advancement: Joi.string()
           .valid("not yet", "in progress", "completed")
           .default("not yet")
           .messages({
-            "any.only": 'Le champ "advancement" doit être "not yet", "in progress" ou "completed".',
+            "any.only": '"advancement" must be "not yet", "in progress", or "completed".',
           }),
       })
     )
     .optional()
     .messages({
-      "array.base": 'Le champ "section" doit être un tableau.',
+      "array.base": '"section" must be an array.',
     }),
 });
 

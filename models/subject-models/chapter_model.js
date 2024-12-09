@@ -9,7 +9,7 @@ const ChapterSchema = new mongoose.Schema({
         content: { type: String },
         advancement: {
           type: String,
-          enum: ['not yet', 'in progress', 'completed'], // État d'avancement
+          enum: ['not yet', 'in progress', 'completed'], 
           default: 'not yet',
         },
       },
