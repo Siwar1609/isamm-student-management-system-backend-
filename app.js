@@ -2,16 +2,18 @@ import express from 'express'
 import mongoose from 'mongoose'
 import morgan from 'morgan'
 import cors from 'cors'
+import dotenv from 'dotenv'
+
 import routerAuth from './routes/users-routes/auth_route.js'
 import routerSubject from './routes/subject-routes/subject.js'
 import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
-import dotenv from 'dotenv'
 import routerInternship from './routes/internship-routes/internship_period_route.js'
 import routerDocument from './routes/document-routes/document_route.js'
 import usersRouter from './routes/users-routes/users_route.js'
 import studentsRouter from './routes/users-routes/students_route.js'
 import teachersRouter from './routes/users-routes/teachers_route.js'
 import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
+
 import {
   accessByRole,
   loggedMiddleware,
@@ -42,12 +44,12 @@ app.get('/', (req, res) => {
   res.send(' <h1> Server is Running correctly ✅ </h1> ')
 })
 
+app.use('/api/auth', routerAuth)
 app.use('/api/accounts', usersRouter)
 app.use('/api/students', studentsRouter)
-app.use('/api/auth', routerAuth)
+app.use('/api/teachers', teachersRouter)
 app.use('/api/internship', loggedMiddleware, routerInternship)
 app.use('/api', loggedMiddleware, routerDocument)
-app.use('/api/teachers', loggedMiddleware, teachersRouter)
 app.use('/PFE', gestionPFERoutes)
 app.use('/api/v1/', pfa_route)
 app.use('/api/v1/', pfa_period_route)

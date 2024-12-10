@@ -25,6 +25,12 @@ const studentSchema = mongoose.Schema(
       enum: ['active_student', 'graduated_student', 'suspended_student'],
       required: true,
     },
+    internships: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Internship', // Liste des stages encadrés
+      },
+    ],
   },
   {
     timestamps: true,
