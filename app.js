@@ -18,6 +18,7 @@ import {
 } from './middlewares/users-middlewares/auth_controller.js'
 import pfa_route from './routes/pfa-routes/pfa_routes.js'
 import pfa_period_route from './routes/period-routes/period_routes.js'
+import option_route from './routes/options-routes/options_routes.js'
 
 dotenv.config()
 
@@ -53,4 +54,6 @@ app.use('/api/v1/', pfa_route)
 app.use('/api/v1/', pfa_period_route)
 app.use('/api/subject', routerSubject)
 app.use('/api/academicyear', routerAcademicYear)
+app.use('/api/options', option_route)
+
 export default app
