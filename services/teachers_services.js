@@ -4,11 +4,6 @@ import Teacher from '../models/users-models/teacher_model.js'
 
 // adding a teacher
 export const addTeacher = async function (value) {
-  // checking if the user already exists
-  const teacher = await Teacher.findOne({ email: value.email }).exec()
-  if (teacher) {
-    return res.status(400).json({ message: 'Teacher already exists' })
-  }
   // hashing the password
   const hashedPassword = await bcrypt.hash(value.password, 10)
   // creating the user
@@ -17,11 +12,7 @@ export const addTeacher = async function (value) {
     password: hashedPassword,
   })
 
-  console.log(newTeacher)
-
   await newTeacher.save()
-
-  console.log('new teacher just created', newTeacher)
 }
 
 // getting all teachers

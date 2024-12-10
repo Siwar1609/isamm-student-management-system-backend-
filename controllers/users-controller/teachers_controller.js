@@ -1,3 +1,4 @@
+import readXlsxFile from 'read-excel-file/node'
 import Teacher from '../../models/users-models/teacher_model.js'
 import {
   addTeacher,
@@ -7,8 +8,11 @@ import {
   updateTeacher,
 } from '../../services/teachers_services.js'
 
-// getting teachers
+// excel file path to read teachers data 👨‍🏫
+let filePath = 'data\\teachers.xlsx'
 
+// getting teachers list
+// *********************************************
 const getAllTeachers = async function (req, res) {
   try {
     const teachers = await getTeachers()
@@ -18,6 +22,7 @@ const getAllTeachers = async function (req, res) {
   }
 }
 
+//**************************************************************
 // getting a teacher by id
 const getOneTeacher = async function (req, res) {
   const teacherId = req.params.id
@@ -29,6 +34,7 @@ const getOneTeacher = async function (req, res) {
   }
 }
 
+//**************************************************************
 // creating a teacher
 const createTeacher = async function (req, res) {
   try {
@@ -44,6 +50,7 @@ const createTeacher = async function (req, res) {
   }
 }
 
+//**************************************************************
 // updating a teacher
 const updateOneTeacher = async function (req, res) {
   const teacher = await Teacher.findById(req.params.id).exec()
@@ -69,6 +76,7 @@ const updateOneTeacher = async function (req, res) {
   }
 }
 
+//**************************************************************
 // deleting a teacher
 const deleteOneTeacher = async function (req, res) {
   const teacherId = req.params.id
@@ -80,10 +88,55 @@ const deleteOneTeacher = async function (req, res) {
   }
 }
 
+//**************************************************************
+const createTeachersAccountsExcelFile = async function (req, res) {
+  try {
+    const rows = await readXlsxFile(filePath)
+    let teachersNames = []
+    let errors = []
+
+    rows.shift()
+
+    for (const row of rows) {
+      const teacher = {
+        cin: row[0].toString(),
+        birthDate: row[1].toString(),
+        firstName: row[2].toString(),
+        lastName: row[3].toString(),
+        email: row[4].toString(),
+        password: row[5].toString(),
+        phone: row[6].toString(),
+        cv: row[7]?.toString() || '',
+      }
+
+      // check if the teacher already exists
+      const teacherExist = await Teacher.findOne({ cin: teacher.cin }).exec()
+      if (teacherExist) {
+        errors.push(
+          `Teacher ${teacher.firstName} ${teacher.lastName} already exists`,
+        )
+        continue
+      }
+
+      await addTeacher(teacher)
+      teachersNames.push(`${teacher.firstName} ${teacher.lastName}`)
+    }
+
+    res.status(201).json({
+      message: `${teachersNames.length} teachers added successfully`,
+      teachersNames,
+      errors,
+    })
+  } catch (e) {
+    console.log(e)
+  }
+}
+
 export {
   getAllTeachers,
   getOneTeacher,
   createTeacher,
   updateOneTeacher,
   deleteOneTeacher,
+  createTeachersAccountsExcelFile,
 }

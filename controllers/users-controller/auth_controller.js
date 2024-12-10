@@ -8,18 +8,18 @@ dotenv.config()
 
 const JWT_SECRET = process.env.JWT_SECRET
 //signUp
-export const signUp = async (req, res, next) => {
-  const { error, value } = signUpValidator.validate(req.body)
-  if (error) {
-    return res.status(400).json({ message: error.message })
-  }
-  try {
-    const user = await User.create(value)
-    res.status(201).json(user)
-  } catch (error) {
-    res.status(400).json({ message: error.message })
-  }
-}
+// export const signUp = async (req, res, next) => {
+//   const { error, value } = signUpValidator.validate(req.body)
+//   if (error) {
+//     return res.status(400).json({ message: error.message })
+//   }
+//   try {
+//     const user = await User.create(value)
+//     res.status(201).json(user)
+//   } catch (error) {
+//     res.status(400).json({ message: error.message })
+//   }
+// }
 
 //login
 export const login = async (req, res) => {
