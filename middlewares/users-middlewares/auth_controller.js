@@ -13,28 +13,31 @@ export const loggedMiddleware = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({ error: 'Token is required' })
     }
+
     // Verify the token and decode it
     const decodedToken = jwt.verify(token, JWT_SECRET)
     if (!decodedToken) {
       return res.status(401).json({ error: 'Invalid token' })
     }
-    // Extract userId from the decoded token
-    const userId = decodedToken.userId
-    // extract role from the decoded token
-    const role = decodedToken.role
-    // Check if the user exists
+
+    // Extract userId and role from the decoded token
+    const { userId, role } = decodedToken
+
+    // Check if the user exists in the database
     const user = await User.findById(userId)
     if (!user) {
-      return res.status(401).json({ error: 'Invalid token' })
+      return res.status(401).json({ error: 'Invalid token, user not found' })
     }
-    // Add the user to the request object
-    req.auth = user
-    req.auth.role = role
+
+    // Add userId and role to the req.auth object
+    req.auth = { userId, role }
+
     next()
   } catch (error) {
+    console.error('Authentication error:', error.message)
     return res
       .status(401)
-      .json({ error: 'Invalid/expired token , please login' })
+      .json({ error: 'Invalid/expired token, please login' })
   }
 }
 
