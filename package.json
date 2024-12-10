@@ -18,16 +18,21 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "express-validator": "^7.2.0",
+    "fs": "^0.0.1-security",
     "husky": "^9.1.7",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "mongoose": "^8.8.1",
     "mongoose-id-validator": "^0.6.0",
     "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
     "nodemon": "^3.1.7",
-    "read-excel-file": "^5.8.6"
+    "read-excel-file": "^5.8.6",
+    "path": "^0.12.7"
+
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

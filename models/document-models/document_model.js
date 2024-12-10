@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 
 const document_Schema = mongoose.Schema({
-  name: {
+  type: {
     type: String,
     enum: [
       'rapport de stage',

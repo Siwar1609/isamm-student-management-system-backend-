@@ -10,7 +10,7 @@ const updatePFEValidation = Joi.object({
     .items(Joi.string())
     .optional()
     .allow(null), 
-  numberOfStudents: Joi.string()
+  workMode: Joi.string()
     .valid('Binome', 'Monome')
     .optional()
     .allow(null),
