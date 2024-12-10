@@ -30,7 +30,7 @@ const signUpValidator = Joi.object({
     'date.empty': 'La date de naissance est obligatoire.',
   }),
   role: Joi.string()
-    .valid('student', 'teacher', 'professional_supervisor')
+    .valid('student', 'teacher', 'professional_supervisor', 'admin')
     .required()
     .messages({
       'any.only':
