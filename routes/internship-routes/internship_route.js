@@ -6,7 +6,7 @@ import {
   deleteInternship,
 } from '../../controllers/internship-controller/internship_controller.js'
 import express from 'express'
-import { accessByRole } from '../../middlewares/users-middlewares/auth_controller.js'
+import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
 import { getAllStudents } from '../../controllers/internship-controller/students_info.js'
 
 const router = express.Router()

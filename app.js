@@ -16,14 +16,17 @@ import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
 import { scheduleStudentReminder } from './controllers/notifications-controller/student_reminder.js'
 import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
 import option_route from './routes/options-routes/options_routes.js'
-
-import {
-  accessByRole,
-  loggedMiddleware,
-} from './middlewares/users-middlewares/auth_controller.js'
+import { loggedMiddleware } from './middlewares/users-middlewares/auth_middleware.js'
 import pfa_route from './routes/pfa-routes/pfa_routes.js'
 import pfa_period_route from './routes/period-routes/period_routes.js'
 import internship_period_route from './routes/period-routes/internship_period_routes.js'
+import routerSkill from './routes/skill-routes/skill.js'
+import routerChapter from './routes/chapter-routes/chapter.js'
+import routerCurriculum from './routes/curriculum-routes/currilculum_route.js'
+import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill_route.js'
+import routerAssesmentSubject from './routes/subject-assesment-route/subjectAssesment_route.js'
+
+import RouterPublishSubject from './routes/subject-routes/subject.js'
 
 dotenv.config()
 
@@ -62,6 +65,15 @@ app.use('/api/v1/pfaperiod', pfa_period_route)
 app.use('/api/period/', internship_period_route)
 app.use('/api/subject', routerSubject)
 app.use('/api/academicyear', routerAcademicYear)
+app.use('/api/skill', routerSkill)
+app.use('/api/chapter', routerChapter)
+app.use('/api/curriculum', routerCurriculum)
+app.use('/api/assesmentskill', routerAssesmentSkill)
+app.use('/api/assesmentsubject', routerAssesmentSubject)
+app.use('/api/accounts', usersRouter)
+app.use('/api/students', studentsRouter)
+app.use('/api/teachers', teachersRouter)
+app.use('/api/subject/publish/:response', RouterPublishSubject)
 app.use('/api/options', option_route)
 
 export default app

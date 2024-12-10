@@ -12,8 +12,8 @@ export const loggedMiddleware = async (req, res, next) => {
     // Check if the token is missing
     if (!token) {
       return res.status(401).json({ error: 'Token is required' })
+      return res.status(401).json({ error: 'Token is required' })
     }
-
     // Verify the token and decode it
     const decodedToken = jwt.verify(token, JWT_SECRET)
     if (!decodedToken) {
@@ -60,6 +60,7 @@ export const accessByRole = (roles) => async (req, res, next) => {
     }
     return res.status(401).json({ message: 'Unauthorized' })
   } catch (e) {
+    return res.status(401).json({ message: 'Invalid/expired token' })
     return res.status(401).json({ message: 'Invalid/expired token' })
   }
 }

@@ -6,7 +6,7 @@ import {
   get_period_ByID,
   UpdatePeriod,
 } from '../../controllers/period-controller/period_controller.js'
-import { accessByRole } from '../../middlewares/users-middlewares/auth_controller.js'
+import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
 
 const pfa_period_route = express.Router()
 

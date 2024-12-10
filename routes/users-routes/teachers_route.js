@@ -8,7 +8,7 @@ import {
   deleteOneTeacher,
   createTeachersAccountsExcelFile,
 } from '../../controllers/users-controller/teachers_controller.js'
-import { accessByRole } from '../../middlewares/users-middlewares/auth_controller.js'
+import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
 
 const router = express.Router()
 
