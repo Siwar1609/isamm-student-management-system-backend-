@@ -4,14 +4,77 @@ import Student from '../../models/users-models/student_model.js'
 import  {pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
 import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
 import mongoose from 'mongoose'
-import { jsPDF } from "jspdf";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import "jspdf-autotable";
-import { Console } from 'console';
+import nodemailer from 'nodemailer'
 
 // Ajouter un PFE
+// export const addPFE = async (req, res) => {
+//   try {
+//     const {
+//       company_name,
+//       title,
+//       description,
+//       type,
+//       teacherId,
+//       studentId,
+//       numberOfStudents,
+//       affected,
+//       academicYear,
+//       documentId,
+//       periodId,
+//     } = req.body;
+
+//     // Validation des données du corps de la requête
+//     const { error } = pfeValidationSchema.validate(req.body);
+//     if (error) {
+//       return res.status(400).json({ message: error.details[0].message });
+//     }
+
+//     // Vérifier si la période est ouverte
+//     const period = await Period.findById(req.body.periodId);
+//     if (!period) {
+//       return res.status(404).json({ message: '❌ Période non trouvée.' });
+//     }
+//     if (period.start_date > new Date()) {
+//       return res
+//         .status(400)
+//         .json({ message: "⏳ La période de dépôt n'est pas encore ouverte." });
+//     }
+
+//     // Créer un nouveau PFE
+//     const newPFE = new PFE({
+//       company_name,
+//       title,
+//       description,
+//       type,
+//       teacherId,
+//       studentId,
+//       numberOfStudents,
+//       affected,
+//       academicYear,
+//       documentId,
+//       periodId,
+//     });
+
+//     // Sauvegarder le PFE dans la base de données
+//     const savedPFE = await newPFE.save();
+
+//     // Populate les champs studentId, documentId, et periodId
+//     const populatedPFE = await PFE.findById(savedPFE._id)
+//       .populate('studentId')
+//       .populate('teacherId', 'firstName lastName email cv') 
+//       .populate('documentId') 
+//       .populate('periodId', 'name start_date end_date')// récupérer le nom et les dates de la période
+//       .populate('academicYear');
+
+//     return res.status(201).json({
+//       message: '✅ PFE ajouté avec succès 🎉.',
+//       pfe: populatedPFE,
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     return res.status(500).json({ message: '❗ Erreur du serveur.', error: err.message });
+//   }
+// };
 export const addPFE = async (req, res) => {
   try {
     const {
@@ -21,7 +84,7 @@ export const addPFE = async (req, res) => {
       type,
       teacherId,
       studentId,
-      numberOfStudents,
+      WorkMode, 
       affected,
       academicYear,
       documentId,
@@ -45,6 +108,21 @@ export const addPFE = async (req, res) => {
         .json({ message: "⏳ La période de dépôt n'est pas encore ouverte." });
     }
 
+    // Vérification du nombre d'étudiants en fonction du type
+     if (WorkMode === "Monome" && studentId.length !== 1) {
+      return res.status(400).json({
+        message:
+          '❌ Si le PFE est "monome", il doit contenir exactement un ID étudiant.',
+      });
+    }
+
+    if (WorkMode === "Binome" && studentId.length !== 2) {
+      return res.status(400).json({
+        message:
+          '❌ Si le PFE est "binome", il doit contenir exactement deux IDs étudiants.',
+      });
+    }
+
     // Créer un nouveau PFE
     const newPFE = new PFE({
       company_name,
@@ -53,7 +131,7 @@ export const addPFE = async (req, res) => {
       type,
       teacherId,
       studentId,
-      numberOfStudents,
+      WorkMode, 
       affected,
       academicYear,
       documentId,
@@ -68,7 +146,7 @@ export const addPFE = async (req, res) => {
       .populate('studentId')
       .populate('teacherId', 'firstName lastName email cv') 
       .populate('documentId') 
-      .populate('periodId', 'name start_date end_date')// récupérer le nom et les dates de la période
+      .populate('periodId', 'name start_date end_date') // récupérer le nom et les dates de la période
       .populate('academicYear');
 
     return res.status(201).json({
@@ -77,7 +155,9 @@ export const addPFE = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: '❗ Erreur du serveur.', error: err.message });
+    return res
+      .status(500)
+      .json({ message: '❗ Erreur du serveur.', error: err.message });
   }
 };
 
@@ -137,7 +217,6 @@ export const updatePFE = async (req, res) => {
 //           .populate('documentId')
 //           .populate('periodId')
 //           .populate('academicYear')
-
 //         if (!pfeDetails) {
 //           return {
 //             student: student.name,
@@ -148,7 +227,6 @@ export const updatePFE = async (req, res) => {
 //         console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 //         console.log(pfeDetails);
 //         console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-
 //         return {
 //           student: student,
 //           pfeDetails: pfeDetails,          
@@ -209,6 +287,7 @@ export const choosePFE = async (req, res) => {
         .json({ message: 'Ce PFE a déjà été choisi par un autre enseignant.' })
     }
     pfe.teacherId = teacherId
+    pfe.affected = true
     await pfe.save()
     res.status(200).json({ message: 'PFE choisi avec succès.' })
   } catch (error) {
@@ -218,6 +297,7 @@ export const choosePFE = async (req, res) => {
       .json({ message: 'Erreur lors de la mise à jour du PFE.', error })
   }
 }
+
 
 //User Story 4.2: sélectionner les PFE et valider le choix des encadrants. Le statut des PFE va changer
 export const assignTeachersToPFE = async (req, res) => {
@@ -373,9 +453,8 @@ export const assignTeacherToPFEManually2 = async (req, res) => {
     });
   }
 };
+
 //publier ou masquer les PFEs
-
-
 export const publishOrHidePFEAssignments = async (req, res) => {
   try {
     const { response } = req.params;
@@ -399,79 +478,8 @@ export const publishOrHidePFEAssignments = async (req, res) => {
       });
     }
 
-    // Si le planning est publié, générer un PDF
-    let pdfLink = null;
-    if (published) {
-      const pfes = await PFE.find().populate("teacherId").populate("studentId");
-    
-      const doc = new jsPDF();
-      doc.setFontSize(8); // Set small font size
-    
-      // Add title
-      doc.setTextColor(40, 40, 40); // Gray text color
-      doc.text("Planning d'Affectation des PFEs", 14, 10);
-     
-
-      const tableData = pfes.map((pfe, index) => {
-        // Convert Mongoose document to plain object
-        const pfeObject = pfe.toObject();
-        console.log(pfeObject);
-      
-        // Fallback for teacher name if not populated
-        const teacherName = pfeObject.teacherId
-          ? `${pfeObject.teacherId.firstName || ""} ${pfeObject.teacherId.lastName || ""}`
-          : "Non assigné";
-      
-        // Fallback for student name if not populated
-        const studentName = pfeObject.studentId
-          ? `${pfeObject.studentId[0]?.firstName || ""} ${pfeObject.studentId[0]?.lastName || ""}`
-          : "Non assigné";
-      
-        // Return data for the table
-        return [index + 1, pfeObject.title || "Sans titre", teacherName, studentName];
-      });
-    
-      console.log(tableData);
-      // Définir les colonnes et options du tableau
-      doc.autoTable({
-        head: [["#", "PFE", "Enseignant", "Étudiant"]], 
-        body: tableData, 
-        startY: 15, 
-        theme: "grid", 
-        headStyles: {
-          fillColor: [41, 128, 185], 
-          textColor: [255, 255, 255], 
-          fontSize: 8, 
-        },
-        bodyStyles: {
-          fontSize: 7, 
-        },
-        alternateRowStyles: {
-          fillColor: [245, 245, 245],
-        },
-      });
-
-      
-
-      // Enregistrer le fichier PDF sur le serveur
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-      const filePath = path.join(__dirname, "../uploads/planning.pdf");
-
-      // Créer le répertoire "uploads" s'il n'existe pas
-      if (!fs.existsSync(path.dirname(filePath))) {
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      }
-
-      doc.save(filePath);
-
-      // Lien vers le fichier PDF
-      pdfLink = `/uploads/planning.pdf`;
-    }
-
     res.status(200).json({
       message: `Tous les PFEs ont été ${published ? "publiés" : "masqués"} avec succès.`,
-      pdfLink, // Retourner le lien du PDF si disponible
       result,
     });
   } catch (error) {
@@ -479,6 +487,83 @@ export const publishOrHidePFEAssignments = async (req, res) => {
     res.status(500).json({
       message: "Erreur lors de la mise à jour de l'état de publication des PFEs.",
       error,
+    });
+  }
+};
+//envoyer le planning des PFEs par email
+
+export const send_pfe_planning = async (req, res) => {
+  try {
+  
+    const { emails, planningLink } = req.body;
+
+    if (!emails || emails.length === 0 || !planningLink) {
+      return res.status(400).json({ message: "Emails or planning link is missing." });
+    }
+
+    // vérifier si le planning est déja envoyé
+    const pfeStatus = await PFE.findOne({ send: true }).select("send");
+    const isFirstSend = !pfeStatus;
+
+    // Configuration de Nodemailer pour l'envoi d'email
+    let transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, 
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // definirr  le contenu de l'email
+    const subject = isFirstSend
+      ? "Planning des PFEs"
+      : "Mise à jour : Planning des PFEs";
+
+    const htmlContent = isFirstSend
+      ? `
+        <p>Bonjour,</p>
+        <p>Le planning des PFEs est désormais disponible. Cliquez sur le lien ci-dessous pour le consulter :</p>
+        <a href="${planningLink}">Voir le planning des PFEs</a>
+        <p>Cordialement,</p>
+        <p>L'équipe PFE</p>
+      `
+      : `
+        <p>Bonjour,</p>
+        <p>Le planning des PFEs a été mis à jour. Cliquez sur le lien ci-dessous pour consulter la version la plus récente :</p>
+        <a href="${planningLink}">Voir le planning mis à jour</a>
+        <p>Cordialement,</p>
+        <p>L'équipe PFE</p>
+      `;
+
+    // Envoi des emails aux destinataires
+    const emailPromises = emails.map((email) =>
+      transporter.sendMail({
+        from: '"Équipe PFE 👻" <alimekni5@gmail.com>',
+        to: email,
+        subject,
+        html: htmlContent,
+      })
+    );
+
+   // Attendre l'envoi de tous les emails
+    await Promise.all(emailPromises);
+
+    // Marquer tous les PFEs comme envoyés
+    if (isFirstSend) {
+      await PFE.updateMany({}, { send: true });
+    }
+
+    return res.status(200).json({
+      message: `Emails envoyés avec succès (${isFirstSend ? "premier envoi" : "mise à jour"}).`,
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'envoi des emails:", error);
+
+    return res.status(500).json({
+      message: "Erreur lors de l'envoi des emails.",
+      error: error.message,
     });
   }
 };

@@ -49,7 +49,11 @@ const PFESchema = new mongoose.Schema({
   isApproved: { 
     type: Boolean,
     default: false 
-  }  
+  } ,
+  send: { 
+    type: Boolean,
+    default: false
+   }
 }, {
   timestamps: true,
 });

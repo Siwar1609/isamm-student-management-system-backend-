@@ -12,7 +12,8 @@ import {
   assignTeachersToPFE,
   assignTeacherToPFEManually,
   assignTeacherToPFEManually2,
-  publishOrHidePFEAssignments
+  publishOrHidePFEAssignments,
+  send_pfe_planning
 } from '../../controllers/pfe-controller/pfe_controller.js'
 import {loggedMiddleware,isTeacher,isAdmin} from "../../middlewares/users-middlewares/auth_controller.js";
 const router = express.Router()
@@ -40,6 +41,9 @@ router.patch('/:id/planning/assign', assignTeacherToPFEManually)
 router.patch('/planning/update', assignTeacherToPFEManually2)
 //route pour publier ou masquer les pfes
 router.post('/planning/publish/:response', publishOrHidePFEAssignments)
+//route pour envoi de l'email
+router.post('/planning/send',send_pfe_planning);
+
 
 //
 export default router

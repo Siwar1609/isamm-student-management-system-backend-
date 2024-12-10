@@ -25,7 +25,7 @@ export const pfeValidationSchema = Joi.object({
         }),
     )
     .required(),
-  numberOfStudents: Joi.string().valid('Binome', 'Monome').required(),
+  WorkMode: Joi.string().valid('Binome', 'Monome').required(),
   affected: Joi.boolean().optional(),
   published: Joi.boolean().optional(),
   academicYear: Joi.string().required(),
