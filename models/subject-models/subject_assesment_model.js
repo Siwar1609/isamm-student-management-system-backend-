@@ -2,7 +2,11 @@ import mongoose from 'mongoose';
 import Subject from './subject_model.js';
 // Check if the model is already compiled before defining it
 const SubjectAssessment = mongoose.models.SubjectAssessment || mongoose.model('SubjectAssessment', new mongoose.Schema({
-  studentId: { type: Number }, // Corrected to Number
+  studentId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Student', 
+    required: true 
+  }, // Corrected to Number
   subjectId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Subject', 

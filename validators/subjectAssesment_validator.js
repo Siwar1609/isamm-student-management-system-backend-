@@ -23,6 +23,11 @@ const subjectAssessmentValidator = Joi.object({
     'any.required': 'Academic Year ID is required.',
     'string.pattern.base': 'Academic Year ID must be a valid MongoDB ObjectId.',
   }), // MongoDB ObjectId pattern for academic year ID
+  studentId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+    'any.required': 'student ID is required.',
+    'string.pattern.base': 'student ID must be a valid MongoDB ObjectId.',
+  }), // MongoDB ObjectId pattern for academic year ID
+  
 });
 
 export default subjectAssessmentValidator;

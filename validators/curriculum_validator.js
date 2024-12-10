@@ -16,13 +16,25 @@ const curriculumValidator = Joi.object({
     "string.min": '"description" length must be between 10 and 500.',
     "string.max": '"description" length must be between 10 and 500.',
   }),
+  
+  // subjectId should be a single ObjectId, not an array
+  subjectId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .required()
+    .messages({
+      "string.pattern.base": '"subjectId" must be a valid ObjectId.',
+      "any.required": '"subjectId" is required.',
+    }),
 
+  // chapId should be an array of ObjectIds
   chapId: Joi.array()
     .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional()
     .messages({
       "array.items": '"chapId" must contain valid ObjectIds.',
     }),
+
+  // academicYearId should be an array of ObjectIds
   academicYearId: Joi.array()
     .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .required()
@@ -30,13 +42,16 @@ const curriculumValidator = Joi.object({
       "array.items": '"academicYearId" must contain valid ObjectIds.',
       "any.required": '"academicYearId" is required.',
     }),
-    subjectId: Joi.array()
-    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
-    .required()
+
+  // teacherId should be a valid ObjectId
+  teacherId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .optional()
     .messages({
-      "array.items": '"SubjectId" must contain valid ObjectIds.',
-      "any.required": '"subjectId" is required.',
+      "string.pattern.base": '"teacherId" must be a valid ObjectId.',
     }),
+
+  // modification is an array of modification objects
   modification: Joi.array().items(
     Joi.object({
       proposition: Joi.string().required(),
@@ -44,7 +59,7 @@ const curriculumValidator = Joi.object({
       enregistrer: Joi.boolean().default(false),
       modification_date: Joi.date().default(Date.now),
     })
-  ),
+  ).optional(),
 });
 
 export default curriculumValidator;

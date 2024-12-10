@@ -29,12 +29,12 @@ const skillValidator = Joi.object({
       "string.min": '"description" must be at least 10 characters long.',
       "string.max": '"description" must not exceed 500 characters.',
     }),
-    skillAssesmentId: Joi.array()
-    .items(Joi.string().custom(objectIdValidator, "ObjectId validation"))
-    .optional()
-    .messages({
-      "any.invalid": 'Each element in "skillAssesmentId" must be a valid ObjectId.',
-    }),
+   
+    skillAssesmentId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).optional().messages({
+      'any.required': 'skill assesment ID is optional.',
+      'string.pattern.base': 'skill assesment ID must be a valid MongoDB ObjectId.',
+    }), // MongoDB ObjectId pattern for academic year ID
+    
 
   subjectId: Joi.array()
     .items(Joi.string().custom(objectIdValidator, "ObjectId validation"))
