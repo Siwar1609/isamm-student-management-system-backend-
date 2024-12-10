@@ -9,3 +9,12 @@ export const validatePFEPeriod = (data) => {
 
   return schema.validate(data);
 };
+// Validation pour POST /Option/open - PATCH /Option/open -
+export const validateOptionPeriod = (data) => {
+  const schema = Joi.object({
+    start_date: Joi.date().required(),
+    end_date: Joi.date().required(),
+  });
+
+  return schema.validate(data);
+};
