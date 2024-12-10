@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import User from '../../models/users-model/user_model.js'
+import User from '../../models/users-models/user_model.js'
 
 const JWT_SECRET = process.env.JWT_SECRET
 
@@ -11,69 +11,55 @@ export const loggedMiddleware = async (req, res, next) => {
 
     // Check if the token is missing
     if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
+      return res.status(401).json({ error: 'Token is required' })
     }
 
     // Verify the token and decode it
     const decodedToken = jwt.verify(token, JWT_SECRET)
-
-    // Extract userId from the decoded token
-    const userId = decodedToken.userId
-
-    // Fetch the user by userId
-    const user = await User.findById(userId)
-
-    // If user is found, attach user info to the request object
-    if (user) {
-      req.auth = {
-        userId: userId,
-        role: user.role,
-      }
-      next() // Proceed to the next middleware or route handler
-    } else {
-      return res.status(401).json({ error: 'User does not exist' })
-    }
-  } catch (error) {
-    // General error handling
-    if (error.name === 'JsonWebTokenError') {
+    if (!decodedToken) {
       return res.status(401).json({ error: 'Invalid token' })
     }
-    res.status(500).json({ error: error.message })
+
+    // Extract userId and role from the decoded token
+    const { userId, role } = decodedToken
+
+    // Check if the user exists in the database
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid token, user not found' })
+    }
+
+    // Add userId and role to the req.auth object
+    req.auth = { userId, role }
+
+    next()
+  } catch (error) {
+    console.error('Authentication error:', error.message)
+    return res
+      .status(401)
+      .json({ error: 'Invalid/expired token, please login' })
   }
 }
 
-export const isAdmin = (req, res, next) => {
-  try {
-    if (req.auth.role === 'admin') {
-      next()
-    } else {
-      res.status(403).json({ error: 'no access to this route' })
-    }
-  } catch (e) {
-    res.status(401).json({ error: error.message })
+export const accessByRole = (roles) => async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1]
+  if (!token) {
+    return res.status(401).json({
+      message: 'Access denied. No token provided. Please login to get a token',
+    })
   }
-}
-
-export const isStudent = (req, res, next) => {
   try {
-    if (req.auth.role === 'etudiant') {
-      next()
-    } else {
-      res.status(403).json({ error: 'no access to this route' })
-    }
-  } catch (e) {
-    res.status(401).json({ error: error.message })
-  }
-}
+    const payload = jwt.verify(token, JWT_SECRET)
+    console.log(payload)
 
-export const isTeacher = (req, res, next) => {
-  try {
-    if (req.auth.role === 'enseignant') {
-      next()
-    } else {
-      res.status(403).json({ error: 'no access to this route' })
+    if (!payload) {
+      return res.status(401).json({ message: 'Invalid token' })
     }
+    if (roles.includes(payload.role)) {
+      return next()
+    }
+    return res.status(401).json({ message: 'Unauthorized' })
   } catch (e) {
-    res.status(401).json({ error: error.message })
+    return res.status(401).json({ message: 'Invalid/expired token' })
   }
 }
