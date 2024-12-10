@@ -4,6 +4,10 @@ import {
   getAllInternships,
   getInternshipById,
   deleteInternship,
+  assignTeachersToInternship,
+  updateInternshipPlanning,
+  publishOrMaskPlanning,
+  sendInternshipPlanningEmail,
 } from '../../controllers/internship-controller/internship_controller.js'
 import express from 'express'
 import { accessByRole } from '../../middlewares/users-middlewares/auth_controller.js'

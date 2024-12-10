@@ -3,6 +3,9 @@ import Document from '../../models/document-models/document_model.js'
 import Period from '../../models/period-model/period_model.js'
 import AcademicYear from '../../models/academic_year_models/academic-year-model.js'
 import Student from '../../models/users-models/student_model.js'
+import Teacher from '../../models/users-models/teacher_model.js'
+import InternshipPlanning from '../../models/planning-models/Internship_planning.js'
+
 // Add internship
 export const addInternship = async (req, res) => {
   try {
