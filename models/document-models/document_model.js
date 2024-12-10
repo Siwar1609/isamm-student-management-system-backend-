@@ -12,12 +12,22 @@ const document_Schema = mongoose.Schema({
     ],
     required: true,
   },
-  link: {
+  url: {
     type: String,
     required: true,
   },
-  current: {
-    type: Boolean,
+  encadrant: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Teacher', // References the encadrant (teacher)
+  },
+  internship: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Internship', // References the internship
+    required: true,
+  },
+  uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Student', // References the student
     required: true,
   },
 })

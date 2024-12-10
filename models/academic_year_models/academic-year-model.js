@@ -1,7 +1,6 @@
 import mongoose from 'mongoose'
 
 const academic_year_Schema = mongoose.Schema({
-  
   start_year: {
     type: Date,
     required: true,

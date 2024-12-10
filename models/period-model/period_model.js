@@ -20,6 +20,10 @@ const PeriodSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  type: {
+    type: Number,
+    required: true,
+  },
 })
 
 export default mongoose.model('Period', PeriodSchema)

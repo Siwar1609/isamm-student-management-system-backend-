@@ -1,6 +1,11 @@
 import Student from '../../models/users-models/student_model.js'
 import { addStudent } from '../../services/students_services.js'
+import readXlsxFile from 'read-excel-file/node'
 
+// excel file path to read students data 👩‍🎓
+let filePath = 'data\\students.xlsx'
+
+//**************************************************************
 // get students
 const getStudents = async (req, res) => {
   try {
@@ -11,6 +16,7 @@ const getStudents = async (req, res) => {
   }
 }
 
+//**************************************************************
 // get a student by id
 const getStudent = async (req, res) => {
   const studentId = req.params.id
@@ -22,13 +28,18 @@ const getStudent = async (req, res) => {
   }
 }
 
+//**************************************************************
 // create a new student
 const createStudent = async (req, res) => {
   try {
-    let value = req.body
-    console.log('req.body', value)
+    const student = await Student.findOne({ cin: req.body.cin }).exec()
+    if (student) {
+      return res
+        .status(400)
+        .json({ message: 'An Account with the same CIN Already Exist' })
+    }
 
-    const newStudent = await addStudent(value)
+    const newStudent = await addStudent(req.body)
 
     res.status(201).json(newStudent)
   } catch (err) {
@@ -37,6 +48,7 @@ const createStudent = async (req, res) => {
   }
 }
 
+//**************************************************************
 // update a student
 const updateStudent = async (req, res) => {
   const student = await Student.findById(req.params.id).exec()
@@ -61,6 +73,7 @@ const updateStudent = async (req, res) => {
   }
 }
 
+//**************************************************************
 // delete a student
 const deleteStudent = async (req, res) => {
   const studentId = req.params.id
@@ -72,4 +85,64 @@ const deleteStudent = async (req, res) => {
   }
 }
 
-export { getStudents, getStudent, createStudent, updateStudent, deleteStudent }
+//**************************************************************
+const createStudentsAccountsExcelFile = async (req, res) => {
+  try {
+    // Read the content of the Excel file
+    const rows = await readXlsxFile(filePath)
+    let studentsNames = []
+    let errors = []
+
+    // Skip the first row (headers)
+    rows.shift()
+
+    for (const row of rows) {
+      const student = {
+        cin: row[0].toString(),
+        birthDate: row[1].toString(),
+        firstName: row[2].toString(),
+        lastName: row[3].toString(),
+        email: row[4].toString(),
+        password: row[5].toString(),
+        phone: row[6].toString(),
+        cv: row[7]?.toString() || '',
+        fieldOfStudy: row[8].toString(),
+        level: row[9].toString(),
+        status: row[10].toString(),
+      }
+
+      // Check if the student already exists
+      const studentExist = await Student.findOne({ cin: student.cin }).exec()
+      if (studentExist) {
+        // Log the error for this student
+        errors.push(
+          `Student ${student.firstName} ${student.lastName} already exists`,
+        )
+        continue
+      }
+
+      // Add the student
+      await addStudent(student)
+      studentsNames.push(`${student.firstName} ${student.lastName}`)
+    }
+
+    // Send a single response after processing all rows
+    res.status(201).json({
+      message: `${studentsNames.length} students added successfully`,
+      addedStudents: studentsNames,
+      errors,
+    })
+  } catch (e) {
+    res.status(500).json({ message: e.message })
+  }
+}
+
+//**************************************************************
+export {
+  getStudents,
+  getStudent,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  createStudentsAccountsExcelFile,
+}

@@ -1,5 +1,5 @@
 import express from 'express'
-import { isAdmin, loggedMiddleware } from '../../middlewares/users-middlewares/auth_controller.js'
+
 import {
   addPeriod,
   fetch_pfa_period,
@@ -18,8 +18,7 @@ const pfa_period_route = express.Router()
 
 pfa_period_route.post('/pfa/open', addPeriod)
 pfa_period_route.get('/pfa/open', fetch_pfa_period)
-pfa_period_route.get('/pfa/open/:id', get_period_ByID,)
+pfa_period_route.get('/pfa/open/:id', get_period_ByID)
 pfa_period_route.patch('/pfa/open/:id', UpdatePeriod)
-
 
 export default pfa_period_route

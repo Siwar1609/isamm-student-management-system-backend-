@@ -12,6 +12,12 @@ const teacherSchme = mongoose.Schema(
       type: String,
       required: true,
     },
+    subjects: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Subject', // Référence à un modèle Subject (optionnel)
+      },
+    ],
   },
   {
     timestamps: true,
