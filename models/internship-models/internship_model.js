@@ -1,6 +1,7 @@
+// import mongoose from "mongoose";
 import mongoose from 'mongoose'
 
-const InternshipSchema = new mongoose.Schema({
+const internshipSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
@@ -8,6 +9,10 @@ const InternshipSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true,
+  },
+  status: {
+    type: String,
+    enum: ['ended', 'pending', 'active'],
   },
   startDate: {
     type: Date,
@@ -20,11 +25,11 @@ const InternshipSchema = new mongoose.Schema({
   academicYear: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AcademicYear',
-    required: false,
+    required: true,
   },
-  type: {
-    type: String,
-    enum: ['1st_year', '2nd_year'],
+  level: {
+    type: Number,
+    enum: [1, 2],
     required: true,
   },
 
@@ -33,25 +38,23 @@ const InternshipSchema = new mongoose.Schema({
     ref: 'Student',
     required: true,
   },
-  submissionDate: {
-    type: Date,
-  },
+  published: { type: Boolean, default: 'true' },
+
   Validate: {
-    type: Boolean,
-    default: false,
+    value: { type: Boolean, default: 'false' },
+    reason: { type: String },
   },
   documents: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Document',
-      required: false,
     },
   ],
-  periodId: {
+  periodeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Period',
-    required: false,
+    required: true,
   },
 })
 
-export default mongoose.model('Internship', InternshipSchema)
+export default mongoose.model('Internship', internshipSchema)

@@ -18,6 +18,10 @@ import {
 } from './middlewares/users-middlewares/auth_controller.js'
 import pfa_route from './routes/pfa-routes/pfa_routes.js'
 import pfa_period_route from './routes/period-routes/period_routes.js'
+import internship_period_route from './routes/period-routes/internship_period_routes.js'
+
+import { scheduleStudentReminder } from './controllers/notifications-controller/student_reminder.js'
+import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
 
 dotenv.config()
 
@@ -41,6 +45,8 @@ app.use(morgan('dev'))
 app.get('/', (req, res) => {
   res.send(' <h1> Server is Running correctly ✅ </h1> ')
 })
+scheduleStudentReminder()
+scheduleTeacherReminder()
 
 app.use('/api/accounts', usersRouter)
 app.use('/api/students', studentsRouter)
@@ -51,6 +57,7 @@ app.use('/api/teachers', loggedMiddleware, teachersRouter)
 app.use('/PFE', gestionPFERoutes)
 app.use('/api/v1/', pfa_route)
 app.use('/api/v1/', pfa_period_route)
+app.use('/api/period/', internship_period_route)
 app.use('/api/subject', routerSubject)
 app.use('/api/academicyear', routerAcademicYear)
 export default app
