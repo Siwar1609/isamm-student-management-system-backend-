@@ -1,7 +1,7 @@
 import PFA from '../../models/project_models/project_pfa.js'
 import PFAValidator from '../../validators/project_pfa_validator.js'
 import period_model from '../../models/period-model/period_model.js'
-import { sendApprovalEmails } from '../pfa-controller/choice_pfa_conroller.js'
+import { sendApprovalEmails } from '../pfa-controller/choice_pfa_controller.js'
 import nodemailer from 'nodemailer'
 import Student from '../../models/users-models/student_model.js'
 import dotenv from 'dotenv'
@@ -85,19 +85,19 @@ export const add_my_pfa = async (req, res) => {
     // Envoi d'emails si la liste des étudiants est fournie
     if (list_of_student && list_of_student.length > 0) {
       // Récupérer les étudiants à partir de leurs ID
-      const students = await Student.find({ _id: { $in: list_of_student } });
-    
+      const students = await Student.find({ _id: { $in: list_of_student } })
+
       if (students.length === 0) {
         return res.status(404).json({
-          message: "Aucun étudiant correspondant trouvé pour les ID fournis.",
-        });
+          message: 'Aucun étudiant correspondant trouvé pour les ID fournis.',
+        })
       }
-    
+
       // Extraire les e-mails des étudiants
-      const studentEmails = students.map(student => student.email);
-    
+      const studentEmails = students.map((student) => student.email)
+
       // Envoyer les e-mails
-      await sendApprovalEmails(studentEmails, savedPFA);
+      await sendApprovalEmails(studentEmails, savedPFA)
     }
     return res
       .status(201)
@@ -148,9 +148,11 @@ export const update_my_pfa = async (req, res) => {
       { new: true },
     )
     // Envoi d'emails si la liste des étudiants est mise à jour
-     if (req.body.list_of_student && req.body.list_of_student.length > 0) {
-      const studentEmails = req.body.list_of_student.map(student => student.email); // Adaptez selon votre structure
-      await sendApprovalEmails(studentEmails, updated_pfa);
+    if (req.body.list_of_student && req.body.list_of_student.length > 0) {
+      const studentEmails = req.body.list_of_student.map(
+        (student) => student.email,
+      ) // Adaptez selon votre structure
+      await sendApprovalEmails(studentEmails, updated_pfa)
     }
 
     res.status(200).json({
@@ -341,7 +343,7 @@ export const publish_pfa = async (req, res) => {
 export const send_pfa_list_email = async (req, res) => {
   try {
     // Rechercher les étudiants ayant role="student" et level=2
-    const students = await Student.find({ role: 'student' , level: '2' })
+    const students = await Student.find({ role: 'student', level: '2' })
     console.log(students)
     if (!students || students.length === 0) {
       return res.status(404).json({ message: 'Aucun étudiant trouvé.' })
@@ -438,6 +440,7 @@ export const fetsh_published_pfa = async (req, res) => {
     res.status(400).json({ error: e.message, message: "Problème d'accès" })
   }
 }
+
 export const get_published_pfa_by_id = async (req, res) => {
   try {
     // Recherche du sujet PFA par ID avec le champ `published` à `true`

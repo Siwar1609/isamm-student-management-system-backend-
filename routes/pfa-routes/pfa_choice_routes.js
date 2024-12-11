@@ -1,15 +1,26 @@
 import express from 'express'
-import { accessByRole } from '../../middlewares/users-middlewares/auth_controller.js'
-import { approveChoicePFA, choose_pfa, getChoicesForProject } from '../../controllers/pfa-controller/choice_pfa_conroller.js'
+import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
+import {
+  approveChoicePFA,
+  choose_pfa,
+  getChoicesForProject,
+} from '../../controllers/pfa-controller/choice_pfa_controller.js'
 
 const choice_pfa_route = express.Router()
 
-
 // ----------------------- Student Routes --------------------------------------------------------
-choice_pfa_route.post("/:id/choice",accessByRole(['student']) ,choose_pfa)
+choice_pfa_route.post('/:id/choice', accessByRole(['student']), choose_pfa)
 
-choice_pfa_route.get("/choices/:projectId",accessByRole(['teacher']),getChoicesForProject)
+choice_pfa_route.get(
+  '/choices/:projectId',
+  accessByRole(['teacher']),
+  getChoicesForProject,
+)
 
-choice_pfa_route.post("/:projectId/choice/:choiceId/approve",accessByRole(['teacher']),approveChoicePFA)
+choice_pfa_route.post(
+  '/:projectId/choice/:choiceId/approve',
+  accessByRole(['teacher']),
+  approveChoicePFA,
+)
 
-export default choice_pfa_route 
+export default choice_pfa_route
