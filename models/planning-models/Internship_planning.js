@@ -15,14 +15,6 @@ const InternshipPlanningSchema = new mongoose.Schema({
   published: { 
     type: Boolean, 
     required: true },
-  evaluation: {
-    status: {
-      type: String,
-      enum: ['En attente', 'Validé', 'Non validé'],
-      default: 'En attente',
-    },
-    reason: { type: String, default: null },
-  },
   meeting: {
     date: { 
       type: Date, 
@@ -34,23 +26,13 @@ const InternshipPlanningSchema = new mongoose.Schema({
       type: String, 
       required: false },
   },
-  sendTo: {
-    studentEmail: {
-      type: String, // student email
-      required: true,
-    },
-    teacherEmail: {
-      type: String, // teacher email
-      required: true,
-    },
-  },
   sentEmail: {
     type: Boolean,
-    default: false, // Indicates if the email has been sent or not
+    required: false  // Indicates if the email has been sent or not
   },
   sentAt: {
     type: Date,
-    default: null, // Date when the email was sent
+    required: false // Date when the email was sent
   },
 })
 
