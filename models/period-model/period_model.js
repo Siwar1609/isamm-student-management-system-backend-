@@ -12,6 +12,7 @@ const PeriodSchema = new mongoose.Schema({
     ],
     required: true,
   },
+
   start_date: {
     type: Date,
     required: true,
@@ -23,6 +24,7 @@ const PeriodSchema = new mongoose.Schema({
   type: {
     type: Number,
   },
+
 })
 
 export default mongoose.model('Period', PeriodSchema)
