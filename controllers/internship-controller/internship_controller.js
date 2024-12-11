@@ -5,6 +5,8 @@ import AcademicYear from '../../models/academic_year_models/academic-year-model.
 import Student from '../../models/users-models/student_model.js'
 import Teacher from '../../models/users-models/teacher_model.js'
 import InternshipPlanning from '../../models/planning-models/Internship_planning.js'
+import nodemailer from 'nodemailer';
+
 
 // Add internship
 export const addInternship = async (req, res) => {
@@ -311,87 +313,110 @@ export const deleteInternship = async (req, res) => {
     })
   }
 }
-
 export const assignTeachersToInternship = async (req, res) => {
+  const { teacherIds } = req.body; // Teacher IDs come from the request body
+  const { type } = req.params;  // Use 'type' if you have defined ':type' in the route
+  const level = Number(type);   // Convert 'type' to a number
+
+  console.log('level after conversion:', level); // Check if the conversion was successful
+
+  if (!Array.isArray(teacherIds) || teacherIds.length === 0) {
+    return res.status(400).json({ success: false, message: "teacherIds must be a non-empty array." });
+  }
+  
   try {
-    const { teacherIds } = req.body; // List of teacher IDs from the request body
-    const internshipType = req.params.type; // '1st_year' or '2nd_year'
+    // Step 1: Retrieve internships by level
+    const internships = await getInternshipsByLevel(level);
 
-    // Fetch internships by type (1st_year or 2nd_year)
-    const internships = await Internship.find({ type: internshipType });
-
-    // If no internships are found, return an error
-    if (!internships || internships.length === 0) {
-      return res.status(400).json({ message: `No internships found for the type '${internshipType}'` });
+    if (internships.length === 0) {
+      return res.status(404).json({ success: false, message: `No internships found for level ${level}.` });
     }
+    
+    const teacherSubjectCounts = await fetchTeacherSubjectCounts(teacherIds);
 
-    // Fetch teachers who have the provided teacherIds
-    const teachers = await Teacher.find({ _id: { $in: teacherIds } });
+    // Sort the teachers by subject count
+    const sortedTeachers = teacherSubjectCounts.data.sort((a, b) => b.subjectCount - a.subjectCount);
 
-    // If teachers are not found based on the provided IDs, return an error
-    if (!teachers || teachers.length !== teacherIds.length) {
-      return res.status(400).json({ message: "Some teachers were not found." });
-    }
+    // Step 3: Distribute internships among the teachers
+    let assignments = [];
+    let teacherIndex = 0;
 
-    // Assuming you have a list of teachers that you want to assign internships to
-    const teacherSubjectCounts = {};
+    // Filter unassigned internships
+    const unassignedInternships = [];
+    for (let i = 0; i < internships.length; i++) {
+      const internship = internships[i];
+      const isAssigned = await isInternshipAssigned(internship._id);
 
-    // Loop through each teacher to populate their subjects and count them
-    for (const teacher of teachers) {
-      try {
-        // Use the populate() method to retrieve all subjects assigned to the teacher
-        const teacherWithSubjects = await Teacher.findById(teacher._id).populate('subjects'); // 'subjects' is the field in Teacher model referencing Subject
-
-        // Count the number of subjects for each teacher
-        teacherSubjectCounts[teacher._id] = teacherWithSubjects.subjects.length;
-      } catch (error) {
-        console.error(`Error populating subjects for teacher ${teacher._id}:`, error);
+      // If the internship is already assigned, we do not add it to the unassigned list
+      if (!isAssigned) {
+        unassignedInternships.push(internship);
       }
     }
 
-    // Sort teachers based on the number of subjects (higher number of subjects gets more internships)
-    const sortedTeachers = teachers.sort((a, b) => teacherSubjectCounts[b._id] - teacherSubjectCounts[a._id]);
-
-    // Assign internships to teachers proportionally based on the number of subjects
-    let teacherIndex = 0;
-    const assignments = [];
-
-    for (let i = 0; i < internships.length; i++) {
-      const internship = internships[i];
-      const teacher = sortedTeachers[teacherIndex]; // Get the current teacher to assign
-
-      // Create the internship planning entry
-      const internshipPlanning = new InternshipPlanning({
-        idInternship: internship._id,
-        EvaluatorId: teacher._id,
-        published: false, // Initially, the planning is not published
-        evaluation: {
-          status: 'En attente', // Default evaluation status
-        },
-        sendTo: {
-          studentEmail: internship.studentId.email, // Assuming studentId has an email
-          teacherEmail: teacher.email, // Assuming teacher has an email
-        },
-      });
-
-      // Save the internship planning entry
-      await internshipPlanning.save();
-      assignments.push(internshipPlanning);
-
-      // Move to the next teacher, looping back to the first teacher if necessary
-      teacherIndex = (teacherIndex + 1) % sortedTeachers.length;
+    // Check if we have any unassigned internships
+    if (unassignedInternships.length === 0) {
+      return res.status(200).json({ success: false, message: "No unassigned internships available for this level." });
     }
 
-    // Return success response
-    return res.status(201).json({
-      message: 'Teachers successfully assigned to internships.',
-      assignments,
-    });
+    // Distribute the unassigned internships among the teachers
+    for (let i = 0; i < unassignedInternships.length; i++) {
+      const internship = unassignedInternships[i];
+      const teacher = sortedTeachers[teacherIndex];
 
+      // Assign the internship
+      const planning = new InternshipPlanning({
+        idInternship: internship._id, // Internship
+        EvaluatorId: teacher.teacherId, // Teacher
+        published: false, // By default, unpublished
+      });
+
+      // Save the planning in the InternshipPlanning collection
+      const savedPlanning = await planning.save();
+      assignments.push(savedPlanning);
+
+      // Move to the next teacher (cycle through the teachers)
+      teacherIndex = (teacherIndex + 1) % sortedTeachers.length; // Repeat the teacher loop
+    }
+
+    // Return the response with the successful assignments
+    return res.status(200).json({
+      success: true,
+      message: `${assignments.length} internships successfully assigned to teachers.`,
+      data: assignments
+    });
+  } catch (err) {
+    console.error("Error assigning internships:", err);
+    return res.status(500).json({ success: false, message: "Error assigning internships.", error: err.message });
+  }
+};
+
+export const fetchAllPlanning = async (req, res) => {
+  try {
+    // Retrieve all planning entries and populate the relationships (internship and teacher)
+    const planning = await InternshipPlanning.find()
+      .populate({
+        path: "idInternship",
+        populate: {
+          path: "studentId",
+        },
+      }) // Populate internship details
+      .populate("EvaluatorId"); // Populate teacher details
+
+    if (!planning || planning.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No planning found.",
+      });
+    }
+    res.status(200).json({
+      message: "Planning retrieved successfully.",
+      data: planning,
+    });
   } catch (error) {
-    console.error("Error assigning teachers to internships:", error);
-    return res.status(500).json({
-      message: "Error assigning teachers to internships.",
+    console.error("Error fetching planning:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching planning.",
       error: error.message,
     });
   }
@@ -399,161 +424,427 @@ export const assignTeachersToInternship = async (req, res) => {
 
 export const updateInternshipPlanning = async (req, res) => {
   try {
-    const { idInternship, idTeacher } = req.body;  // ID du stage et de l'enseignant
-    const type = req.params.type;  // Type de stage (par exemple '1st_year' ou '2nd_year')
-    
-    // Vérification si le stage existe
+    const { idInternship, idTeacher } = req.body;  // Internship and teacher ID
+    const type = Number(req.params.type);  // Type of internship (1 or 2), converted to number
+
+    // Check if the internship type is valid (1 or 2)
+    if (![1, 2].includes(type)) {
+      return res.status(400).json({ success: false, message: 'Invalid internship type. Must be 1 or 2.' });
+    }
+
+    // Check if the internship exists
     const internship = await Internship.findById(idInternship);
     if (!internship) {
-      return res.status(404).json({ message: 'Stage not found.' });
+      return res.status(404).json({ success: false, message: 'Internship not found.' });
     }
 
-    // Vérification que le type de stage correspond au type attendu
-    if (internship.type !== type) {
-      return res.status(400).json({ message: `Stage type mismatch. Expected ${type}, but found ${internship.type}.` });
+    // Check if the internship type matches the specified one
+    if (internship.level !== type) {
+      return res.status(400).json({ success: false, message: `Internship type mismatch. Expected ${type}, but found ${internship.level}.` });
     }
 
-    // Vérification si l'enseignant existe
+    // Check if the teacher exists
     const teacher = await Teacher.findById(idTeacher);
     if (!teacher) {
-      return res.status(404).json({ message: 'Teacher not found.' });
+      return res.status(404).json({ success: false, message: 'Teacher not found.' });
     }
 
-    // Recherche de l'affectation existante dans le planning pour ce stage
-    const internshipPlanning = await InternshipPlanning.findOne({ idInternship });
-    if (!internshipPlanning) {
-      return res.status(404).json({ message: 'Internship planning not found.' });
+    // Check if an assignment for this internship already exists
+    const isAssigned = await isInternshipAssigned(idInternship);
+
+    if (isAssigned) {
+      // If an internship planning already exists, update the teacher
+      const existingInternshipPlanning = await InternshipPlanning.findOne({ idInternship });
+      
+      // If the teacher in the planning is already the same, no update is needed
+      if (existingInternshipPlanning.EvaluatorId.equals(idTeacher)) {
+        return res.status(400).json({
+          success: false,
+          message: 'The teacher in the planning is already the same. No update is needed.',
+        });
+      }
+
+      existingInternshipPlanning.EvaluatorId = idTeacher;  // Update the teacher ID
+
+      // Save the updated assignment
+      await existingInternshipPlanning.save();
+
+      return res.status(200).json({
+        message: 'Teacher successfully updated for the internship.',
+        model: existingInternshipPlanning,
+      });
+    } else {
+      // If no planning exists, create a new planning for this internship
+      const newInternshipPlanning = new InternshipPlanning({
+        idInternship,
+        EvaluatorId: idTeacher,  // Assign the teacher to the internship
+        published: false,
+      });
+
+      // Save the new planning
+      await newInternshipPlanning.save();
+
+      return res.status(200).json({
+        message: 'Teacher successfully assigned to the internship.',
+        model: newInternshipPlanning,
+      });
     }
-
-    // Mise à jour de l'enseignant affecté à ce stage
-    internshipPlanning.EvaluatorId = idTeacher;  // Mise à jour de l'ID de l'enseignant
-    internshipPlanning.sendTo.teacherEmail = teacher.email;  // Mise à jour de l'email de l'enseignant
-
-    // Sauvegarde de l'affectation mise à jour
-    await internshipPlanning.save();
-
-    return res.status(200).json({
-      message: 'Teacher updated successfully for the internship.',
-      internshipPlanning,
-    });
 
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Error updating teacher for internship.' });
+    console.error('Error assigning teacher to internship:', error);
+    return res.status(500).json({ success: false, message: 'Error assigning teacher to internship.', error: error.message });
   }
 };
-// contient des doutes --> revoir  entre dans chaque planning et voir le type pour modifié la status à published ou unpublished
+
 export const publishOrMaskPlanning = async (req, res) => {
   try {
-    const { type } = req.params; // '1st_year' or '2nd_year'
-    const { response } = req.params; // 'true' or 'false' to publish or mask the planning
-    const { idInternship } = req.body; // The internship ID to update
-    
-    // Validate that response is either 'true' or 'false'
+    const { type } = req.params; // '1' ou '2' (niveau de stage)
+    const { response } = req.params; // 'true' ou 'false' pour publier ou masquer le planning
+
+    // Valider la valeur du paramètre response
     if (response !== 'true' && response !== 'false') {
-      return res.status(400).json({ message: 'Invalid response value. It should be either "true" or "false".' });
+      return res.status(400).json({
+        success: false,
+        message: 'La valeur de "response" est invalide. Elle doit être "true" ou "false".',
+      });
     }
 
-    // Convert response to a boolean
+    // Convertir la réponse en booléen
     const isPublished = response === 'true';
 
-    // Find the internship planning for the specified type (1st_year or 2nd_year)
-    const internships = await Internship.find({ type });
-
-    // If no internships are found for the specified type, return an error
-    if (!internships || internships.length === 0) {
-      return res.status(404).json({ message: `No internships found for the type: ${type}` });
+    // Utiliser getInternshipsByLevel pour récupérer les stages par niveau
+    let internships;
+    try {
+      internships = await getInternshipsByLevel(type);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
     }
 
-    // Iterate over each internship and update its 'published' field
+    // Vérifier si tous les plannings sont déjà dans l'état souhaité
+    const internshipPlannings = await Promise.all(
+      internships.map(async (internship) => {
+        return await InternshipPlanning.findOne({ idInternship: internship._id });
+      })
+    );
+
+    const allPlanningsAreAlready = internshipPlannings.every(planning => planning.published === isPublished);
+
+    if (allPlanningsAreAlready) {
+      return res.status(200).json({
+        success: true,
+        message: isPublished
+          ? `Les plannings de stage pour le niveau ${type} sont déjà publiés.`
+          : `Les plannings de stage pour le niveau ${type} sont déjà masqués.`,
+      });
+    }
+
+    // Mettre à jour l'état des plannings
     for (const internship of internships) {
       const internshipPlanning = await InternshipPlanning.findOne({ idInternship: internship._id });
 
-      // If the internship planning doesn't exist, continue to the next
-      if (!internshipPlanning) {
-        continue;
+      if (internshipPlanning) {
+        // Mettre à jour l'état de publication
+        internshipPlanning.published = isPublished;
+
+        // Sauvegarder le planning mis à jour
+        await internshipPlanning.save();
       }
-
-      // Update the 'published' field based on the response
-      internshipPlanning.published = isPublished;
-
-      // Save the updated internship planning
-      await internshipPlanning.save();
     }
 
-    // Return success response
+    // Retourner une réponse de succès
     return res.status(200).json({
-      message: isPublished ? `Internships for '${type}' published successfully.` : `Internships for '${type}' hidden successfully.`,
+      success: true,
+      message: isPublished
+        ? `Les plannings de stage pour le niveau ${type} ont été publiés avec succès.`
+        : `Les plannings de stage pour le niveau ${type} ont été masqués avec succès.`,
     });
-
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Error publishing or masking internship planning.' });
+    console.error("Erreur dans publishOrMaskPlanning:", error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la publication ou du masquage des plannings de stage.',
+      error: error.message,
+    });
   }
 };
-//on peut masquer par type et id du stage aussi --> autre controller publishOrMaskPlanningById
+export const publishOrMaskPlanningById = async (req, res) => {
+  try {
+    const { type, response, id } = req.params; // 'type' (internship level), 'response' (true or false), and 'id' (planning ID)
+
+    // Validate the 'response' parameter (true or false)
+    if (response !== 'true' && response !== 'false') {
+      return res.status(400).json({
+        success: false,
+        message: 'The value of "response" is invalid. It must be "true" or "false".',
+      });
+    }
+
+    // Convert 'response' to a boolean
+    const isPublished = response === 'true';
+
+    // Check if the planning ID is provided and valid
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'The planning ID is required.',
+      });
+    }
+
+    // Use the planning ID to retrieve the specific internship planning with the internship type
+    const internshipPlanning = await InternshipPlanning.findById(id).populate('idInternship'); // Search by ID in the InternshipPlanning collection
+    if (!internshipPlanning) {
+      return res.status(404).json({
+        success: false,
+        message: 'Internship planning not found.',
+      });
+    }
+
+    // Check if 'type' is a valid number and convert it
+    const parsedType = parseInt(type);
+    if (isNaN(parsedType)) {
+      return res.status(400).json({
+        success: false,
+        message: `The specified type (${type}) is not a valid number.`,
+      });
+    }
+
+    // Check if the internship ID corresponds to the level (type) passed in the URL
+    if (internshipPlanning.idInternship.level !== parsedType) {
+      return res.status(400).json({
+        success: false,
+        message: `The internship in this planning does not have the specified level (${type}).`,
+      });
+    }
+
+    // Check if the planning is already in the desired state (published or masked)
+    if (internshipPlanning.published === isPublished) {
+      return res.status(200).json({
+        success: true,
+        message: isPublished
+          ? `The internship planning for this level is already published.`
+          : `The internship planning for this level is already hidden.`,
+        model: internshipPlanning,
+      });
+    }
+
+    // Update the planning state (published or hidden)
+    internshipPlanning.published = isPublished;
+
+    // Save the updated planning
+    await internshipPlanning.save();
+
+    // Return a success response
+    return res.status(200).json({
+      success: true,
+      message: isPublished
+        ? `The internship planning for level ${type} has been successfully published.`
+        : `The internship planning for level ${type} has been successfully hidden.`,
+      model: internshipPlanning,
+    });
+  } catch (error) {
+    console.error("Error in publishOrMaskPlanning:", error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error occurred while publishing or masking the internship planning.',
+      error: error.message,
+    });
+  }
+};
+
 
 export const sendInternshipPlanningEmail = async (req, res) => {
-  const { type } = req.params;  // Extract the type from the URL parameters
+  const { type } = req.params;  // Extract the type (level) from the URL parameters
 
   // Generate the link to the planning (replace with actual link generation logic)
-  const planningLink = `http://example.com/planning/${type}`; // Example link, modify based on your needs
+  const levelNumber = parseInt(type, 10);
 
+  if (isNaN(levelNumber)) {
+    return res.status(400).json({ success: false, message: 'Invalid level parameter, must be a number.' });
+  }
   try {
-    // Find internships matching the type
-    const internships = await Internship.find({ 'type': type });
+    // Create an empty array to store the matching plans
+    let planningByType = [];
+    const Plannings = await InternshipPlanning.find().populate({
+      path: "idInternship",
+      populate: {
+        path: "studentId",
+      },
+    }) // Populate internship details
+    .populate("EvaluatorId").exec(); // Populate teacher details
 
-    // If no internships are found
-    if (!internships.length) {
-      return res.status(404).json({ error: 'No internship found for this type.' });
+    // Loop through the Plannings array
+    for (let i = 0; i < Plannings.length; i++) {
+      // Access the current planning item
+      const currentPlanning = Plannings[i];
+      
+      // Check if the level==levelNumber and planning published not masked
+      if (currentPlanning.idInternship.level === levelNumber && currentPlanning.published === true) {
+        // Add the current planning to the planningByType array
+        planningByType.push(currentPlanning);
+      }
     }
+
+    // Extract emails
+    const emails = planningByType.map((planning) => {
+      const studentEmail = planning.idInternship.studentId?.email || "No student email";
+      const evaluatorEmail = planning.EvaluatorId?.email || "No evaluator email";
+      return { studentEmail, evaluatorEmail };
+    });
+    
+    // unique array of evaluators email 
+    const uniqueEvaluatorEmails = [...new Set(emails.map(email => email.evaluatorEmail))];
+    
+    // Combine evaluators email  and Students email
+    const allEmails = emails.map(email => email.studentEmail).concat(uniqueEvaluatorEmails);
 
     // Configure the email transporter with Nodemailer
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER, // Sender's email address
-        pass: process.env.EMAIL_PASSWORD, // Sender's email password
+        user: 'oumaymaamzoughi@gmail.com', // Sender's email address
+        pass: 'znvw qfty lltn sajs', // Sender's email password
       },
     });
+    /*// Options de l'email
+    const mailOptions = {
+      from: 'oumaymaamzoughi@gmail.com', // Expéditeur
+      to: 'siwarlab01@gmail.com',  // Destinataire
+      subject: `Internship Planning for ${type} year`,  // Sujet de l'email
+      text: `Hello,\n\nHere is the link to the internship planning for the ${type} year: ${planningLink}\n\nBest regards.`,  // Contenu de l'email
+    };
 
-    // Loop through internships to send an email to each student/teacher
-    for (const internship of internships) {
-      let subject = '';
-      let text = '';
+    // Envoi de l'email
+    await transporter.sendMail(mailOptions);
+    */
+    
+    // Define the subject and text of the email
+    const subject = 'Internship Planning Notification';
+    const planningLink = `http://example.com/planning`;  // Example link, replace with actual one
+    const text = `Hello,\n\nHere is the link to the internship planning: ${planningLink}\n\nBest regards.`;
 
-      // Check if it's the first or second email based on the flag
-      if (internship.SentMail === false) {
-        // First email
-        subject = 'First sending of the internship planning';
-        text = `Hello,\n\nHere is the link to the internship planning: ${planningLink}\n\nBest regards.`;
-        internship.SentMail = true; // Set the flag to true after the first send
-      } else {
-        // Second email
-        subject = 'Second sending of the internship planning';
-        text = `Hello,\n\nThis is a reminder with the link to the internship planning: ${planningLink}\n\nBest regards.`;
+    // Loop through the email list and send an email to each
+    for (const email of allEmails) {
+      if (email !== "No student email" && email !== "No evaluator email") {
+        const mailOptions = {
+          from: 'oumaymaamzoughi@gmail.com', // Sender's email address
+          to: email, // Recipient's email
+          subject: subject,
+          text: text,
+        };
+
+        // Send the email
+        await transporter.sendMail(mailOptions);
       }
+    }
+      return res.status(200).json({ success: true, message: 'Test email sent successfully.' });
+    } catch (error) {
+      console.error('Error details:', error); // Log full error details
+    return res.status(500).json({ error: `An error occurred while sending the email: ${error.message}` });
+    }
+  };
+  
+// Function to retrieve all internships assigned to the teacher
+export const getAssignedInternshipTeacher = async (req, res) => {
+  try {
+    // Retrieve the teacher's ID from the token
+    const teacherId = req.auth.userId; // Ensure that req.auth.id is correctly populated by your middleware
+    console.log('Teacher ID:', teacherId);
 
-      // Email configuration
-      const mailOptions = {
-        from: process.env.EMAIL_USER, // Sender's email address
-        to: 'recipient@example.com', // Replace with the student's or teacher's email
-        subject: subject,
-        text: text,
-      };
+    // Retrieve all internship plannings where the teacher is assigned
+    const plannings = await InternshipPlanning.find({ EvaluatorId: teacherId })
+      .populate('idInternship') // Populate the internship details
+      .exec();
 
-      // Send the email
-      await transporter.sendMail(mailOptions);
-
-      // Update the internship with  sending date
-      internship.sentAt = new Date();  // Date of sending
-      await internship.save();
+    // If no plannings are found for the teacher
+    if (plannings.length === 0) {
+      return res.status(404).json({ success: false, message: 'No internships assigned to this teacher.' });
     }
 
-    // Response to the request
-    return res.status(200).json({ message: 'Emails have been sent successfully.' });
+    // If internships are found, return the internships in the response
+    return res.status(200).json({
+      success: true,
+      model: plannings.map(planning => ({
+        internship: planning.idInternship, // Internship details
+      }))
+    });
+
   } catch (error) {
-    console.error('Error sending emails:', error.message);
-    return res.status(500).json({ error: 'An error occurred while sending the emails.' });
+    console.error(error);
+    return res.status(500).json({ success: false, message: 'Error retrieving assigned internships.' });
+  }
+};
+
+
+
+
+//first fnct
+export const getInternshipsByLevel = async (level) => {
+  const levelNumber = parseInt(level, 10);
+  if (isNaN(levelNumber)) {
+    throw new Error("Invalid level parameter, must be a number.");
+  }
+  
+  const internships = await Internship.find({ level: levelNumber });
+  if (internships.length === 0) {
+    throw new Error(`No internships found for level ${levelNumber}.`);
+  }
+  
+  return internships;
+};
+
+export const fetchInternshipsByType = async (req, res) => {
+  try {
+    const level = req.params.type;
+    const internships = await getInternshipsByLevel(level);
+    res.status(200).json({ model: internships, message: "Succès" });
+  } catch (err) {
+    console.error("Error in fetchInternshipsByType:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
+// 2nd fnct 
+export const fetchTeacherSubjectCounts = async (teacherIds) => {
+  if (!Array.isArray(teacherIds) || teacherIds.length === 0) {
+    throw new Error("teacherIds must be a non-empty array.");
+  }
+
+  try {
+    const teachers = await Teacher.find({ _id: { $in: teacherIds } }).populate('subjects');
+    const teacherSubjectCounts = teachers.map((teacher) => ({
+      teacherId: teacher._id,
+      subjectCount: teacher.subjects.length,
+    }));
+
+    return { success: true, data: teacherSubjectCounts };
+  } catch (err) {
+    console.error("Error fetching teacher subject counts:", err);
+    return { success: false, message: "Failed to fetch teacher subject counts.", error: err.message };
+  }
+};
+export const teachernbsubject =async (req, res) => {
+  const { teacherIds } = req.body;
+
+  if (!teacherIds) {
+    return res.status(400).json({ error: 'teacherIds is required.' });
+  }
+
+  try {
+    const result = await fetchTeacherSubjectCounts(teacherIds);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch teacher subject counts.', message: err.message });
+  }
+};
+// to verify if  the internship is assigned
+const isInternshipAssigned = async (internshipId) => {
+  try {
+    const existingPlanning = await InternshipPlanning.findOne({ idInternship: internshipId });
+    return existingPlanning !== null; // Retourne true si le stage est déjà assigné, sinon false
+  } catch (err) {
+    console.error("Error checking internship assignment:", err);
+    throw new Error("Error checking internship assignment.");
   }
 };
