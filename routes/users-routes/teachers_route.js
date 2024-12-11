@@ -17,7 +17,7 @@ router.get('/', accessByRole(['admin']), getAllTeachers)
 // get a teacher by id  🆔
 router.get('/:id', accessByRole(['admin']), getOneTeacher)
 // create a new teacher 📝
-router.post('/', accessByRole(['admin']), createTeacher)
+router.post('/', createTeacher)
 // update a teacher ✏️
 router.put('/:id', accessByRole(['admin']), updateOneTeacher)
 // delete a teacher ⛔
