@@ -12,6 +12,13 @@ const PeriodSchema = new mongoose.Schema({
     ],
     required: true,
   },
+  type: {
+    type: String,
+    enum: ['1st_year', '2nd_year'],
+    required: function () {
+      return this.name === 'Dépôt de stage'; // 'type' est requis seulement pour 'Dépôt de stage'
+    },
+  },
   start_date: {
     type: Date,
     required: true,
