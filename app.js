@@ -18,6 +18,7 @@ import { scheduleTeacherReminder } from './controllers/notifications-controller/
 import option_route from './routes/options-routes/options_routes.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_middleware.js'
 import pfa_route from './routes/pfa-routes/pfa_routes.js'
+import choice_pfa_route from './routes/pfa-routes/pfa_choice_routes.js'
 import pfa_period_route from './routes/period-routes/period_routes.js'
 import internship_period_route from './routes/period-routes/internship_period_routes.js'
 import routerSkill from './routes/skill-routes/skill.js'
@@ -50,6 +51,7 @@ app.use(morgan('dev'))
 app.get('/', (req, res) => {
   res.send(' <h1> Server is Running correctly ✅ </h1> ')
 })
+
 scheduleStudentReminder()
 scheduleTeacherReminder()
 
@@ -62,6 +64,7 @@ app.use('/api', loggedMiddleware, routerDocument)
 app.use('/PFE', gestionPFERoutes)
 app.use('/api/v1/pfa', pfa_route)
 app.use('/api/v1/pfaperiod', pfa_period_route)
+app.use('/api/v1/choice', choice_pfa_route)
 app.use('/api/period/', internship_period_route)
 app.use('/api/subject', routerSubject)
 app.use('/api/academicyear', routerAcademicYear)
