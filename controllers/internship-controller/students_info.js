@@ -1,4 +1,3 @@
-import Internship from '../../models/internship-models/internship_period_model.js'
 import Document from '../../models/document-models/document_model.js'
 import User from '../../models/users-models/user_model.js'
 
