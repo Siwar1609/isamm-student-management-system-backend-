@@ -777,9 +777,6 @@ export const getAssignedInternshipTeacher = async (req, res) => {
   }
 };
 
-
-
-
 //first fnct
 export const getInternshipsByLevel = async (level) => {
   const levelNumber = parseInt(level, 10);
