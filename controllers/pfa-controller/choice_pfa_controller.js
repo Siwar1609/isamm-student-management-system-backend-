@@ -11,6 +11,22 @@ export const choose_pfa = async (req, res) => {
     const { priority, binomeId, approval } = req.body
     const projectId = req.params.id // L'ID du projet
     const authenticatedStudentId = req.auth.userId // L'ID de l'étudiant authentifié
+    // const authenticatedStudent = await Student.findById(authenticatedStudentId).exec();
+    // if (!authenticatedStudent || authenticatedStudent.level !== "2") {
+    //   return res.status(403).json({ message: "Vous n'êtes pas autorisé à choisir ce sujet." });
+    // }
+    
+    // Vérification si le délai est dépassé pour le choix de sujet
+    const period = await period_model.findOne({
+      name: 'Choix sujet PFA', // Nom de la période
+      end_date: { $gte: new Date() },
+    });
+    if (!period) {
+      return res.status(400).json({
+        message: 'Le délai pour le choix du sujet PFA est dépassé.',
+      });
+    }  
+
     // Valider les données
     const { error } = validateChoicePFA.validate(req.body)
     if (error) {
@@ -141,10 +157,18 @@ export const approveChoicePFA = async (req, res) => {
     // Mise à jour de l'approbation
     choice.approval = true
     await choice.save()
-    // Ajout des étudiants à la liste des étudiants du PFA
-    pfa.list_of_student.push(
-      ...choice.studentList.map((student) => student._id),
-    )
+
+    // Filtrer les étudiants à ajouter (on vérifie si l'ID existe déjà)
+    const studentsToAdd = choice.studentList.map((student) => student._id)
+    const studentsAlreadyInPfa = pfa.list_of_student
+    // Ajouter les étudiants s'ils n'existent pas déjà dans la liste
+    studentsToAdd.forEach((studentId) => {
+      if (!studentsAlreadyInPfa.includes(studentId)) {
+        pfa.list_of_student.push(studentId)
+      }
+    })
+
+    pfa.affected = true
     await pfa.save()
     // Envoi des emails aux étudiants concernés
     const studentEmails = choice.studentList.map((student) => student.email)
@@ -183,3 +207,39 @@ export const sendApprovalEmails = async (emails, pfa) => {
     console.error("Erreur lors de l'envoi des emails : ", error.message)
   }
 }
+
+export const InformApproval = async (req, res) => {
+  try {
+    const { choiceId } = req.params;
+
+    // Vérification que l'étudiant est bien dans la liste des étudiants de ce choix
+    const choice = await choice_pfa.findById(choiceId) // On charge aussi la liste des étudiants
+    if (!choice) {
+      return res.status(404).json({ message: 'Choix PFA introuvable.' });
+    }
+
+    // Vérifier si l'étudiant fait bien partie de la liste des étudiants pour ce choix
+    const studentId = req.auth.userId; // L'ID de l'étudiant connecté
+    if (!choice.studentList.some(student => student._id.toString() === studentId.toString())) {
+      return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à demander l\'approbation pour ce choix.' });
+    }
+
+    // Vérifier si le choix a déjà été approuvé
+    if (choice.approval) {
+      return res.status(400).json({ message: 'Ce choix a déjà été approuvé.' });
+    }
+
+    // Mise à jour du champ 'approved' à true pour indiquer que l'enseignant a confirmé
+    choice.approval = true;
+    await choice.save(); 
+
+    // Retourner une réponse de succès
+    res.status(200).json({
+      message: 'Déclaration d\'acceptation de d\'enseignant envoyée avec succès.',
+      data: choice,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur lors de l\'envoi de déclaration d\'acceptation de d\'enseignan.', error: error.message });
+  }
+};
