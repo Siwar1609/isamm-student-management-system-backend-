@@ -278,8 +278,15 @@ export const deleteInternship = async (req, res) => {
     // Delete all documents related to the internship
     await Document.deleteMany({ internship: internshipId })
 
+    // Remove the internshipId from all students' internships array
+    await Student.updateMany(
+      { internships: internshipId }, // Find students who have this internship
+      { $pull: { internships: internshipId } }, // Remove the internshipId from their internships array
+    )
+
     res.status(200).json({
-      message: 'Internship period and related documents successfully deleted!',
+      message:
+        'Internship period and related documents successfully deleted, and student records updated!',
     })
   } catch (error) {
     res.status(400).json({
