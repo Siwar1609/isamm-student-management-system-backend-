@@ -8,7 +8,7 @@ export const addStudentDocument = async (req, res) => {
     console.log('Request Body:', req.body)
 
     const { id: internshipId } = req.params // Internship ID from URL
-    const { name, url } = req.body // Document details (no encadrant)
+    const { type, url } = req.body // Document details (no encadrant)
     const studentId = req.auth.userId // Extracted from Bearer token
 
     // Log the extracted student ID
@@ -63,7 +63,7 @@ export const addStudentDocument = async (req, res) => {
 
     // Prepare the document payload without the encadrant
     const documentPayload = {
-      name,
+      type,
       url,
       uploadedBy: studentId,
       internship: internshipId,

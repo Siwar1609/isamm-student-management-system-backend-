@@ -60,9 +60,9 @@ export const getAllStudents = async (req, res) => {
           ...student.toObject(),
           postulationStatus,
           postulations: documents.map((doc) => ({
-            documentName: doc.name,
+            documentName: doc.type,
+            documentUrl: doc.url,
             internship: doc.internship || null,
-            encadrant: doc.encadrant || null,
           })),
           internshipPlannings: internshipPlannings.filter(
             (planning) => planning !== null,

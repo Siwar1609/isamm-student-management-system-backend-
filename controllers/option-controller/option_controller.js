@@ -59,7 +59,6 @@ export const addOption = async (req, res) => {
     // Fetch the most recent active period dynamically
     const currentPeriod = await Period.findOne({
       name: 'Choix d’option',
-      start_date: { $lte: new Date() }, // Period start date is before or equal to today
       end_date: { $gte: new Date() }, // Period end date is after or equal to today
     })
 
