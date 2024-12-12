@@ -6,6 +6,7 @@ import Student from '../../models/users-models/student_model.js'
 import Teacher from '../../models/users-models/teacher_model.js'
 import InternshipPlanning from '../../models/planning-models/Internship_planning.js'
 import nodemailer from 'nodemailer';
+import { getTeacher } from '../../services/teachers_services.js'
 
 
 // Add internship
@@ -333,14 +334,13 @@ export const assignTeachersToInternship = async (req, res) => {
     }
     
     const teacherSubjectCounts = await fetchTeacherSubjectCounts(teacherIds);
+    
 
     // Sort the teachers by subject count
     const sortedTeachers = teacherSubjectCounts.data.sort((a, b) => b.subjectCount - a.subjectCount);
-
+    console.log(sortedTeachers)
     // Step 3: Distribute internships among the teachers
-    let assignments = [];
-    let teacherIndex = 0;
-
+    
     // Filter unassigned internships
     const unassignedInternships = [];
     for (let i = 0; i < internships.length; i++) {
@@ -359,31 +359,74 @@ export const assignTeachersToInternship = async (req, res) => {
     }
 
     // Distribute the unassigned internships among the teachers
+
+    let assignments = [];
+    let teacherIndex = 0;
+
+    // Copie de sortedTeachers avec un compteur pour les stages restants
+    const teacherAssignments = sortedTeachers.map(teacher => ({
+      teacherId: teacher.teacherId,
+      remainingSubjects: teacher.subjectCount,
+    }));
+
     for (let i = 0; i < unassignedInternships.length; i++) {
       const internship = unassignedInternships[i];
       const teacher = sortedTeachers[teacherIndex];
 
+      // Si aucun enseignant ne peut plus être assigné
+      if (teacherAssignments.every(teacher => teacher.remainingSubjects === 0)) {
+        console.log("No more teachers available for assignment.");
+        break;
+      }
+
+      let foundAssignment = false;
+
+      while (!foundAssignment && teacherAssignments.length > 0) {
+        const teacher = teacherAssignments[teacherIndex];
+
+      if (teacher.remainingSubjects > 0) {
       // Assign the internship
       const planning = new InternshipPlanning({
         idInternship: internship._id, // Internship
         EvaluatorId: teacher.teacherId, // Teacher
         published: false, // By default, unpublished
+        sentEmail:false,
+        sentAt: null,
       });
 
       // Save the planning in the InternshipPlanning collection
       const savedPlanning = await planning.save();
       assignments.push(savedPlanning);
 
-      // Move to the next teacher (cycle through the teachers)
-      teacherIndex = (teacherIndex + 1) % sortedTeachers.length; // Repeat the teacher loop
-    }
+      // Réduire le nombre de matières restantes pour cet enseignant
+      teacher.remainingSubjects--;
 
+      // Si toutes les matières sont utilisées, passer au prochain enseignant
+      if (teacher.remainingSubjects === 0) {
+        console.log(`Teacher ${teacher.teacherId} has reached their quota : ${teacher.remainingSubjects}.`);
+        // Passer au prochain enseignant uniquement si le quota est atteint
+        teacherIndex = (teacherIndex + 1) % teacherAssignments.length;
+      }
+      foundAssignment = true; // Stage assigné, quitter la boucle
+
+      } else {
+        // Passer au prochain enseignant si l'enseignant actuel ne peut pas prendre le stage
+        teacherIndex = (teacherIndex + 1) % teacherAssignments.length;
+      }
+        
+    }
+      if (!foundAssignment) {
+        console.log(`Could not assign internship ${internship._id}. All teachers have reach their quota`);
+      }
+  }
+  console.log(assignments)
     // Return the response with the successful assignments
     return res.status(200).json({
       success: true,
-      message: `${assignments.length} internships successfully assigned to teachers.`,
+      message: `${assignments.length} internships successfully assigned to teachers !! All teachers have reach their quota .`,
       data: assignments
     });
+    
   } catch (err) {
     console.error("Error assigning internships:", err);
     return res.status(500).json({ success: false, message: "Error assigning internships.", error: err.message });
@@ -674,7 +717,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
       },
     }) // Populate internship details
     .populate("EvaluatorId").exec(); // Populate teacher details
-
+   
     // Loop through the Plannings array
     for (let i = 0; i < Plannings.length; i++) {
       // Access the current planning item
@@ -684,21 +727,11 @@ export const sendInternshipPlanningEmail = async (req, res) => {
       if (currentPlanning.idInternship.level === levelNumber && currentPlanning.published === true) {
         // Add the current planning to the planningByType array
         planningByType.push(currentPlanning);
+      }else{
+        con
       }
     }
-
-    // Extract emails
-    const emails = planningByType.map((planning) => {
-      const studentEmail = planning.idInternship.studentId?.email || "No student email";
-      const evaluatorEmail = planning.EvaluatorId?.email || "No evaluator email";
-      return { studentEmail, evaluatorEmail };
-    });
-    
-    // unique array of evaluators email 
-    const uniqueEvaluatorEmails = [...new Set(emails.map(email => email.evaluatorEmail))];
-    
-    // Combine evaluators email  and Students email
-    const allEmails = emails.map(email => email.studentEmail).concat(uniqueEvaluatorEmails);
+    console.log(planningByType)
 
     // Configure the email transporter with Nodemailer
     const transporter = nodemailer.createTransport({
@@ -708,38 +741,102 @@ export const sendInternshipPlanningEmail = async (req, res) => {
         pass: 'znvw qfty lltn sajs', // Sender's email password
       },
     });
-    /*// Options de l'email
-    const mailOptions = {
-      from: 'oumaymaamzoughi@gmail.com', // Expéditeur
-      to: 'siwarlab01@gmail.com',  // Destinataire
-      subject: `Internship Planning for ${type} year`,  // Sujet de l'email
-      text: `Hello,\n\nHere is the link to the internship planning for the ${type} year: ${planningLink}\n\nBest regards.`,  // Contenu de l'email
-    };
-
-    // Envoi de l'email
-    await transporter.sendMail(mailOptions);
-    */
     
-    // Define the subject and text of the email
-    const subject = 'Internship Planning Notification';
-    const planningLink = `http://example.com/planning`;  // Example link, replace with actual one
-    const text = `Hello,\n\nHere is the link to the internship planning: ${planningLink}\n\nBest regards.`;
+    // Parcourir les plannings et envoyer les emails
+    for (let i = 0; i < planningByType.length; i++) {
+      const planning = planningByType[i];
 
-    // Loop through the email list and send an email to each
-    for (const email of allEmails) {
-      if (email !== "No student email" && email !== "No evaluator email") {
-        const mailOptions = {
-          from: 'oumaymaamzoughi@gmail.com', // Sender's email address
-          to: email, // Recipient's email
-          subject: subject,
-          text: text,
-        };
+      // Extraire les emails de l'étudiant et de l'enseignant
+      const studentEmail = planning.idInternship.studentId?.email;
+      const evaluatorEmail = planning.EvaluatorId?.email;
 
-        // Send the email
-        await transporter.sendMail(mailOptions);
+      // Lien de planification (par exemple, un lien personnalisé pour chaque étudiant et enseignant)
+      const planningLink = `http://Internship.com/planning`;  // Modifiez l'URL selon vos besoins
+
+      // Envoi à l'étudiant
+      if (studentEmail) {
+        if (!planning.sentEmail) {
+          // 1er envoi à l'étudiant
+          const studentEmailText = `Hello ${planning.idInternship.studentId?.name},\n\nHere is your internship planning link: ${planningLink}\n\nBest regards.`;
+          const studentMailOptions = {
+            from: 'oumaymaamzoughi@gmail.com',
+            to: studentEmail,
+            subject: 'Internship Planning First Notification',
+            text: studentEmailText,
+          };
+
+          await transporter.sendMail(studentMailOptions);
+          // Mettre à jour le planning pour le 1er envoi
+          await InternshipPlanning.findByIdAndUpdate(planning._id, {
+            $set: {
+              sentEmail: true,
+              sentAt: new Date(),
+            },
+          });
+        } else {
+          // 2ème envoi à l'étudiant si l'email a déjà été envoyé
+          const studentEmailText = `Hello again ${planning.idInternship.studentId?.name},\n\nThis is a reminder with your internship planning link: ${planningLink}\n\nBest regards.`;
+          const studentMailOptions = {
+            from: 'oumaymaamzoughi@gmail.com',
+            to: studentEmail,
+            subject: 'Internship Planning Reminder',
+            text: studentEmailText,
+          };
+
+          await transporter.sendMail(studentMailOptions);
+          // Mettre à jour la date d'envoi pour le 2ème envoi
+          await InternshipPlanning.findByIdAndUpdate(planning._id, {
+            $set: {
+              sentAt: new Date(),
+            },
+          });
+        }
+      }
+
+      // Envoi à l'enseignant
+      if (evaluatorEmail) {
+        if (!planning.sentEmail) {
+          // 1er envoi à l'enseignant
+          const evaluatorEmailText = `Hello ${planning.EvaluatorId.name},\n\nHere is the internship planning link for your student ${planning.idInternship.studentId?.name}: ${planningLink}\n\nBest regards.`;
+          const evaluatorMailOptions = {
+            from: 'oumaymaamzoughi@gmail.com',
+            to: evaluatorEmail,
+            subject: 'Internship Planning First Notification',
+            text: evaluatorEmailText,
+          };
+
+          await transporter.sendMail(evaluatorMailOptions);
+          // Mettre à jour le planning pour le 1er envoi
+          await InternshipPlanning.findByIdAndUpdate(planning._id, {
+            $set: {
+              sentEmail: true,
+              sentAt: new Date(),
+            },
+          });
+        } else {
+          // 2ème envoi à l'enseignant si l'email a déjà été envoyé
+          const evaluatorEmailText = `Hello again ${planning.EvaluatorId.name},\n\nThis is a reminder with the internship planning link for your student ${planning.idInternship.studentId?.name}: ${planningLink}\n\nBest regards.`;
+          const evaluatorMailOptions = {
+            from: 'oumaymaamzoughi@gmail.com',
+            to: evaluatorEmail,
+            subject: 'Internship Planning Reminder',
+            text: evaluatorEmailText,
+          };
+
+          await transporter.sendMail(evaluatorMailOptions);
+          // Mettre à jour la date d'envoi pour le 2ème envoi
+          await InternshipPlanning.findByIdAndUpdate(planning._id, {
+            $set: {
+              sentAt: new Date(),
+            },
+          });
+        }
       }
     }
-      return res.status(200).json({ success: true, message: 'Test email sent successfully.' });
+
+    // Réponse à la fin de l'envoi
+    return res.status(200).json({ success: true, message: 'Emails sent successfully.' });
+
     } catch (error) {
       console.error('Error details:', error); // Log full error details
     return res.status(500).json({ error: `An error occurred while sending the email: ${error.message}` });
@@ -755,7 +852,12 @@ export const getAssignedInternshipTeacher = async (req, res) => {
 
     // Retrieve all internship plannings where the teacher is assigned
     const plannings = await InternshipPlanning.find({ EvaluatorId: teacherId })
-      .populate('idInternship') // Populate the internship details
+    .populate({
+      path: "idInternship",
+      populate: {
+        path: "studentId",
+      },
+    }) // Populate the internship details
       .exec();
 
     // If no plannings are found for the teacher
@@ -809,18 +911,41 @@ export const fetchTeacherSubjectCounts = async (teacherIds) => {
   }
 
   try {
-    const teachers = await Teacher.find({ _id: { $in: teacherIds } }).populate('subjects');
-    const teacherSubjectCounts = teachers.map((teacher) => ({
-      teacherId: teacher._id,
-      subjectCount: teacher.subjects.length,
-    }));
+    const teacherSubjectCounts = [];
+    let foundTeacher = false; 
+
+    // Check if each teacher exists in the database
+    for (const teacherId of teacherIds) {
+      const teacher = await getTeacher(teacherId);
+
+      if (!teacher) {
+        console.warn(`Teacher with ID ${teacherId} not found.`);
+        continue; // If the teacher doesn't exist, skip to the next one
+      }
+
+      // If the teacher exists, count their subjects
+      const subjectCount = teacher.subjects.length;
+      teacherSubjectCounts.push({
+        teacherId: teacher._id,
+        subjectCount: subjectCount,
+      });
+
+      // Mark that a valid teacher was found
+      foundTeacher = true;
+    }
+
+    // If no teacher was found
+    if (!foundTeacher) {
+      throw new Error("None of the specified teachers were found.");
+    }
 
     return { success: true, data: teacherSubjectCounts };
   } catch (err) {
-    console.error("Error fetching teacher subject counts:", err);
-    return { success: false, message: "Failed to fetch teacher subject counts.", error: err.message };
+    return { success: false, message: "NO teachers Found.", error: err.message };
   }
 };
+
+
 export const teachernbsubject =async (req, res) => {
   const { teacherIds } = req.body;
 
