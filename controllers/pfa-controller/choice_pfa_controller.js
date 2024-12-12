@@ -10,7 +10,7 @@ export const choose_pfa = async (req, res) => {
   try {
     const { priority, binomeId, approval } = req.body
     const projectId = req.params.id // L'ID du projet
-    const authenticatedStudentId = req.auth._id // L'ID de l'étudiant authentifié
+    const authenticatedStudentId = req.auth.userId // L'ID de l'étudiant authentifié
     // Valider les données
     const { error } = validateChoicePFA.validate(req.body)
     if (error) {
@@ -87,7 +87,7 @@ export const getChoicesForProject = async (req, res) => {
       return res.status(404).json({ message: 'Projet PFA introuvable.' })
     }
     // Vérification que l'enseignant est bien propriétaire du projet
-    if (project.teacherId.toString() !== req.auth._id.toString()) {
+    if (project.teacherId.toString() !== req.auth.userId.toString()) {
       return res
         .status(403)
         .json({ message: "Vous n'êtes pas autorisé à accéder à ce projet." })
@@ -106,16 +106,15 @@ export const getChoicesForProject = async (req, res) => {
       data: choices,
     })
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: 'Erreur lors de la récupération des choix.',
-        error: error.message,
-      })
+    res.status(500).json({
+      message: 'Erreur lors de la récupération des choix.',
+      error: error.message,
+    })
   }
 }
 // Pour que l'enseignant choisit l'étudiant concerné , il l'intègre directement dans l route deja faite en 2.2 ,
 //          ou bien il le choisit en consultant la liste des choix et puis lui assigné approval : true et l'attribut à lui meme
+
 export const approveChoicePFA = async (req, res) => {
   try {
     const { projectId, choiceId } = req.params // ID du projet et du choix à approuver
@@ -125,7 +124,7 @@ export const approveChoicePFA = async (req, res) => {
       return res.status(404).json({ message: 'Projet PFA introuvable.' })
     }
     // Vérification que l'enseignant est propriétaire du projet
-    if (pfa.teacherId.toString() !== req.auth._id.toString()) {
+    if (pfa.teacherId.toString() !== req.auth.userId.toString()) {
       return res.status(403).json({ message: 'Accès refusé au projet PFA.' })
     }
     // Recherche du choix PFA associé au projet

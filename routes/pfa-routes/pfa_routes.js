@@ -21,6 +21,11 @@ import {
 
 const pfa_route = express.Router()
 
+//---------------- student Routes ---------------------------
+
+pfa_route.get('/choice/', accessByRole(['student']), fetsh_published_pfa)
+pfa_route.get('/choice/:id', accessByRole(['student']), get_published_pfa_by_id)
+
 //-------- Teacher Routes -----------------
 pfa_route.post('/post', loggedMiddleware, accessByRole(['teacher']), add_my_pfa)
 pfa_route.get('/mine', accessByRole(['teacher']), fetch_my_pfa)
@@ -36,8 +41,4 @@ pfa_route.post('/post', accessByRole(['admin']), add_my_pfa)
 pfa_route.post('/publish/:response', accessByRole(['admin']), publish_pfa)
 pfa_route.post('/list/send', accessByRole(['admin']), send_pfa_list_email)
 
-//---------------- student Routes ---------------------------
-
-pfa_route.get('/choice/', accessByRole(['student']), fetsh_published_pfa)
-pfa_route.get('/choice/:id', accessByRole(['student']), get_published_pfa_by_id)
 export default pfa_route

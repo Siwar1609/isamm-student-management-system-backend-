@@ -363,8 +363,6 @@ export const send_pfa_list_email = async (req, res) => {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
-        // user: 'benboubakerchiraz054@gmail.com',
-        // pass: 'brqd tlgs naoy rkwe',
       },
     })
 
