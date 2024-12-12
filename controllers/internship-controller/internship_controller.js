@@ -11,7 +11,6 @@ export const addInternship = async (req, res) => {
       endDate,
       academicYear,
       studentId,
-      periodeId,
       title,
       level, // Added level here
       description,
@@ -21,14 +20,7 @@ export const addInternship = async (req, res) => {
     console.log('Type from URL:', type)
 
     // Validate required fields
-    if (
-      !academicYear ||
-      !studentId ||
-      !periodeId ||
-      !title ||
-      !description ||
-      !level
-    ) {
+    if (!academicYear || !studentId || !title || !description || !level) {
       return res.status(400).json({ message: 'Required fields are missing.' })
     }
 
@@ -44,31 +36,20 @@ export const addInternship = async (req, res) => {
       return res.status(404).json({ message: 'Student not found.' })
     }
 
-    // Fetch the period to validate its name, level, and endDate
-    const period = await Period.findById(periodeId)
-    console.log('Fetched period:', period) // Debugging
+    // Find an open period matching the level
+    const today = new Date()
+    const openPeriods = await Period.find({
+      name: 'Dépôt de stage',
+      type: parseInt(type), // Ensure type matches level
+      end_date: { $gte: new Date(today) }, // Ensure both are Date objects
+    })
 
-    if (!period) {
-      return res.status(404).json({ message: 'Period not found.' })
-    }
+    console.log('Open periods found:', openPeriods) // Logging periods found
 
-    if (period.name !== 'Dépôt de stage') {
+    if (openPeriods.length === 0) {
       return res
-        .status(400)
-        .json({ message: 'The period name must be "Dépôt de stage".' })
-    }
-
-    if (new Date() > new Date(period.endDate)) {
-      return res
-        .status(400)
-        .json({ message: 'The submission period has ended.' })
-    }
-
-    // Validate that the type matches the period's level
-    if (parseInt(type) !== period.type) {
-      return res.status(400).json({
-        message: `The type in the URL (${type}) does not match the period's level (${period.type}).`,
-      })
+        .status(404)
+        .json({ message: 'No open period matching the level found.' })
     }
 
     // Validate date range
@@ -94,7 +75,6 @@ export const addInternship = async (req, res) => {
     }
 
     // Determine status
-    const today = new Date()
     let status
     if (today > new Date(endDate)) {
       status = 'ended'
@@ -114,9 +94,9 @@ export const addInternship = async (req, res) => {
       title,
       level, // Added level here
       description,
-      published: true, // default value
-      Validate: { value: false, reason: '' }, // default values
-      periodeId,
+      published: true, // Default value
+      Validate: { value: false, reason: '' }, // Default values
+      periodeId: openPeriods[0]._id, // Assign the first matched period
     })
 
     // Add internship to the student's internships array
