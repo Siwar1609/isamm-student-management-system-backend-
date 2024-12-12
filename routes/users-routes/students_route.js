@@ -7,8 +7,11 @@ import {
   updateStudent,
   deleteStudent,
   createStudentsAccountsExcelFile,
+  updateStudentPassword,
 } from '../../controllers/users-controller/students_controller.js'
 import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
+
+import upload from '../../middlewares/file_upload_middleware.js'
 
 const router = express.Router()
 
@@ -21,9 +24,15 @@ router.get('/:id', accessByRole(['admin']), getStudent)
 router.post('/', accessByRole(['admin']), createStudent)
 // update a student
 router.put('/:id', accessByRole(['admin']), updateStudent)
+// update student's password
+router.put(
+  '/:id/password',
+  accessByRole(['admin', 'student']),
+  updateStudentPassword,
+)
 // delete a student
 router.delete('/:id', accessByRole(['admin']), deleteStudent)
 // create an excel file with students accounts
-router.post('/generate-students', createStudentsAccountsExcelFile)
+router.post('/upload', upload.single('file'), createStudentsAccountsExcelFile)
 
 export default router

@@ -1,9 +1,32 @@
 import Student from '../../models/users-models/student_model.js'
 import { addStudent } from '../../services/students_services.js'
-import readXlsxFile from 'read-excel-file/node'
+import { updatePassword } from '../../services/users_services.js'
 
-// excel file path to read students data 👩‍🎓
-let filePath = 'data\\students.xlsx'
+import readXlsxFile from 'read-excel-file/node'
+import userValidator from '../../validators/user_validator.js'
+
+//**************************************************************
+// create a new student
+const createStudent = async (req, res) => {
+  try {
+    const { error, value } = userValidator.validate(req.body)
+    if (error) {
+      return res.status(400).json({ message: error.message })
+    }
+    // Call the service to handle business logic of creating the student
+    const newStudent = await addStudent(value)
+
+    res.status(201).json({
+      message: 'Student created successfully',
+      student: newStudent,
+    })
+  } catch (err) {
+    console.error('Error in createStudent function: ', err)
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || 'Internal Server Error' })
+  }
+}
 
 //**************************************************************
 // get students
@@ -22,6 +45,18 @@ const getStudent = async (req, res) => {
   const studentId = req.params.id
   try {
     const student = await Student.findById(studentId)
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    // delete the password and cv from the student object returned
+
+    student.password = undefined
+    student.cv = undefined
+
+    console.log(student)
+
     res.status(200).json(student)
   } catch (err) {
     res.status(500).json({ message: err.message })
@@ -29,26 +64,7 @@ const getStudent = async (req, res) => {
 }
 
 //**************************************************************
-// create a new student
-const createStudent = async (req, res) => {
-  try {
-    const student = await Student.findOne({ cin: req.body.cin }).exec()
-    if (student) {
-      return res
-        .status(400)
-        .json({ message: 'An Account with the same CIN Already Exist' })
-    }
 
-    const newStudent = await addStudent(req.body)
-
-    res.status(201).json(newStudent)
-  } catch (err) {
-    console.error('something went wrong')
-    res.status(500).json({ message: err.message })
-  }
-}
-
-//**************************************************************
 // update a student
 const updateStudent = async (req, res) => {
   const student = await Student.findById(req.params.id).exec()
@@ -86,10 +102,40 @@ const deleteStudent = async (req, res) => {
 }
 
 //**************************************************************
+
+const updateStudentPassword = async (req, res) => {
+  const studentId = req.params.id
+
+  try {
+    const student = await Student.findById(studentId)
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    // compare the password with the confirm password
+    if (req.body.password !== req.body.confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match' })
+    }
+
+    // calling the service to update the student password
+    await updatePassword(studentId, req.body.password, Student)
+
+    res.status(200).json({ message: 'Password updated successfully' })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
 const createStudentsAccountsExcelFile = async (req, res) => {
   try {
-    // Read the content of the Excel file
+    // Ensure a file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' })
+    }
+
+    const filePath = req.file.path // Path to the uploaded file
     const rows = await readXlsxFile(filePath)
+
     let studentsNames = []
     let errors = []
 
@@ -103,20 +149,18 @@ const createStudentsAccountsExcelFile = async (req, res) => {
         firstName: row[2].toString(),
         lastName: row[3].toString(),
         email: row[4].toString(),
-        password: row[5].toString(),
-        phone: row[6].toString(),
-        cv: row[7]?.toString() || '',
-        fieldOfStudy: row[8].toString(),
-        level: row[9].toString(),
-        status: row[10].toString(),
+        phone: row[5].toString(),
+        cv: row[6]?.toString() || '',
+        fieldOfStudy: row[7].toString(),
+        level: row[8].toString(),
+        status: row[9].toString(),
       }
 
       // Check if the student already exists
       const studentExist = await Student.findOne({ cin: student.cin }).exec()
       if (studentExist) {
-        // Log the error for this student
         errors.push(
-          `Student ${student.firstName} ${student.lastName} already exists`,
+          `An Account with the same CIN Already Exist for ${student.firstName} ${student.lastName}`,
         )
         continue
       }
@@ -126,7 +170,6 @@ const createStudentsAccountsExcelFile = async (req, res) => {
       studentsNames.push(`${student.firstName} ${student.lastName}`)
     }
 
-    // Send a single response after processing all rows
     res.status(201).json({
       message: `${studentsNames.length} students added successfully`,
       addedStudents: studentsNames,
@@ -136,7 +179,6 @@ const createStudentsAccountsExcelFile = async (req, res) => {
     res.status(500).json({ message: e.message })
   }
 }
-
 //**************************************************************
 export {
   getStudents,
@@ -145,4 +187,5 @@ export {
   updateStudent,
   deleteStudent,
   createStudentsAccountsExcelFile,
+  updateStudentPassword,
 }
