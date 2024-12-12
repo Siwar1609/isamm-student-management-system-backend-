@@ -15,7 +15,6 @@ import teachersRouter from './routes/users-routes/teachers_route.js'
 import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
 import { scheduleStudentReminder } from './controllers/notifications-controller/student_reminder.js'
 import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
-import option_route from './routes/options-routes/options_routes.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_middleware.js'
 import pfa_route from './routes/pfa-routes/pfa_routes.js'
 import choice_pfa_route from './routes/pfa-routes/pfa_choice_routes.js'
@@ -28,6 +27,8 @@ import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill
 import routerAssesmentSubject from './routes/subject-assesment-route/subjectAssesment_route.js'
 
 import RouterPublishSubject from './routes/subject-routes/subject.js'
+import option_period_route from './routes/options-routes/option_period_routes.js'
+import routerOption from './routes/options-routes/option_routes.js'
 
 dotenv.config()
 
@@ -77,6 +78,7 @@ app.use('/api/accounts', usersRouter)
 app.use('/api/students', studentsRouter)
 app.use('/api/teachers', teachersRouter)
 app.use('/api/subject/publish/:response', RouterPublishSubject)
-app.use('/api/options', option_route)
+app.use('/api/option', option_period_route)
+app.use('/api/options', routerOption)
 
 export default app
