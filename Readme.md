@@ -33,6 +33,12 @@ JWT_SECRET = 'JWT_SECRET'
 
 ```
 
+this is the new database link :
+
+```
+DATABASE_URL = "mongodb+srv://isammprojetbackend:isammprojetbackend@isamm-backend-plateform.qxu31.mongodb.net/"
+```
+
 ### 4- start the project by running
 
 ```
