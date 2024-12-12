@@ -6,7 +6,9 @@ import {
   fetch_all_pfa,
   fetch_my_pfa,
   fetch_my_pfa_byId,
+  fetsh_published_pfa,
   get_pfa_ByID,
+  get_published_pfa_by_id,
   publish_pfa,
   send_pfa_list_email,
   update_my_pfa,
@@ -34,4 +36,8 @@ pfa_route.post('/post', accessByRole(['admin']), add_my_pfa)
 pfa_route.post('/publish/:response', accessByRole(['admin']), publish_pfa)
 pfa_route.post('/list/send', accessByRole(['admin']), send_pfa_list_email)
 
+//---------------- student Routes ---------------------------
+
+pfa_route.get('/choice/', accessByRole(['student']), fetsh_published_pfa)
+pfa_route.get('/choice/:id', accessByRole(['student']), get_published_pfa_by_id)
 export default pfa_route

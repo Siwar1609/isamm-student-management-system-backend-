@@ -6,92 +6,25 @@ import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
 import mongoose from 'mongoose'
 import nodemailer from 'nodemailer'
 
-// Ajouter un PFE
-// export const addPFE = async (req, res) => {
-//   try {
-//     const {
-//       company_name,
-//       title,
-//       description,
-//       type,
-//       teacherId,
-//       studentId,
-//       numberOfStudents,
-//       affected,
-//       academicYear,
-//       documentId,
-//       periodId,
-//     } = req.body;
-
-//     // Validation des données du corps de la requête
-//     const { error } = pfeValidationSchema.validate(req.body);
-//     if (error) {
-//       return res.status(400).json({ message: error.details[0].message });
-//     }
-
-//     // Vérifier si la période est ouverte
-//     const period = await Period.findById(req.body.periodId);
-//     if (!period) {
-//       return res.status(404).json({ message: '❌ Période non trouvée.' });
-//     }
-//     if (period.start_date > new Date()) {
-//       return res
-//         .status(400)
-//         .json({ message: "⏳ La période de dépôt n'est pas encore ouverte." });
-//     }
-
-//     // Créer un nouveau PFE
-//     const newPFE = new PFE({
-//       company_name,
-//       title,
-//       description,
-//       type,
-//       teacherId,
-//       studentId,
-//       numberOfStudents,
-//       affected,
-//       academicYear,
-//       documentId,
-//       periodId,
-//     });
-
-//     // Sauvegarder le PFE dans la base de données
-//     const savedPFE = await newPFE.save();
-
-//     // Populate les champs studentId, documentId, et periodId
-//     const populatedPFE = await PFE.findById(savedPFE._id)
-//       .populate('studentId')
-//       .populate('teacherId', 'firstName lastName email cv') 
-//       .populate('documentId') 
-//       .populate('periodId', 'name start_date end_date')// récupérer le nom et les dates de la période
-//       .populate('academicYear');
-
-//     return res.status(201).json({
-//       message: '✅ PFE ajouté avec succès 🎉.',
-//       pfe: populatedPFE,
-//     });
-//   } catch (err) {
-//     console.error(err);
-//     return res.status(500).json({ message: '❗ Erreur du serveur.', error: err.message });
-//   }
-// };
+// Méthode pour ouvrir une période de dépôt PFE
 export const addPFE = async (req, res) => {
   try {
+    // Extraire les données du corps de la requête
     const {
       company_name,
       title,
       description,
       type,
       teacherId,
-      studentId,
-      WorkMode, 
+      studentId,  
+      WorkMode,
       affected,
       academicYear,
       documentId,
       periodId,
     } = req.body;
 
-    // Validation des données du corps de la requête
+    // Validation des données
     const { error } = pfeValidationSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
@@ -108,8 +41,8 @@ export const addPFE = async (req, res) => {
         .json({ message: "⏳ La période de dépôt n'est pas encore ouverte." });
     }
 
-    // Vérification du nombre d'étudiants en fonction du type
-     if (WorkMode === "Monome" && studentId.length !== 1) {
+    // Validation du nombre d'étudiants en fonction du type
+    if (WorkMode === "Monome" && studentId.length !== 1) {
       return res.status(400).json({
         message:
           '❌ Si le PFE est "monome", il doit contenir exactement un ID étudiant.',
@@ -131,7 +64,7 @@ export const addPFE = async (req, res) => {
       type,
       teacherId,
       studentId,
-      WorkMode, 
+      WorkMode,
       affected,
       academicYear,
       documentId,
@@ -144,8 +77,8 @@ export const addPFE = async (req, res) => {
     // Populate les champs studentId, documentId, et periodId
     const populatedPFE = await PFE.findById(savedPFE._id)
       .populate('studentId')
-      .populate('teacherId', 'firstName lastName email cv') 
-      .populate('documentId') 
+      .populate('teacherId', 'firstName lastName email cv')
+      .populate('documentId')
       .populate('periodId', 'name start_date end_date') // récupérer le nom et les dates de la période
       .populate('academicYear');
 
@@ -161,6 +94,7 @@ export const addPFE = async (req, res) => {
   }
 };
 
+   
 // Méthode pour mettre à jour un PFE
 export const updatePFE = async (req, res) => {
   try {
@@ -203,46 +137,7 @@ export const updatePFE = async (req, res) => {
     return res.status(500).json({ message: 'Erreur serveur.' })
   }
 }
-// export const getPFEDetailsForStudent = async (req, res) => {
-//   try {
-//     const students = await Student.find()
-
-//     // Pour chaque étudiant, on récupère les détails de son PFE
-//     const studentDetails = await Promise.all(
-//       students.map(async (student) => {
-//         const pfeDetails = await PFE.findOne({
-//           studentId: student._id,
-//         })
-//           .populate('teacherId')
-//           .populate('documentId')
-//           .populate('periodId')
-//           .populate('academicYear')
-//         if (!pfeDetails) {
-//           return {
-//             student: student.name,
-//             message: 'Aucun PFE trouvé pour cet étudiant.',
-//           }
-//         }
-//         console.log(student);
-//         console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-//         console.log(pfeDetails);
-//         console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-//         return {
-//           student: student,
-//           pfeDetails: pfeDetails,          
-//         }
-//       }),
-//     )
-
-//     res.status(200).json(studentDetails)
-//   } catch (error) {
-//     console.error(error)
-//     res.status(500).json({
-//       message: 'Erreur lors de la récupération des informations PFE.',
-//       error,
-//     })
-//   }
-// }
+//recuperer les details des PFEs pour les étudiants
 export const getPFEDetailsForStudent = async (req, res) => {
   try {
     // Recherche des PFEs non affectés avec les étudiants associés
@@ -269,34 +164,35 @@ export const getPFEDetailsForStudent = async (req, res) => {
 
 // Fonction pour qu'un enseignant choisisse un PFE
 export const choosePFE = async (req, res) => {
-  const { id } = req.params
-  const { teacherId } = req.body
+  const { id } = req.params;
+  const teacherId = req.auth.userId; 
 
   try {
     // Vérifier si le PFE existe
-    const pfe = await PFE.findById(id)
+    const pfe = await PFE.findById(id);
 
     if (!pfe) {
-      return res.status(404).json({ message: 'PFE non trouvé.' })
+      return res.status(404).json({ message: 'PFE non trouvé.' });
     }
 
     // Vérifier si ce PFE a déjà un enseignant
     if (pfe.teacherId) {
       return res
         .status(400)
-        .json({ message: 'Ce PFE a déjà été choisi par un autre enseignant.' })
+        .json({ message: 'Ce PFE a déjà été choisi par un autre enseignant.' });
     }
-    pfe.teacherId = teacherId
-    pfe.affected = true
-    await pfe.save()
-    res.status(200).json({ message: 'PFE choisi avec succès.' })
+
+    // Assigner l'enseignant et mettre à jour le statut
+    pfe.teacherId = teacherId;
+    pfe.affected = true;
+    await pfe.save();
+
+    res.status(200).json({ message: 'PFE choisi avec succès.' });
   } catch (error) {
-    console.error(error)
-    res
-      .status(500)
-      .json({ message: 'Erreur lors de la mise à jour du PFE.', error })
+    console.error(error);
+    res.status(500).json({ message: 'Erreur lors de la mise à jour du PFE.', error });
   }
-}
+};
 
 
 //User Story 4.2: sélectionner les PFE et valider le choix des encadrants. Le statut des PFE va changer
@@ -386,6 +282,7 @@ export const assignTeacherToPFEManually = async (req, res) => {
     // Mise à jour du PFE avec le nouvel enseignant
     pfe.teacherId = teacherId;
     pfe.affected = true;
+    pfe.isApproved=true;
     await pfe.save();
 
     res.status(200).json({
@@ -440,6 +337,7 @@ export const assignTeacherToPFEManually2 = async (req, res) => {
     // Mise à jour du PFE avec le nouvel enseignant
     pfe.teacherId = teacherId;
     pfe.affected = true;
+    pfe.isApproved=true;
     await pfe.save();
 
     res.status(200).json({

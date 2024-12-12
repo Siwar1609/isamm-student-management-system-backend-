@@ -120,6 +120,7 @@ export const pfaValidationSchema = Joi.object({
   list_of_student: Joi.array().items(
     Joi.string()
       .pattern(/^[0-9a-fA-F]{24}$/)
+      .allow(null, '')
       .messages({
         'string.pattern.base':
           "Chaque ID d'étudiant doit être un ObjectId valide.",

@@ -1,8 +1,9 @@
 import PFA from '../../models/project_models/project_pfa.js'
 import PFAValidator from '../../validators/project_pfa_validator.js'
 import period_model from '../../models/period-model/period_model.js'
+import { sendApprovalEmails } from '../pfa-controller/choice_pfa_controller.js'
 import nodemailer from 'nodemailer'
-import user_model from '../../models/users-models/user_model.js'
+import Student from '../../models/users-models/student_model.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -81,6 +82,23 @@ export const add_my_pfa = async (req, res) => {
     // Sauvegarder le PFA dans la base de données
     const savedPFA = await newPFA.save()
 
+    // Envoi d'emails si la liste des étudiants est fournie
+    if (list_of_student && list_of_student.length > 0) {
+      // Récupérer les étudiants à partir de leurs ID
+      const students = await Student.find({ _id: { $in: list_of_student } })
+
+      if (students.length === 0) {
+        return res.status(404).json({
+          message: 'Aucun étudiant correspondant trouvé pour les ID fournis.',
+        })
+      }
+
+      // Extraire les e-mails des étudiants
+      const studentEmails = students.map((student) => student.email)
+
+      // Envoyer les e-mails
+      await sendApprovalEmails(studentEmails, savedPFA)
+    }
     return res
       .status(201)
       .json({ message: 'PFA ajouté avec succès', pfa: savedPFA })
@@ -129,6 +147,13 @@ export const update_my_pfa = async (req, res) => {
       { ...req.body, teacherId: teacherId },
       { new: true },
     )
+    // Envoi d'emails si la liste des étudiants est mise à jour
+    if (req.body.list_of_student && req.body.list_of_student.length > 0) {
+      const studentEmails = req.body.list_of_student.map(
+        (student) => student.email,
+      ) // Adaptez selon votre structure
+      await sendApprovalEmails(studentEmails, updated_pfa)
+    }
 
     res.status(200).json({
       model: updated_pfa,
@@ -318,7 +343,7 @@ export const publish_pfa = async (req, res) => {
 export const send_pfa_list_email = async (req, res) => {
   try {
     // Rechercher les étudiants ayant role="student" et level=2
-    const students = await user_model.find({ role: 'student' , level: '2' })
+    const students = await Student.find({ role: 'student', level: '2' })
     console.log(students)
     if (!students || students.length === 0) {
       return res.status(404).json({ message: 'Aucun étudiant trouvé.' })
@@ -336,10 +361,10 @@ export const send_pfa_list_email = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        // user: process.env.EMAIL_USER,
-        // pass: process.env.EMAIL_PASS,
-        user: 'benboubakerchiraz054@gmail.com',
-        pass: 'brqd tlgs naoy rkwe',
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+        // user: 'benboubakerchiraz054@gmail.com',
+        // pass: 'brqd tlgs naoy rkwe',
       },
     })
 
@@ -403,3 +428,46 @@ export const send_pfa_list_email = async (req, res) => {
 //     res.status(400).json({ error: error.message })
 //   }
 // }
+// ------------------------- Student Controller -------------------------------------
+export const fetsh_published_pfa = async (req, res) => {
+  try {
+    // Find pfa with published are false
+    const projects_pfa = await PFA.find({ published: true }).populate(
+      'teacherId',
+    )
+    res.status(200).json({ model: projects_pfa, message: 'Succès' })
+  } catch (e) {
+    res.status(400).json({ error: e.message, message: "Problème d'accès" })
+  }
+}
+
+export const get_published_pfa_by_id = async (req, res) => {
+  try {
+    // Recherche du sujet PFA par ID avec le champ `published` à `true`
+    const project_pfa = await PFA.findOne({
+      _id: req.params.id,
+      published: true,
+    })
+      .select(
+        'teacherId technologies_list title description numberOfStudents affected',
+      )
+      .exec()
+    // Vérification si le projet existe
+    if (!project_pfa) {
+      return res.status(404).json({
+        message: 'Sujet PFA introuvable ou non publié.',
+      })
+    }
+    // Réponse réussie
+    res.status(200).json({
+      model: project_pfa,
+      message: 'Sujet trouvé avec succès.',
+    })
+  } catch (error) {
+    // Gestion des erreurs
+    res.status(500).json({
+      error: error.message,
+      message: 'Erreur lors de la récupération du sujet PFA.',
+    })
+  }
+}
