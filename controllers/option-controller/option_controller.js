@@ -1,114 +1,172 @@
-import Period from '../../models/period-model/period_model.js';
-import { validateOptionPeriod } from '../../validators/periodValidation.js'
+import Option from '../../models/option-models/option_model.js'
+import AcademicYear from '../../models/academic_year_models/academic-year-model.js'
+import Period from '../../models/period-model/period_model.js'
+import Student from '../../models/users-models/student_model.js'
 
-export const openOptionPeriod = async (req, res) => {
-  const { start_date, end_date } = req.body;
-
-  // Valider les données avec Joi
-  const { error } = validateOptionPeriod(req.body);
-  if (error) {
-    return res.status(400).json({ message: error.details[0].message });
-  }
-
+// Add Option Controller
+export const addOption = async (req, res) => {
   try {
-    // Vérifier si une période "Choix d’option" est déjà ouverte
-    const existingPeriod = await Period.findOne({
-        name: 'Choix d’option',
-        start_date: { $lte: new Date() },
-        end_date: { $gte: new Date() },
-      });
+    // Destructure the required fields from the request body
+    const {
+      name,
+      reason,
+      academic_year,
+      url,
+      groupName,
+      repitationIn1stYear,
+      generalAverage,
+      integrationYear,
+      successSession,
+      webDevGrade,
+      oopGrade,
+      algorithmsGrade,
+    } = req.body
 
-    if (existingPeriod) {
+    // Validate required fields
+    if (
+      !name ||
+      !reason ||
+      !academic_year ||
+      !url ||
+      !groupName ||
+      !repitationIn1stYear ||
+      !integrationYear ||
+      !successSession
+    ) {
       return res.status(400).json({
-        message: 'Une période de choix d’option est déjà ouverte.',
-      });
+        message: 'Missing required fields.',
+      })
     }
 
-    // Créer une nouvelle période pour le choix d’option
-    const newPeriod = new Period({
+    // Fetch the logged-in student's ID from the session or authentication middleware
+    const studentId = req.auth.userId // Assuming `req.user` is populated by your authentication middleware
+    if (!studentId) {
+      return res.status(403).json({ message: 'User not authenticated.' })
+    }
+
+    // Validate the student's existence
+    const studentExists = await Student.exists({ _id: studentId })
+    if (!studentExists) {
+      return res.status(404).json({ message: 'Invalid student ID.' })
+    }
+
+    // Validate referenced IDs
+    const academicYearExists = await AcademicYear.exists({ _id: academic_year })
+    if (!academicYearExists) {
+      return res.status(400).json({ message: 'Invalid academic year ID.' })
+    }
+
+    // Fetch the most recent active period dynamically
+    const currentPeriod = await Period.findOne({
       name: 'Choix d’option',
-      start_date: new Date(start_date),
-      end_date: new Date(end_date),
-    });
+      end_date: { $gte: new Date() }, // Period end date is after or equal to today
+    })
 
-    await newPeriod.save();
+    if (!currentPeriod) {
+      return res
+        .status(400)
+        .json({ message: 'No active period for option choices.' })
+    }
+    const existingOption = await Option.findOne({
+      student: studentId,
+      period: currentPeriod._id,
+    })
 
-    return res.status(201).json({
-      message: 'La période de choix d’option a été ouverte avec succès.',
-      period: newPeriod,
-    });
+    if (existingOption) {
+      return res.status(400).json({
+        message: 'The student has already posted an option for this period.',
+      })
+    }
+
+    // Create a new Option instance
+    const newOption = new Option({
+      name,
+      reason,
+      student: [studentId], // Associate the option with the logged-in student
+      academic_year,
+      period: currentPeriod._id, // Assign dynamically fetched period
+      url,
+      groupName,
+      repitationIn1stYear,
+      generalAverage,
+      integrationYear,
+      successSession,
+      webDevGrade,
+      oopGrade,
+      algorithmsGrade,
+    })
+
+    // Save the Option to the database
+    const savedOption = await newOption.save()
+
+    // Respond with the saved Option
+    res.status(201).json({
+      message: 'Option added successfully.',
+      option: savedOption,
+    })
   } catch (error) {
-    return res.status(500).json({
-      message: "Erreur lors de l'ouverture de la période.",
+    console.error('Error adding option:', error)
+    res.status(500).json({
+      message: 'An error occurred while adding the option.',
       error: error.message,
-    });
+    })
   }
-};
+}
 
-export const getOptionPeriod = async (req, res) => {
-    try {
-      // Rechercher la période "Choix d’option"
-      const optionPeriod = await Period.findOne({ name: 'Choix d’option' });
-  
-      if (!optionPeriod) {
-        return res.status(404).json({
-          message: "Aucune période de choix d'option n'est actuellement ouverte.",
-        });
-      }
-  
-      // Retourner les informations de la période "Choix d’option"
-      return res.status(200).json({
-        message: 'Informations sur la période de choix d’option récupérées avec succès.',
-        period: optionPeriod,
-      });
-    } catch (error) {
-      return res.status(500).json({
-        message: 'Erreur lors de la récupération des informations de la période.',
-        error: error.message,
-      });
-    }
-  };
+// Get All Options
+export const getAllOptions = async (req, res) => {
+  try {
+    // Fetch all options and populate the references
+    const options = await Option.find()
+      .populate('student', 'firstName lastName cin email') // Populate student details (name, email for example)
+      .populate('academic_year', 'start_year end_year')
+      .populate('period', 'name start_date end_date') // Populate academic year details (e.g., year, name)
 
-  export const updateOptionPeriod = async (req, res) => {
-    const { start_date, end_date } = req.body;
-  
-    // Valider les données avec Joi
-    const { error } = validateOptionPeriod(req.body);
-    if (error) {
-    return res.status(400).json({ message: error.details[0].message });
+    if (!options || options.length === 0) {
+      return res.status(404).json({ message: 'No options found.' })
     }
-  
-    try {
-      // Rechercher la période "Choix d'option"
-      const optionPeriod = await Period.findOne({ name: 'Choix d’option' });
-  
-      if (!optionPeriod) {
-        return res.status(404).json({
-          message: "Aucune période de choix d'option n'est actuellement ouverte.",
-        });
-      }
-    // Vérifier que start_date est avant end_date
-    if (new Date(start_date) >= new Date(end_date)) {
-        return res.status(400).json({
-        message: 'La date de début doit être antérieure à la date de fin.',
-        })
+
+    // Respond with the populated options
+    res.status(200).json({ options })
+  } catch (error) {
+    console.error('Error fetching options:', error)
+    res.status(500).json({
+      message: 'An error occurred while fetching options.',
+      error: error.message,
+    })
+  }
+}
+
+// Get Options by Student ID
+export const getOptionsByStudentId = async (req, res) => {
+  try {
+    const { studentId } = req.params
+
+    // Validate the student ID
+    const studentExists = await Student.find({ _id: studentId })
+    if (!studentExists) {
+      return res.status(404).json({ message: 'Student not found.' })
     }
-    
-      // Modifier les dates de la période "Choix d'option"
-      optionPeriod.start_date = new Date(start_date);
-      optionPeriod.end_date = new Date(end_date);
-  
-      // Sauvegarder les modifications
-      await optionPeriod.save();
-  
-      return res.status(200).json({
-        message: 'Les délais de la période de choix d’option ont été modifiés avec succès.',
-        period: optionPeriod,
-      });
-    } catch (error) {
-      return res.status(500).json({
-        message: "Erreur lors de la modification des délais de la période.",
-        error: error.message,
-      });
+
+    // Fetch options associated with the student and populate the references
+    const options = await Option.find({ student: studentId })
+      .populate('student', 'firstName lastName cin email') // Populate student details (name, email for example)
+      .populate('academic_year', 'start_year end_year')
+      .populate('period', 'name start_date end_date') // Populate academic year details (e.g., year, name)
+
+    if (!options || options.length === 0) {
+      return res
+        .status(404)
+        .json({ message: `No options found for student with ID ${studentId}.` })
     }
-  };
+
+    // Respond with the populated options
+    res.status(200).json({ options })
+  } catch (error) {
+    console.error('Error fetching options by student ID:', error)
+    res.status(500).json({
+      message: 'An error occurred while fetching options by student ID.',
+      error: error.message,
+    })
+  }
+}
