@@ -1,10 +1,10 @@
 import Period from '../../models/period-model/period_model.js'
 import PFE from '../../models/project_models/project_pfe.js'
-import Student from '../../models/users-models/student_model.js'
 import  {pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
 import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
 import mongoose from 'mongoose'
-import nodemailer from 'nodemailer'
+import nodemailer from 'nodemailer';
+import Student from '../../models/users-models/student_model.js';
 
 // Méthode pour ouvrir une période de dépôt PFE
 export const addPFE = async (req, res) => {
@@ -19,9 +19,7 @@ export const addPFE = async (req, res) => {
       studentId,  
       WorkMode,
       affected,
-      academicYear,
       documentId,
-      periodId,
     } = req.body;
 
     // Validation des données
@@ -30,16 +28,30 @@ export const addPFE = async (req, res) => {
       return res.status(400).json({ message: error.details[0].message });
     }
 
-    // Vérifier si la période est ouverte
-    const period = await Period.findById(req.body.periodId);
+    
+    // Vérification si le délai est dépassé
+    const period = await Period.findOne({
+      name: 'Dépot PFE',
+      end_date: { $gte: new Date() },
+    })
+
     if (!period) {
-      return res.status(404).json({ message: '❌ Période non trouvée.' });
+      return res.status(404).json({ message: '❌ Période non trouvée❌' })
     }
-    if (period.start_date > new Date()) {
-      return res
-        .status(400)
-        .json({ message: "⏳ La période de dépôt n'est pas encore ouverte." });
-    }
+       // Validate if documents exist
+       for (let docId of documentId) {
+        if (!mongoose.Types.ObjectId.isValid(docId)) {
+          return res.status(400).json({
+            message: `❌ L'ID du document '${docId}' est invalide.`,
+          });
+        }
+        const documentExists = await mongoose.model('Document').findById(docId);
+        if (!documentExists) {
+          return res.status(404).json({
+            message: `❌ Le document avec l'ID '${docId}' n'existe pas.`,
+          });
+        }
+      }
 
     // Validation du nombre d'étudiants en fonction du type
     if (WorkMode === "Monome" && studentId.length !== 1) {
@@ -66,9 +78,8 @@ export const addPFE = async (req, res) => {
       studentId,
       WorkMode,
       affected,
-      academicYear,
       documentId,
-      periodId,
+      
     });
 
     // Sauvegarder le PFE dans la base de données
@@ -79,8 +90,7 @@ export const addPFE = async (req, res) => {
       .populate('studentId')
       .populate('teacherId', 'firstName lastName email cv')
       .populate('documentId')
-      .populate('periodId', 'name start_date end_date') // récupérer le nom et les dates de la période
-      .populate('academicYear');
+      .populate('academicyear');
 
     return res.status(201).json({
       message: '✅ PFE ajouté avec succès 🎉.',
@@ -99,44 +109,80 @@ export const addPFE = async (req, res) => {
 export const updatePFE = async (req, res) => {
   try {
     // Validation des données du corps de la requête
-    const { error } = updatePFEValidation.validate(req.body)
+    const { error } = updatePFEValidation.validate(req.body);
     if (error) {
-      return res.status(400).json({ message: error.details[0].message })
+      return res.status(400).json({ message: error.details[0].message });
     }
 
     // Récupérer l'ID du PFE et les données envoyées
-    const { id } = req.params
-    const updateData = req.body
+    const { id } = req.params;
+    const updateData = req.body;
 
-    // Vérifier la période actuelle et si la période est déjà dépassée
-    const pfe = await PFE.findById(id).populate('periodId') // Récupérer le PFE avec la période associée
+    // Vérifier la période actuelle
+    const period = await Period.findOne({
+      name: 'Dépot PFE',
+      end_date: { $gte: new Date() }, // Période encore valide
+    });
 
-    if (!pfe) {
-      return res.status(404).json({ message: 'PFE non trouvé' })
+    if (!period) {
+      return res
+        .status(404)
+        .json({ message: '❌ Période de dépôt non trouvée ou déjà dépassée❌' });
     }
 
-    const period = pfe.periodId
-    const currentDate = new Date()
+    // Validation supplémentaire pour le mode de travail et les IDs associés
+    if (updateData.WorkMode === 'Monome' && updateData.studentId?.length !== 1) {
+      return res.status(400).json({
+        message: '❌ Si le PFE est "monome", il doit contenir exactement un ID étudiant.',
+      });
+    }
+    if (updateData.WorkMode === 'Binome' && updateData.studentId?.length !== 2) {
+      return res.status(400).json({
+        message: '❌ Si le PFE est "binome", il doit contenir exactement deux IDs étudiants.',
+      });
+    }
 
-    if (currentDate > period.end_date) {
-      return res
-        .status(400)
-        .json({ message: 'Les délais de dépôt sont dépassés.' })
+    // Vérification des IDs référencés
+    if (updateData.teacherId && !await mongoose.model('Teacher').findById(updateData.teacherId)) {
+      return res.status(400).json({ message: '❌ L\'enseignant spécifié n\'existe pas.' });
+    }
+    if (updateData.studentId) {
+      for (const studentId of updateData.studentId) {
+        if (!await mongoose.model('Student').findById(studentId)) {
+          return res.status(400).json({ message: '❌ Un ou plusieurs étudiants spécifiés n\'existent pas.' });
+        }
+      }
+    }
+
+    // Vérification des champs autorisés
+    const allowedFields = ['company_name', 'title', 'description', 'type', 'teacherId', 'studentId', 'WorkMode', 'affected', 'documentId', 'published', 'isApproved', 'send'];
+    const invalidFields = Object.keys(updateData).filter(field => !allowedFields.includes(field));
+    if (invalidFields.length > 0) {
+      return res.status(400).json({
+        message: `❌ Champs invalides détectés: ${invalidFields.join(', ')}`,
+      });
     }
 
     // Mise à jour du PFE avec les nouvelles informations
-    const updatedPFE = await PFE.findByIdAndUpdate(id, updateData, {
-      new: true,
-    })
+    const updatedPFE = await PFE.findByIdAndUpdate(id, updateData, { new: true });
 
-    return res
-      .status(200)
-      .json({ message: 'PFE mis à jour avec succès.', data: updatedPFE })
+    // Peupler les champs après mise à jour
+    const populatedPFE = await PFE.findById(updatedPFE._id)
+      .populate('studentId')
+      .populate('teacherId', 'firstName lastName email')
+      .populate('documentId')
+      .populate('academicyear');
+
+    return res.status(200).json({
+      message: '✅ PFE mis à jour avec succès 🎉.',
+      data: populatedPFE,
+    });
   } catch (err) {
-    console.error(err)
-    return res.status(500).json({ message: 'Erreur serveur.' })
+    console.error(err);
+    return res.status(500).json({ message: '❌ Erreur serveur.' });
   }
-}
+};
+
 //recuperer les details des PFEs pour les étudiants
 export const getPFEDetailsForStudent = async (req, res) => {
   try {
@@ -145,8 +191,7 @@ export const getPFEDetailsForStudent = async (req, res) => {
       .populate('studentId')
       .populate('teacherId')
       .populate('documentId')
-      .populate('periodId')
-      .populate('academicYear')
+      .populate('academicyear')
 
     if (availablePFEs.length === 0) {
       return res.status(404).json({ message: 'Aucun PFE disponible.' })
@@ -388,67 +433,144 @@ export const publishOrHidePFEAssignments = async (req, res) => {
     });
   }
 };
+// Publier ou masquer certains PFEs
+export const publishOrHidePFEAssignments2 = async (req, res) => {
+  try {
+    const { response } = req.params; // "publish" ou "hide"
+    const { pfeIds } = req.body; // Liste des IDs des PFEs à mettre à jour
+
+    // Vérification de la validité du paramètre `response`
+    if (!["publish", "hide"].includes(response)) {
+      return res.status(400).json({
+        message: "Valeur invalide pour 'response'. Utilisez 'publish' ou 'hide'.",
+      });
+    }
+
+    // Vérification de la présence d'IDs de PFEs
+    if (!Array.isArray(pfeIds) || pfeIds.length === 0) {
+      return res.status(400).json({
+        message: "Aucun ID de PFE fourni. Veuillez fournir un tableau d'IDs.",
+      });
+    }
+
+    // Définir la valeur de `published` en fonction de `response`
+    const published = response === "publish";
+
+    // Mise à jour des PFEs spécifiés
+    const result = await PFE.updateMany(
+      { _id: { $in: pfeIds } },
+      { $set: { published } }   
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        message: "Aucun PFE correspondant trouvé.",
+      });
+    }
+
+    res.status(200).json({
+      message: `Les PFEs sélectionnés ont été ${published ? "publiés" : "masqués"} avec succès.`,
+      result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Erreur lors de la mise à jour de l'état de publication des PFEs.",
+      error,
+    });
+  }
+};
 //envoyer le planning des PFEs par email
 
 export const send_pfe_planning = async (req, res) => {
   try {
-  
-    const { emails, planningLink } = req.body;
-
-    if (!emails || emails.length === 0 || !planningLink) {
-      return res.status(400).json({ message: "Emails or planning link is missing." });
+    // Rechercher les étudiants ayant le rôle "student" et niveau approprié
+    const students = await Student.find({ role: "student", level: "3" });
+    if (!students || students.length === 0) {
+      return res.status(404).json({ message: "Aucun étudiant trouvé." });
     }
 
-    // vérifier si le planning est déja envoyé
-    const pfeStatus = await PFE.findOne({ send: true }).select("send");
-    const isFirstSend = !pfeStatus;
+    // Vérifier s'il existe au moins un PFE avec `send=true`
+    const pfeSendStatus = await PFE.findOne({ send: true }).select("send");
+    const isFirstSend = !pfeSendStatus; 
 
-    // Configuration de Nodemailer pour l'envoi d'email
-    let transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true, 
+    // Vérifier si au moins un PFE existe
+    const pfeCount = await PFE.countDocuments();
+    if (pfeCount === 0) {
+      return res.status(404).json({ message: "Aucun PFE trouvé." });
+    }
+
+    // Configurer le transporteur d'email
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
       },
     });
 
-    // definirr  le contenu de l'email
+    // Définir le contenu de l'email en fonction du type d'envoi
     const subject = isFirstSend
       ? "Planning des PFEs"
       : "Mise à jour : Planning des PFEs";
 
-    const htmlContent = isFirstSend
-      ? `
-        <p>Bonjour,</p>
-        <p>Le planning des PFEs est désormais disponible. Cliquez sur le lien ci-dessous pour le consulter :</p>
-        <a href="${planningLink}">Voir le planning des PFEs</a>
-        <p>Cordialement,</p>
-        <p>L'équipe PFE</p>
-      `
-      : `
-        <p>Bonjour,</p>
-        <p>Le planning des PFEs a été mis à jour. Cliquez sur le lien ci-dessous pour consulter la version la plus récente :</p>
-        <a href="${planningLink}">Voir le planning mis à jour</a>
-        <p>Cordialement,</p>
-        <p>L'équipe PFE</p>
-      `;
-
-    // Envoi des emails aux destinataires
-    const emailPromises = emails.map((email) =>
-      transporter.sendMail({
-        from: '"Équipe PFE 👻" <alimekni5@gmail.com>',
-        to: email,
-        subject,
+      const htmlContent = `
+      <table style="width: 100%; font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
+        <tr>
+          <td align="center">
+            <table style="width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); overflow: hidden;">
+              <tr>
+                <td style="background-color: #007bff; color: #ffffff; padding: 20px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 24px;">${subject}</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 20px;">
+                  <p style="font-size: 16px; color: #333333; line-height: 1.5;">
+                    Bonjour,
+                  </p>
+                  <p style="font-size: 16px; color: #333333; line-height: 1.5;">
+                    ${isFirstSend
+                      ? "Le planning des PFEs est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
+                      : "Le planning des PFEs a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"}
+                  </p>
+                  <div style="text-align: center; margin: 20px 0;">
+                    <a href="http://wwww.isamm.com" style="background-color: #007bff; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-size: 16px;">
+                      Voir le planning des PFEs
+                    </a>
+                  </div>
+                  <p style="font-size: 16px; color: #333333; line-height: 1.5;">
+                    Cordialement,<br />
+                    <strong>L'équipe PFE</strong>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background-color: #f1f1f1; color: #777777; font-size: 14px; text-align: center; padding: 10px;">
+                  <p style="margin: 0;">
+                    Vous recevez cet email parce que vous faites partie de la liste des destinataires pour les PFEs.
+                  </p>
+                  <p style="margin: 0;">
+                    © 2024 Équipe PFE, Tous droits réservés.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    `;
+    // Envoyer les emails aux étudiants
+    const emailPromises = students.map((student) => {
+      return transporter.sendMail({
+        from: '" Équipe PFE 👻" <votre_email@gmail.com>',
+        to: student.email,
+        subject, 
         html: htmlContent,
-      })
-    );
-
-   // Attendre l'envoi de tous les emails
+      });
+    });
     await Promise.all(emailPromises);
 
-    // Marquer tous les PFEs comme envoyés
     if (isFirstSend) {
       await PFE.updateMany({}, { send: true });
     }
@@ -457,8 +579,6 @@ export const send_pfe_planning = async (req, res) => {
       message: `Emails envoyés avec succès (${isFirstSend ? "premier envoi" : "mise à jour"}).`,
     });
   } catch (error) {
-    console.error("Erreur lors de l'envoi des emails:", error);
-
     return res.status(500).json({
       message: "Erreur lors de l'envoi des emails.",
       error: error.message,
