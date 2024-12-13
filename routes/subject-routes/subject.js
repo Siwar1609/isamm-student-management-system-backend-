@@ -15,8 +15,13 @@ import {
 
 const router = express.Router()
 
-router.get('/', loggedMiddleware, fetchSubjects)
-router.get('/:id', loggedMiddleware, getSubjectbyID)
+router.get(
+  '/',
+  loggedMiddleware,
+  accessByRole(['admin', 'teacher', 'student']),
+  fetchSubjects,
+)
+router.get('/:id', loggedMiddleware, accessByRole(['admin']), getSubjectbyID)
 
 // Routes protégées par les permissions admin
 router.post('/', loggedMiddleware, accessByRole(['admin']), addSubject)

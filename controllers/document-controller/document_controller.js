@@ -1,14 +1,14 @@
 import Internship from '../../models/internship-models/internship_model.js'
 import Document from '../../models/document-models/document_model.js'
 import Student from '../../models/users-models/student_model.js'
-import Teacher from '../../models/users-models/teacher_model.js'
 import Period from '../../models/period-model/period_model.js'
+
 export const addStudentDocument = async (req, res) => {
   try {
     console.log('Request Body:', req.body)
 
     const { id: internshipId } = req.params // Internship ID from URL
-    const { name, url, encadrant } = req.body // Document details
+    const { type, url } = req.body // Document details (no encadrant)
     const studentId = req.auth.userId // Extracted from Bearer token
 
     // Log the extracted student ID
@@ -61,25 +61,13 @@ export const addStudentDocument = async (req, res) => {
       endDate: period.endDate,
     })
 
-    // Validate the encadrant (teacher) if provided
-    let encadrantUser = null
-    if (encadrant) {
-      encadrantUser = await Teacher.findById(encadrant)
-      console.log('Encadrant Found:', encadrantUser)
-      if (!encadrantUser) {
-        return res
-          .status(400)
-          .json({ message: 'Invalid encadrant ID provided.' })
-      }
-    }
-
-    // Prepare the document payload
+    // Prepare the document payload without the encadrant
     const documentPayload = {
-      name,
+      type,
       url,
       uploadedBy: studentId,
       internship: internshipId,
-      encadrant: encadrant || null,
+      // Remove encadrant as it is no longer in the schema
     }
 
     console.log('Document Payload:', documentPayload)
@@ -108,9 +96,8 @@ export const getAllDocuments = async (req, res) => {
   try {
     // Retrieve all documents from the database
     const documents = await Document.find()
-      .populate('uploadedBy', 'login fullName email') // Populate student details
-      .populate('internship', 'startDate endDate') // Populate internship period
-      .populate('encadrant', 'fullName email') // Populate encadrant details (only specific fields)
+      .populate('uploadedBy', 'firstName lastName cin level email') // Populate student details
+      .populate('internship', 'status description startDate endDate') // Populate internship period
       .exec() // Execute the query
 
     if (!documents || documents.length === 0) {
@@ -136,11 +123,9 @@ export const getDocumentsByStudentId = async (req, res) => {
 
     // Find documents for the specific student and populate related fields
     const documents = await Document.find({ uploadedBy: studentId })
-      .populate('uploadedBy', 'login fullName email') // Populate student login
-      .populate('internship', 'startDate endDate') // Populate internship period dates (if applicable)
-      .populate('encadrant', 'login fullName email') // Populate encadrant information
-
-      .exec()
+      .populate('uploadedBy', 'firstName lastName cin level email') // Populate student details
+      .populate('internship', 'status description startDate endDate') // Populate internship period
+      .exec() // Execute the query
 
     if (!documents || documents.length === 0) {
       return res

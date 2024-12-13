@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-
+import { setAcademicYear } from '../../utils/setAcademicYear.js';
 const PFESchema = new mongoose.Schema({
   company_name: {
     type: String,
@@ -55,37 +55,13 @@ const PFESchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  academicYear: {
+  academicyear: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'AcademicYear',
-    validate: {
-      validator: async function(value) {
-        if (!mongoose.Types.ObjectId.isValid(value)) {
-          return false;
-        }
-        const academicYearExists = await mongoose.model('AcademicYear').findById(value);
-        return academicYearExists != null;
-      },
-      message: "❌ L'année académique spécifiée n'existe pas ou n'est pas valide."
-    }
+    ref: 'AcademicYear'
   },
   documentId: {
     type: [mongoose.Schema.Types.ObjectId],
     ref: 'Document',
-  },
-  periodId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Period',
-    validate: {
-      validator: async function(value) {
-        if (!mongoose.Types.ObjectId.isValid(value)) {
-          return false;
-        }
-        const periodExists = await mongoose.model('Period').findById(value);
-        return periodExists != null;
-      },
-      message: "❌ La période spécifiée n'existe pas ou n'est pas valide."
-    }
   },
   published: { 
     type: Boolean,
@@ -98,9 +74,13 @@ const PFESchema = new mongoose.Schema({
   send: { 
     type: Boolean,
     default: false
-  }
+  },
 }, {
   timestamps: true,
 });
+
+PFESchema.pre('save', setAcademicYear);
+
+
 
 export default mongoose.model('PFE', PFESchema);

@@ -2,27 +2,28 @@ import mongoose from 'mongoose'
 
 const ChoicePFASchema = mongoose.Schema({
   projectId: {
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Pfa'
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Pfa',
   },
   priority: {
-    type: Number
+    type: Number,
   },
   numberOfStudents: {
     type: String,
     enum: ['Binome', 'Monome'],
-    default: 'Monome'},
+    default: 'Monome',
+  },
   studentList: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
-    ref : 'Student'
+    ref: 'Student',
   },
   approval: {
     type: Boolean,
-    default: false
+    default: false,
   },
-  validate: {
+  isValidated: {
     type: Boolean,
-    default: false
+    default: false,
   },
 })
 

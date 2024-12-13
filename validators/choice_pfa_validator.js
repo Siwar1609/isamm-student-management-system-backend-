@@ -1,5 +1,5 @@
-import Joi from 'joi';
-import Student from '../models/users-models/student_model.js';
+import Joi from 'joi'
+import Student from '../models/users-models/student_model.js'
 
 const validateChoicePFA = Joi.object({
   priority: Joi.number().required().messages({
@@ -19,16 +19,20 @@ const validateChoicePFA = Joi.object({
   .custom(async (value, helpers) => {
     // Vérification si un binomeId a été fourni
     if (value.binomeId) {
-      const binomeExists = await Student.findById(value.binomeId);
+      const binomeExists = await Student.findById(value.binomeId)
       if (!binomeExists) {
-        return helpers.message("Le binôme spécifié n'existe pas ou n'est pas valide.");
+        return helpers.message(
+          "Le binôme spécifié n'existe pas ou n'est pas valide.",
+        )
+      }
+      if (binomeExists.level !== "2") {
+        return helpers.message('Le binôme doit avoir le niveau 2.')
       }
     }
-    return value;
+    return value
   })
   .messages({
     'object.base': 'Les données fournies doivent être un objet.',
-  });
-  
-  export default validateChoicePFA;
-  
+  })
+
+export default validateChoicePFA
