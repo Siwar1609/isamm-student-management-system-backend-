@@ -1,8 +1,5 @@
 import Joi from 'joi'
 
-import Student from '../models/users-models/student_model.js'
-import Teacher from '../models/users-models/teacher_model.js'
-
 export const pfeValidationSchema = Joi.object({
   company_name: Joi.string().required(),
   title: Joi.string().required(),
@@ -10,7 +7,7 @@ export const pfeValidationSchema = Joi.object({
   type: Joi.string().valid('PFE').required(),
   teacherId: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/)
-    .required()
+    .optional()
     .messages({
       'string.pattern.base': "L'ID du professeur doit être un ObjectId valide.",
     }),
@@ -25,45 +22,17 @@ export const pfeValidationSchema = Joi.object({
         }),
     )
     .required(),
-  numberOfStudents: Joi.string().valid('Binome', 'Monome').required(),
-  affected: Joi.boolean().optional(),
-  academicYear: Joi.string().required(),
+  WorkMode: Joi.string().valid('Binome', 'Monome').required(),
+  affected: Joi.boolean().optional().default(false),
+  published: Joi.boolean().optional().default(false),
+  academicyear: Joi.string().optional(),
   documentId: Joi.array()
-    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
-    .required(),
-  periodId: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
-    .required(),
-})
-  .custom(async (value, helpers) => {
-    // Validation pour les étudiants (discriminator Student)
-    for (const studentId of value.studentId) {
-      const studentExists = await Student.findById(studentId)
-      if (!studentExists) {
-        return helpers.message(
-          `L'ID ${studentId} n'existe pas ou n'est pas un étudiant valide.`,
-        )
-      }
-    }
-
-    // Validation pour l'enseignant (discriminator Teacher)
-    const teacherExists = await Teacher.findById(value.teacherId)
-    if (!teacherExists) {
-      return helpers.message(
-        "L'enseignant spécifié n'existe pas ou n'est pas valide.",
-      )
-    }
-
-    // Validation pour Binome ou Monome
-    if (value.numberOfStudents === 'Binome' && value.studentId.length !== 2) {
-      return helpers.message('Pour un binôme, il faut exactement 2 étudiants.')
-    }
-    if (value.numberOfStudents === 'Monome' && value.studentId.length !== 1) {
-      return helpers.message('Pour un monome, il faut exactement 1 étudiant.')
-    }
-
-    return value
-  })
+  .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+  .required()
   .messages({
-    'object.base': 'Les données fournies doivent être un objet.',
-  })
+    'array.base': 'Document ID must be an array.',
+    'array.includes': 'Each Document ID must be a valid 24-character hex string.',
+    'any.required': 'Document ID is required.',
+  }),
+})
+

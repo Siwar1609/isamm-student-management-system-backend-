@@ -1,3 +1,4 @@
+import readXlsxFile from 'read-excel-file/node'
 import Teacher from '../../models/users-models/teacher_model.js'
 import {
   addTeacher,
@@ -6,9 +7,13 @@ import {
   getTeachers,
   updateTeacher,
 } from '../../services/teachers_services.js'
+import { updatePassword } from '../../services/users_services.js'
 
-// getting teachers
+// excel file path to read teachers data 👨‍🏫
+let filePath = 'data\\teachers.xlsx'
 
+// getting teachers list
+// *********************************************
 const getAllTeachers = async function (req, res) {
   try {
     const teachers = await getTeachers()
@@ -18,17 +23,20 @@ const getAllTeachers = async function (req, res) {
   }
 }
 
+//**************************************************************
 // getting a teacher by id
 const getOneTeacher = async function (req, res) {
   const teacherId = req.params.id
   try {
     const teacher = await getTeacher(teacherId)
+
     res.status(200).json(teacher)
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
 }
 
+//**************************************************************
 // creating a teacher
 const createTeacher = async function (req, res) {
   try {
@@ -44,6 +52,7 @@ const createTeacher = async function (req, res) {
   }
 }
 
+//**************************************************************
 // updating a teacher
 const updateOneTeacher = async function (req, res) {
   const teacher = await Teacher.findById(req.params.id).exec()
@@ -69,6 +78,7 @@ const updateOneTeacher = async function (req, res) {
   }
 }
 
+//**************************************************************
 // deleting a teacher
 const deleteOneTeacher = async function (req, res) {
   const teacherId = req.params.id
@@ -80,10 +90,92 @@ const deleteOneTeacher = async function (req, res) {
   }
 }
 
+//**************************************************************
+const createTeachersAccountsExcelFile = async function (req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' })
+    }
+
+    filePath = req.file.path
+    const rows = await readXlsxFile(filePath)
+
+    let teachersNames = []
+    let errors = []
+
+    // remove the header row
+    rows.shift()
+
+    for (const row of rows) {
+      const teacher = {
+        cin: row[0].toString(),
+        birthDate: row[1].toString(),
+        firstName: row[2].toString(),
+        lastName: row[3].toString(),
+        email: row[4].toString(),
+        phone: row[5].toString(),
+        cv: row[6]?.toString(),
+      }
+
+      // check if the teacher already exists
+      const teacherExist = await Teacher.findOne({ cin: teacher.cin }).exec()
+      if (teacherExist) {
+        errors.push(
+          `An Account with the same CIN Already Exist for ${teacher.firstName} ${teacher.lastName}`,
+        )
+        continue
+      }
+
+      await addTeacher(teacher)
+      teachersNames.push(`${teacher.firstName} ${teacher.lastName}`)
+    }
+
+    console.log(teachersNames, ' just added to the database')
+
+    res.status(201).json({
+      message: `${teachersNames.length} teachers added successfully`,
+      teachersNames,
+      errors,
+    })
+  } catch (e) {
+    console.log(e)
+  }
+}
+
+//**************************************************************
+const updateTeacherPassword = async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id).exec()
+    if (!teacher) {
+      const error = new Error('Teacher not found')
+      error.statusCode = 404
+      throw error
+    }
+
+    const teacherFullName = `${teacher.firstName} ${teacher.lastName}`
+
+    if (req.body.password !== req.body.confirmPassword) {
+      const error = new Error('Passwords do not match')
+      error.statusCode = 400
+      throw error
+    }
+
+    await updatePassword(req.params.id, req.body.password, Teacher)
+    res.status(200).json({
+      message: ` Password of teacher  ${teacherFullName} updated successfully`,
+    })
+  } catch (error) {
+    console.error('Error in updateTeacherPassword function: ', error)
+    throw error
+  }
+}
+
 export {
   getAllTeachers,
   getOneTeacher,
   createTeacher,
   updateOneTeacher,
   deleteOneTeacher,
+  createTeachersAccountsExcelFile,
+  updateTeacherPassword,
 }

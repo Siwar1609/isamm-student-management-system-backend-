@@ -1,8 +1,9 @@
-import { validatePFEPeriod } from '../../validators/periodValidation.js'
+import  periodValidator  from '../../validators/period_validator.js';
+import Period from '../../models/period-model/period_model.js';
 // Créer une nouvelle période
 export const openPFEPeriod = async (req, res) => {
   const { start_date, end_date } = req.body
-  const { error } = validatePFEPeriod(req.body)
+  const { error } = periodValidator.validate(req.body)
   if (error) {
     return res.status(400).json({ message: error.details[0].message })
   }
@@ -32,7 +33,8 @@ export const openPFEPeriod = async (req, res) => {
       name: 'Dépot PFE',
       start_date: new Date(start_date),
       end_date: new Date(end_date),
-    })
+    });
+  
 
     await newPeriod.save()
     return res.status(201).json({
@@ -70,47 +72,56 @@ export const getPFEPeriod = async (req, res) => {
     })
   }
 }
-// import Period from '../models/Period.js';
-
-// Méthode pour modifier les délais d'une période de dépôt PFE
 export const updatePFEPeriod = async (req, res) => {
-  const { start_date, end_date } = req.body
-  const { error } = validatePFEPeriod(req.body)
-  if (error) {
-    return res.status(400).json({ message: error.details[0].message })
-  }
-  try {
-    // Vérifier si la période existe
-    const pfePeriod = await Period.findOne({ name: 'Dépot PFE' })
+  const { start_date, end_date } = req.body;
 
-    if (!pfePeriod) {
+  // ✅ Valider les données avec le validateur
+  const { error } = periodValidator.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      message: `⚠️ Erreur de validation : ${error.details[0].message}` 
+    });
+  }
+
+  try {
+    const today = new Date();
+
+    // 🔍 Trouver la période active de dépôt PFE
+    const activePFEPeriod = await Period.findOne({
+      name: 'Dépot PFE',
+      start_date: { $lte: today }, // Début avant ou égal à aujourd'hui
+      end_date: { $gte: today },  // Fin après ou égal à aujourd'hui
+    });
+
+    if (!activePFEPeriod) {
       return res.status(404).json({
-        message: "Aucune période de dépôt PFE n'est actuellement ouverte.",
-      })
+        message: "❌ Aucune période de dépôt PFE active n'a été trouvée.",
+      });
     }
 
-    // Vérifier que start_date est avant end_date
+    // 📅 Vérifier que start_date est avant end_date
     if (new Date(start_date) >= new Date(end_date)) {
       return res.status(400).json({
-        message: 'La date de début doit être antérieure à la date de fin.',
-      })
+        message: '⏳ La date de début doit être antérieure à la date de fin.',
+      });
     }
 
-    // Modifier les dates de la période
-    pfePeriod.start_date = new Date(start_date)
-    pfePeriod.end_date = new Date(end_date)
+    // 🛠️ Mettre à jour les dates de la période
+    activePFEPeriod.start_date = new Date(start_date);
+    activePFEPeriod.end_date = new Date(end_date);
 
-    // Sauvegarder les modifications
-    await pfePeriod.save()
+    // 💾 Sauvegarder les modifications
+    await activePFEPeriod.save();
 
     return res.status(200).json({
-      message: 'Période de dépôt PFE modifiée avec succès.',
-      period: pfePeriod,
-    })
+      message: '✅ Période de dépôt PFE active modifiée avec succès 🎉.',
+      period: activePFEPeriod,
+    });
   } catch (error) {
     return res.status(500).json({
-      message: 'Erreur lors de la modification de la période.',
+      message: '❗ Une erreur est survenue lors de la modification de la période.',
       error: error.message,
-    })
+    });
   }
-}
+};
+

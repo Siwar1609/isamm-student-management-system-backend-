@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
 
 // Function to schedule the student reminder
 export const scheduleStudentReminder = () => {
-  cron.schedule('* * * * *', async () => {
+  cron.schedule('0 0 * * *', async () => {
     console.log('Starting the check for students without postulations...')
 
     try {

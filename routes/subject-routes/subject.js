@@ -4,17 +4,34 @@ import {
   addSubject,
   updateSubject,
   deleteSubject,
+  togglePublishSubject,
 } from '../../controllers/subject-controller/subject.js'
-import Subject from '../../models/subject-models/subject_model.js'
 import express from 'express'
+
+import {
+  loggedMiddleware,
+  accessByRole,
+} from '../../middlewares/users-middlewares/auth_middleware.js'
 
 const router = express.Router()
 
-router.get('/', fetchSubjects)
-router.get('/:id', getSubjectbyID)
-// on ajoute async khatr await f fonction sync wahadha mata5demsh
-router.post('/', addSubject)
+router.get(
+  '/',
+  loggedMiddleware,
+  accessByRole(['admin', 'teacher', 'student']),
+  fetchSubjects,
+)
+router.get('/:id', loggedMiddleware, accessByRole(['admin']), getSubjectbyID)
 
-router.patch('/:id', updateSubject)
-router.delete('/:id', deleteSubject)
+// Routes protégées par les permissions admin
+router.post('/', loggedMiddleware, accessByRole(['admin']), addSubject)
+router.patch('/:id', loggedMiddleware, accessByRole(['admin']), updateSubject)
+router.delete('/:id', loggedMiddleware, accessByRole(['admin']), deleteSubject)
+router.post(
+  '/publish/:response',
+  loggedMiddleware,
+  accessByRole(['admin']),
+  togglePublishSubject,
+)
+
 export default router

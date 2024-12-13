@@ -1,14 +1,20 @@
 import PFA from '../../models/project_models/project_pfa.js'
 import PFAValidator from '../../validators/project_pfa_validator.js'
 import period_model from '../../models/period-model/period_model.js'
+import { sendApprovalEmails } from '../pfa-controller/choice_pfa_controller.js'
+import nodemailer from 'nodemailer'
+import Student from '../../models/users-models/student_model.js'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 // --------------- Routes for Teacher -------------------------------
 
 export const fetch_my_pfa = async (req, res) => {
   try {
     // Filtre pour récupérer uniquement les sujets postés par l'enseignant authentifié
-    const teacherId = req.user._id
-    const projects_pfa = await PFA.find({ teacher: teacherId })
+    const teacherId = req.auth.userId
+    const projects_pfa = await PFA.find({ teacherId: teacherId })
 
     res.status(200).json({ model: projects_pfa, message: 'Succès' })
   } catch (e) {
@@ -18,15 +24,23 @@ export const fetch_my_pfa = async (req, res) => {
 
 export const add_my_pfa = async (req, res) => {
   try {
-    // Vérification du rôle de l'utilisateur authentifié
-    if (req.user.role !== 'enseignant') {
-      return res.status(403).json({
-        message:
-          "Vous n'êtes pas autorisé à déposer un sujet PFA. Ce rôle est réservé aux enseignants.",
-      })
-    }
+    const {
+      title,
+      description,
+      type,
+      technologies_list,
+      numberOfStudents,
+      list_of_student,
+      academicYear,
+      documentId,
+      periodId,
+    } = req.body
 
-    console.log(req.body)
+    // Validation des données avec Joi
+    const { error } = PFAValidator.validate(req.body)
+    if (error) {
+      return res.status(400).json({ message: error.details[0].message })
+    }
 
     // Vérification si le délai est dépassé
     const period = await period_model.findOne({
@@ -35,30 +49,65 @@ export const add_my_pfa = async (req, res) => {
     })
 
     if (!period) {
-      return res.status(400).json({
-        message: 'Le délai pour le dépôt des sujets PFA est dépassé.',
-      })
+      return res.status(404).json({ message: 'Période non trouvée' })
     }
 
-    // Validation avec Joi
-    const validatedData = await PFAValidator.validateAsync(req.body)
+    // Vérification du rôle de l'utilisateur authentifié
+    // if (req.auth.role !== 'teacher') {
+    //   return res.status(403).json({
+    //     message:
+    //       "Vous n'êtes pas autorisé à déposer un sujet PFA. Ce rôle est réservé aux enseignants.",
+    //   })
+    // }
 
     // Ajout automatique de l'ID de l'enseignant authentifié
-    const teacherId = req.user._id // Assurez-vous que req.user est correctement configuré via un middleware
-    validatedData.teacher = teacherId
+    const teacherId = req.auth.userId
 
-    // Création du projet
-    const project_pfa = new PFA(validatedData)
-    await project_pfa.save()
-
-    // Réponse réussie
-    res.status(201).json({ model: project_pfa, message: 'Succès' })
-  } catch (error) {
-    // Gestion des erreurs
-    res.status(400).json({
-      error: error.message,
-      message: 'Données invalides',
+    const newPFA = new PFA({
+      title,
+      description,
+      type,
+      technologies_list,
+      numberOfStudents,
+      list_of_student,
+      academicYear,
+      documentId,
+      periodId,
     })
+
+    newPFA.teacherId = teacherId
+
+    console.log('Nouvel objet PFA:', newPFA)
+
+    // Sauvegarder le PFA dans la base de données
+    const savedPFA = await newPFA.save()
+
+    // Envoi d'emails si la liste des étudiants est fournie
+    if (list_of_student && list_of_student.length > 0) {
+      savedPFA.affected= true 
+      // Récupérer les étudiants à partir de leurs ID
+      const students = await Student.find({ _id: { $in: list_of_student } })
+
+      if (students.length === 0) {
+        return res.status(404).json({
+          message: 'Aucun étudiant correspondant trouvé pour les ID fournis.',
+        })
+      }
+
+      // Extraire les e-mails des étudiants
+      const studentEmails = students.map((student) => student.email)
+
+      // Envoyer les e-mails
+      await sendApprovalEmails(studentEmails, savedPFA)
+    }
+    return res
+      .status(201)
+      .json({ message: 'PFA ajouté avec succès', pfa: savedPFA })
+  } catch (err) {
+    console.error(err)
+    return res
+      .status(500)
+      .json({ message: 'Erreur du serveur', error: err.message })
   }
 }
 
@@ -86,8 +135,8 @@ export const update_my_pfa = async (req, res) => {
     }
 
     // Vérification de l'autorisation
-    const teacherId = req.user._id
-    if (project_pfa.teacher.toString() !== teacherId.toString()) {
+    const teacherId = req.auth.userId
+    if (project_pfa.teacherId.toString() !== teacherId.toString()) {
       return res.status(403).json({
         message: "Vous n'êtes pas autorisé à modifier ce sujet PFA.",
       })
@@ -96,9 +145,20 @@ export const update_my_pfa = async (req, res) => {
     // Mise à jour du sujet
     const updated_pfa = await PFA.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, teacher: teacherId },
+      { ...req.body, teacherId: teacherId },
       { new: true },
     )
+    // Envoi d'emails si la liste des étudiants est mise à jour
+    if (req.body.list_of_student && req.body.list_of_student.length > 0) {
+      const studentEmails = req.body.list_of_student.map(
+        (student) => student.email,
+      ) // Adaptez selon votre structure
+      await sendApprovalEmails(studentEmails, updated_pfa)
+    }
+    if (req.body.list_of_student.length > 0) {
+      updated_pfa.affected = true;
+      await updated_pfa.save(); // Sauvegarde du changement
+    }
 
     res.status(200).json({
       model: updated_pfa,
@@ -112,7 +172,7 @@ export const update_my_pfa = async (req, res) => {
 export const delete_my_pfa = async (req, res) => {
   try {
     // Vérification si le délai est dépassé
-    const period = await Period.findOne({
+    const period = await period_model.findOne({
       name: 'Dépôt des Sujet des PFA',
       end_date: { $gte: new Date() },
     })
@@ -133,8 +193,8 @@ export const delete_my_pfa = async (req, res) => {
     }
 
     // Vérification de l'autorisation
-    const teacherId = req.user._id
-    if (project_pfa.teacher.toString() !== teacherId.toString()) {
+    const teacherId = req.auth.userId
+    if (project_pfa.teacherId.toString() !== teacherId.toString()) {
       return res.status(403).json({
         message: "Vous n'êtes pas autorisé à supprimer ce sujet PFA.",
       })
@@ -154,9 +214,7 @@ export const delete_my_pfa = async (req, res) => {
 export const fetch_my_pfa_byId = async (req, res) => {
   try {
     // Recherche du sujet PFA par ID
-    const project_pfa = await PFA.findOne({ _id: req.params.id })
-      .populate('student teacher document') // Assure que les champs sont correctement peuplés
-      .exec()
+    const project_pfa = await PFA.findOne({ _id: req.params.id }).exec()
     // Vérification si le projet existe
     if (!project_pfa) {
       return res.status(404).json({
@@ -164,7 +222,7 @@ export const fetch_my_pfa_byId = async (req, res) => {
       })
     }
     // Vérification si l'enseignant authentifié est autorisé à accéder au sujet
-    if (project_pfa.teacher.toString() !== req.user._id.toString()) {
+    if (project_pfa.teacherId.toString() !== req.auth.userId.toString()) {
       return res.status(403).json({
         message:
           "Accès refusé : vous n'êtes pas autorisé à consulter ce sujet.",
@@ -198,7 +256,8 @@ export const fetch_all_pfa = async (req, res) => {
 export const get_pfa_ByID = async (req, res) => {
   try {
     const project_pfa = await PFA.findOne({ _id: req.params.id })
-      .populate('student', 'teacher', 'document')
+      .populate('list_of_student') // Populer les informations des étudiants
+      .populate('teacherId') // Populer les informations de l'enseignant
       .exec()
     if (!project_pfa) {
       res.status(404).json({
@@ -217,63 +276,58 @@ export const get_pfa_ByID = async (req, res) => {
 
 export const update_pfa = async (req, res) => {
   try {
-    const project_pfa = await PFA.findOneAndUpdate(
+    const rejected = true
+    const updated_pfa = await PFA.findOneAndUpdate(
       { _id: req.params.id },
-      req.body,
-      {
-        new: true,
-      },
+      { rejected }, // Mise à jour du champ `rejected`
+      { new: true }, // Retourne l'objet mis à jour
     )
-    if (!project_pfa) {
-      res.status(404).json({
-        message: 'Object non Trouvé',
-      })
-    } else {
-      res.status(200).json({
-        model: project_pfa,
-        message: 'Object modifié',
+
+    // Vérifier si l'objet existe
+    if (!updated_pfa) {
+      return res.status(404).json({
+        message: 'Sujet PFA non trouvé.',
       })
     }
+
+    // Réponse en cas de succès
+    return res.status(200).json({
+      model: updated_pfa,
+      message: "Le champ 'rejected' a été mis à jour avec succès.",
+    })
   } catch (error) {
-    res.status(400).json({ error: error.message })
+    // Gestion des erreurs
+    return res.status(400).json({ error: error.message })
   }
 }
 
 export const publish_pfa = async (req, res) => {
   try {
-    const { response, start_date, end_date } = req.body
-
-    // Vérification de la validité des dates si elles sont fournies
-    if (start_date || end_date) {
-      if (!start_date || !end_date) {
-        return res.status(400).json({
-          message:
-            'Les deux dates, "start_date" et "end_date", doivent être fournies.',
-        })
-      }
-      if (new Date(start_date) >= new Date(end_date)) {
-        return res.status(400).json({
-          message: 'La date de début doit être antérieure à la date de fin.',
-        })
-      }
-    }
-
-    if (response) {
+    // Convertir response en booléen
+    const response = req.params.response === 'true'
+    const { start_date, end_date } = req.body // Extraire "start_date" et "end_date" depuis le body
+    if (!response) {
+      // Si response=false, masquer tous les PFA
+      await PFA.updateMany({}, { published: false })
+      return res.status(200).json({
+        message: 'Liste des PFA masquée avec succès.',
+      })
+    } else {
       // Publier les PFA non rejetés
-      await PFA.updateMany(
-        { rejected: { $ne: true } }, // Tous sauf ceux avec le statut "rejected"
-        { published: true }, // Attribut qui marque les PFA comme publiés
-      )
+      await PFA.updateMany({ rejected: { $ne: true } }, { published: true })
 
-      // Mettre à jour ou créer une période de choix si les dates sont fournies
+      // Créer ou mettre à jour une période "Choix de PFA" avec les dates fournies
       if (start_date && end_date) {
+        // Cherche ou crée la période avec le nom "Choix sujet PFA"
         const period = await period_model.findOneAndUpdate(
-          { name: 'Choix sujet PFA' },
+          { name: 'Choix de PFA' },
           { start_date, end_date },
-          { upsert: true, new: true }, // Création si inexistant
+          { upsert: true, new: true },
         )
+
         return res.status(200).json({
-          message: 'PFA publiés avec succès et période de choix mise à jour.',
+          message:
+            'PFA publiés avec succès et période de choix mise à jour ou créée.',
           period,
         })
       }
@@ -281,16 +335,87 @@ export const publish_pfa = async (req, res) => {
       return res.status(200).json({
         message: 'PFA publiés avec succès.',
       })
-    } else {
-      // Masquer les PFA
-      await PFA.updateMany({}, { published: false }) // Tous les PFA masqués
-      return res.status(200).json({
-        message: 'Liste des PFA masquée avec succès.',
-      })
     }
   } catch (error) {
+    // Gestion des erreurs serveur
     return res.status(500).json({
       message: 'Erreur serveur.',
+      error: error.message,
+    })
+  }
+}
+
+export const send_pfa_list_email = async (req, res) => {
+  try {
+    // Rechercher les étudiants ayant role="student" et level=2
+    const students = await Student.find({ role: 'student', level: '2' })
+    console.log(students)
+    if (!students || students.length === 0) {
+      return res.status(404).json({ message: 'Aucun étudiant trouvé.' })
+    }
+
+    // Vérifier s'il existe au moins un PFA avec send=true
+    const pfaSendStatus = await PFA.findOne({ send: true }).select('send')
+    const isFirstSend = !pfaSendStatus // Si aucun PFA avec send=true, c'est le premier envoi
+
+    if (!pfaSendStatus) {
+      return res.status(404).json({ message: 'Aucun PFA trouvé.' })
+    }
+
+    // Configurer le transporteur d'email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    })
+
+    // Contenu du mail selon le type d'envoi
+    const subject = isFirstSend
+      ? 'Choix du sujet PFA'
+      : 'Mise à jour : Liste des sujets PFA'
+
+    const htmlContent = isFirstSend
+      ? `
+        <p>Bonjour,</p>
+        <p>Une liste complète de sujets PFA vous attend. Veuillez consulter et choisir votre sujet en cliquant sur le lien ci-dessous :</p>
+        <a href="http://v1/pfa/list">Voir la liste des sujets PFA</a>
+        <p>Cordialement,</p>
+        <p>L'équipe PFA</p>
+      `
+      : `
+        <p>Bonjour,</p>
+        <p>La liste des sujets PFA a été mise à jour. Veuillez consulter les nouvelles informations en cliquant sur le lien ci-dessous :</p>
+        <a href="http://v1/pfa/list">Voir la liste mise à jour des sujets PFA</a>
+        <p>Cordialement,</p>
+        <p>L'équipe PFA</p>
+      `
+
+    // Envoyer l'email à chaque étudiant
+    const emailPromises = students.map((student) => {
+      return transporter.sendMail({
+        from: '"Équipe PFA" <votre_email@gmail.com>',
+        to: student.email, // Adresse email de l'étudiant
+        subject, // Sujet de l'email
+        html: htmlContent, // Contenu HTML de l'email
+      })
+    })
+
+    // Attendre que tous les emails soient envoyés
+    await Promise.all(emailPromises)
+
+    // Si c'est le premier envoi, mettre à jour "send" à true pour tous les PFA
+    if (isFirstSend) {
+      await PFA.updateMany({}, { send: true })
+    }
+
+    return res.status(200).json({
+      message: `Emails envoyés avec succès (${isFirstSend ? 'premier envoi' : 'mise à jour'}).`,
+    })
+  } catch (error) {
+    return res.status(500).json({
+      message: "Erreur lors de l'envoi des emails.",
       error: error.message,
     })
   }
@@ -306,3 +431,49 @@ export const publish_pfa = async (req, res) => {
 //     res.status(400).json({ error: error.message })
 //   }
 // }
+
+// ------------------------- Student Controller -------------------------------------
+export const fetsh_published_pfa = async (req, res) => {
+  try {
+    // Find pfa with published are false
+    const projects_pfa = await PFA.find({ published: true }).populate(
+      'teacherId',
+    ).select(
+      'teacherId technologies_list title description numberOfStudents affected',
+    )
+    res.status(200).json({ model: projects_pfa, message: 'Succès' })
+  } catch (e) {
+    res.status(400).json({ error: e.message, message: "Problème d'accès" })
+  }
+}
+
+export const get_published_pfa_by_id = async (req, res) => {
+  try {
+    // Recherche du sujet PFA par ID avec le champ `published` à `true`
+    const project_pfa = await PFA.findOne({
+      _id: req.params.id,
+      published: true,
+    })
+      .select(
+        'teacherId technologies_list title description numberOfStudents affected',
+      )
+      .exec()
+    // Vérification si le projet existe
+    if (!project_pfa) {
+      return res.status(404).json({
+        message: 'Sujet PFA introuvable ou non publié.',
+      })
+    }
+    // Réponse réussie
+    res.status(200).json({
+      model: project_pfa,
+      message: 'Sujet trouvé avec succès.',
+    })
+  } catch (error) {
+    // Gestion des erreurs
+    res.status(500).json({
+      error: error.message,
+      message: 'Erreur lors de la récupération du sujet PFA.',
+    })
+  }
+}

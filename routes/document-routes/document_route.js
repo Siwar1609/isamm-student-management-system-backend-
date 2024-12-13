@@ -4,7 +4,7 @@ import {
   getAllDocuments,
 } from '../../controllers/document-controller/document_controller.js'
 import express from 'express'
-import { accessByRole } from '../../middlewares/users-middlewares/auth_controller.js'
+import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
 
 const router = express.Router()
 
