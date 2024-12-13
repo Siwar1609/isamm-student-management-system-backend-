@@ -6,8 +6,9 @@ import dotenv from 'dotenv'
 import Student from '../../models/users-models/student_model.js'
 
 dotenv.config()
+
 const EMAIL_USER = process.env.EMAIL_USER
-const EMAIL_PASS = process.env.EMAIL_PASS
+const EMAIL_PASS = process.env.EMAIL_PASSWORD
 
 export const fetchChapter = async (req, res) => {
   try {
@@ -81,55 +82,59 @@ export const addChapter = async (req, res) => {
 export const updateProgressChapter = async (req, res) => {
   try {
     const chapterId = req.params.id
-    const { sectionIndex, newSection, ...updates } = req.body
+    const { section, ...updates } = req.body // Expecting section as an array
+    console.log('Incoming payload:', req.body)
 
     // Find the chapter
     const chapter = await Chapter.findById(chapterId)
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' })
     }
+    console.log('Current chapter sections:', chapter.section)
 
     let emailNeeded = false
 
-    if (newSection) {
-      // Add a new section
-      chapter.section.push(newSection)
-    } else if (sectionIndex !== undefined) {
-      // Validate section index
-      if (sectionIndex < 0 || sectionIndex >= chapter.section.length) {
-        return res.status(400).json({ message: 'Invalid section index' })
+    // Check if section update is present
+    if (section && section[0]) {
+      const sectionIndex = chapter.section.findIndex(
+        (sec) => sec.content === section[0].content,
+      )
+      console.log('Section index:', sectionIndex)
+
+      if (sectionIndex === -1) {
+        return res
+          .status(400)
+          .json({ message: 'Section content not found in chapter' })
       }
 
       const sectionToUpdate = chapter.section[sectionIndex]
 
-      // Check if advancement is being updated
+      // Check for advancement update
       if (
-        updates.advancement &&
-        updates.advancement !== sectionToUpdate.advancement
+        section[0].advancement &&
+        section[0].advancement !== sectionToUpdate.advancement
       ) {
         emailNeeded = true
+        console.log('Advancement will be updated. Email will be triggered.')
+        sectionToUpdate.advancement = section[0].advancement // Update advancement
       }
-
-      // Update section fields dynamically
-      Object.keys(updates).forEach((key) => {
-        if (sectionToUpdate[key] !== undefined) {
-          sectionToUpdate[key] = updates[key]
-        }
-      })
-    } else {
-      // Update chapter fields dynamically
-      Object.keys(updates).forEach((key) => {
-        if (chapter[key] !== undefined) {
-          chapter[key] = updates[key]
-        }
-      })
     }
+
+    // Apply other updates to the chapter
+    Object.keys(updates).forEach((key) => {
+      if (chapter[key] !== undefined) {
+        chapter[key] = updates[key]
+      }
+    })
 
     // Save the updated chapter
     await chapter.save()
+    console.log('Chapter updated successfully:', chapter)
 
-    // Send email if the advancement was updated
+    // Send email if needed
     if (emailNeeded) {
+      console.log('Preparing to send email...')
+
       const subject = await Subject.findById(chapter.subjectId).populate(
         'studentId',
       )
@@ -138,24 +143,39 @@ export const updateProgressChapter = async (req, res) => {
       }
 
       const student = await Student.findById(subject.studentId[0])
+      console.log('Found student:', student)
+
       if (!student || !student.email) {
         return res.status(404).json({ message: 'Student email not found' })
       }
 
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
-        auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
       })
 
-      const mailOptions = {
-        from: 'your-email@gmail.com',
-        to: student.email,
-        subject: 'Chapter Section Progress Update',
-        text: `Dear ${student.firstName} ${student.lastName},\n\nThe progress of the section titled "${chapter.section[sectionIndex].content}" in the chapter "${chapter.title}" has been updated to "${updates.advancement}".\n\nBest regards,\nYour Team`,
+      try {
+        await transporter.verify()
+        console.log('Email transport verified successfully.')
+      } catch (err) {
+        console.error('Email transport verification failed:', err.message)
       }
 
-      await transporter.sendMail(mailOptions)
-      console.log('Email sent successfully to:', student.email)
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: student.email,
+        subject: 'Chapter Section Progress Update',
+        text: ` Dear ${student.firstName} ${student.lastName},\n\nThe progress of the section titled "${section[0].content}" in the chapter "${chapter.title}" has been updated to "${section[0].advancement}".\n\n
+        Best regards,\n\n
+        `,
+      }
+
+      try {
+        await transporter.sendMail(mailOptions)
+        console.log('Email sent successfully to:', student.email)
+      } catch (err) {
+        console.error('Error sending email:', err.message)
+      }
     }
 
     res.status(200).json({
@@ -163,7 +183,7 @@ export const updateProgressChapter = async (req, res) => {
       message: 'Chapter updated successfully!',
     })
   } catch (error) {
-    console.error('Error during updateChapter:', error)
+    console.error('Error during updateProgressChapter:', error)
     res
       .status(400)
       .json({ error: error.message, message: 'Failed to update chapter' })

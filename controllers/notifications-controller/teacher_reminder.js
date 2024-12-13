@@ -7,7 +7,7 @@ dotenv.config()
 
 // Environment variables for email credentials
 const EMAIL_USER = process.env.EMAIL_USER
-const EMAIL_PASS = process.env.EMAIL_PASS
+const EMAIL_PASS = process.env.EMAIL_PASSWORD
 
 // Create transporter for sending email
 const transporter = nodemailer.createTransport({
