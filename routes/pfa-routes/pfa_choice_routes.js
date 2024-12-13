@@ -12,11 +12,7 @@ const choice_pfa_route = express.Router()
 // ----------------------- Student Routes --------------------------------------------------------
 choice_pfa_route.post('/:choiceId', accessByRole(['student']), InformApproval)
 
-choice_pfa_route.post(
-  '/:id/choice',
-  accessByRole(['student']),
-  choose_pfa,
-)
+choice_pfa_route.post('/:id/choice', accessByRole(['student']), choose_pfa)
 
 choice_pfa_route.get(
   '/choices/:projectId',
@@ -24,7 +20,7 @@ choice_pfa_route.get(
   getChoicesForProject,
 )
 
-choice_pfa_route.post(
+choice_pfa_route.patch(
   '/:projectId/choice/:choiceId/approve',
   accessByRole(['teacher']),
   approveChoicePFA,
