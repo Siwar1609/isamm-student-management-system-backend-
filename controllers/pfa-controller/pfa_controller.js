@@ -95,10 +95,15 @@ export const add_my_pfa = async (req, res) => {
       }
 
       // Extraire les e-mails des étudiants
-      const studentEmails = students.map((student) => student.email)
-
-      // Envoyer les e-mails
-      await sendApprovalEmails(studentEmails, savedPFA)
+      req.body.list_of_student.map(
+        // search for each student email then send the email
+        async (studentId) => {
+          const student = await Student.findById(studentId)
+          if (student) {
+            await sendApprovalEmails(student.email, savedPFA)
+          }
+        },
+      )
     }
     return res
       .status(201)
