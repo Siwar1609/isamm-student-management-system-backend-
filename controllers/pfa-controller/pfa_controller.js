@@ -13,7 +13,7 @@ dotenv.config()
 export const fetch_my_pfa = async (req, res) => {
   try {
     // Filtre pour récupérer uniquement les sujets postés par l'enseignant authentifié
-    const teacherId = req.auth._id
+    const teacherId = req.auth.userId
     const projects_pfa = await PFA.find({ teacherId: teacherId })
 
     res.status(200).json({ model: projects_pfa, message: 'Succès' })
@@ -53,15 +53,15 @@ export const add_my_pfa = async (req, res) => {
     }
 
     // Vérification du rôle de l'utilisateur authentifié
-    if (req.auth.role !== 'teacher') {
-      return res.status(403).json({
-        message:
-          "Vous n'êtes pas autorisé à déposer un sujet PFA. Ce rôle est réservé aux enseignants.",
-      })
-    }
+    // if (req.auth.role !== 'teacher') {
+    //   return res.status(403).json({
+    //     message:
+    //       "Vous n'êtes pas autorisé à déposer un sujet PFA. Ce rôle est réservé aux enseignants.",
+    //   })
+    // }
 
     // Ajout automatique de l'ID de l'enseignant authentifié
-    const teacherId = req.auth._id
+    const teacherId = req.auth.userId
 
     const newPFA = new PFA({
       title,
@@ -84,6 +84,7 @@ export const add_my_pfa = async (req, res) => {
 
     // Envoi d'emails si la liste des étudiants est fournie
     if (list_of_student && list_of_student.length > 0) {
+      savedPFA.affected= true 
       // Récupérer les étudiants à partir de leurs ID
       const students = await Student.find({ _id: { $in: list_of_student } })
 
@@ -134,7 +135,7 @@ export const update_my_pfa = async (req, res) => {
     }
 
     // Vérification de l'autorisation
-    const teacherId = req.auth._id
+    const teacherId = req.auth.userId
     if (project_pfa.teacherId.toString() !== teacherId.toString()) {
       return res.status(403).json({
         message: "Vous n'êtes pas autorisé à modifier ce sujet PFA.",
@@ -153,6 +154,10 @@ export const update_my_pfa = async (req, res) => {
         (student) => student.email,
       ) // Adaptez selon votre structure
       await sendApprovalEmails(studentEmails, updated_pfa)
+    }
+    if (req.body.list_of_student.length > 0) {
+      updated_pfa.affected = true;
+      await updated_pfa.save(); // Sauvegarde du changement
     }
 
     res.status(200).json({
@@ -188,7 +193,7 @@ export const delete_my_pfa = async (req, res) => {
     }
 
     // Vérification de l'autorisation
-    const teacherId = req.auth._id
+    const teacherId = req.auth.userId
     if (project_pfa.teacherId.toString() !== teacherId.toString()) {
       return res.status(403).json({
         message: "Vous n'êtes pas autorisé à supprimer ce sujet PFA.",
@@ -217,7 +222,7 @@ export const fetch_my_pfa_byId = async (req, res) => {
       })
     }
     // Vérification si l'enseignant authentifié est autorisé à accéder au sujet
-    if (project_pfa.teacherId.toString() !== req.auth._id.toString()) {
+    if (project_pfa.teacherId.toString() !== req.auth.userId.toString()) {
       return res.status(403).json({
         message:
           "Accès refusé : vous n'êtes pas autorisé à consulter ce sujet.",
@@ -363,8 +368,6 @@ export const send_pfa_list_email = async (req, res) => {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
-        // user: 'benboubakerchiraz054@gmail.com',
-        // pass: 'brqd tlgs naoy rkwe',
       },
     })
 
@@ -428,12 +431,15 @@ export const send_pfa_list_email = async (req, res) => {
 //     res.status(400).json({ error: error.message })
 //   }
 // }
+
 // ------------------------- Student Controller -------------------------------------
 export const fetsh_published_pfa = async (req, res) => {
   try {
     // Find pfa with published are false
     const projects_pfa = await PFA.find({ published: true }).populate(
       'teacherId',
+    ).select(
+      'teacherId technologies_list title description numberOfStudents affected',
     )
     res.status(200).json({ model: projects_pfa, message: 'Succès' })
   } catch (e) {
