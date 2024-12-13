@@ -13,7 +13,7 @@ const choice_pfa_route = express.Router()
 choice_pfa_route.post('/:choiceId', accessByRole(['student']), InformApproval)
 
 choice_pfa_route.post(
-  '/:projectid/choice',
+  '/:id/choice',
   accessByRole(['student']),
   choose_pfa,
 )

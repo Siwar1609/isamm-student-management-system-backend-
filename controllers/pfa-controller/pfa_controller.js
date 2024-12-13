@@ -431,12 +431,15 @@ export const send_pfa_list_email = async (req, res) => {
 //     res.status(400).json({ error: error.message })
 //   }
 // }
+
 // ------------------------- Student Controller -------------------------------------
 export const fetsh_published_pfa = async (req, res) => {
   try {
     // Find pfa with published are false
     const projects_pfa = await PFA.find({ published: true }).populate(
       'teacherId',
+    ).select(
+      'teacherId technologies_list title description numberOfStudents affected',
     )
     res.status(200).json({ model: projects_pfa, message: 'Succès' })
   } catch (e) {

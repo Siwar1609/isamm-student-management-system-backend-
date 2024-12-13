@@ -4,6 +4,7 @@ import validateChoicePFA from '../../validators/choice_pfa_validator.js'
 import PFA from '../../models/project_models/project_pfa.js'
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
+import period_model from '../../models/period-model/period_model.js'
 dotenv.config()
 
 export const choose_pfa = async (req, res) => {
@@ -15,18 +16,17 @@ export const choose_pfa = async (req, res) => {
     // if (!authenticatedStudent || authenticatedStudent.level !== "2") {
     //   return res.status(403).json({ message: "Vous n'êtes pas autorisé à choisir ce sujet." });
     // }
-    
+
     // Vérification si le délai est dépassé pour le choix de sujet
     const period = await period_model.findOne({
-      name: 'Choix sujet PFA', // Nom de la période
+      name: 'Choix de PFA', // Nom de la période
       end_date: { $gte: new Date() },
-    });
+    })
     if (!period) {
       return res.status(400).json({
         message: 'Le délai pour le choix du sujet PFA est dépassé.',
-      });
-    }  
-
+      })
+    }
     // Valider les données
     const { error } = validateChoicePFA.validate(req.body)
     if (error) {
@@ -210,36 +210,47 @@ export const sendApprovalEmails = async (emails, pfa) => {
 
 export const InformApproval = async (req, res) => {
   try {
-    const { choiceId } = req.params;
+    const { choiceId } = req.params
 
     // Vérification que l'étudiant est bien dans la liste des étudiants de ce choix
     const choice = await choice_pfa.findById(choiceId) // On charge aussi la liste des étudiants
     if (!choice) {
-      return res.status(404).json({ message: 'Choix PFA introuvable.' });
+      return res.status(404).json({ message: 'Choix PFA introuvable.' })
     }
 
     // Vérifier si l'étudiant fait bien partie de la liste des étudiants pour ce choix
-    const studentId = req.auth.userId; // L'ID de l'étudiant connecté
-    if (!choice.studentList.some(student => student._id.toString() === studentId.toString())) {
-      return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à demander l\'approbation pour ce choix.' });
+    const studentId = req.auth.userId // L'ID de l'étudiant connecté
+    if (
+      !choice.studentList.some(
+        (student) => student._id.toString() === studentId.toString(),
+      )
+    ) {
+      return res.status(403).json({
+        message:
+          "Vous n'êtes pas autorisé à demander l'approbation pour ce choix.",
+      })
     }
 
     // Vérifier si le choix a déjà été approuvé
     if (choice.approval) {
-      return res.status(400).json({ message: 'Ce choix a déjà été approuvé.' });
+      return res.status(400).json({ message: 'Ce choix a déjà été approuvé.' })
     }
 
     // Mise à jour du champ 'approved' à true pour indiquer que l'enseignant a confirmé
-    choice.approval = true;
-    await choice.save(); 
+    choice.approval = true
+    await choice.save()
 
     // Retourner une réponse de succès
     res.status(200).json({
-      message: 'Déclaration d\'acceptation de d\'enseignant envoyée avec succès.',
+      message: "Déclaration d'acceptation de d'enseignant envoyée avec succès.",
       data: choice,
-    });
+    })
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erreur lors de l\'envoi de déclaration d\'acceptation de d\'enseignan.', error: error.message });
+    console.error(error)
+    res.status(500).json({
+      message:
+        "Erreur lors de l'envoi de déclaration d'acceptation de d'enseignan.",
+      error: error.message,
+    })
   }
-};
+}
