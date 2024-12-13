@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import { setAcademicYear } from '../../utils/setAcademicYear.js';
+import { setAcademicYear } from '../../utils/setAcademicYear.js'
 
 // Schéma PFA
 const PFA_Schema = mongoose.Schema({
