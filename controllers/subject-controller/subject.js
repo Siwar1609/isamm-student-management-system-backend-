@@ -1,5 +1,6 @@
 import Subject from '../../models/subject-models/subject_model.js'
-import subjectValidator from '../../validators/subject_validator.js' // Import the validation schema
+import subjectValidator from '../../validators/subject_validator.js'
+import Teacher from '../../models/users-models/teacher_model.js'
 
 export const addSubject = async (req, res) => {
   try {
@@ -15,6 +16,23 @@ export const addSubject = async (req, res) => {
     const subject = new Subject(req.body)
 
     await subject.save()
+
+    // Récupérer les IDs des professeurs (assurez-vous que `teacherId` est un tableau)
+    const teacherIds = req.body.teacherId
+
+    if (teacherIds && Array.isArray(teacherIds)) {
+      // Parcourir chaque ID de professeur pour mettre à jour leurs `subjects`
+      for (const teacherId of teacherIds) {
+        const teacher = await Teacher.findById(teacherId)
+        if (!teacher) {
+          return res.status(404).json({
+            message: `Teacher with ID ${teacherId} not found`,
+          })
+        }
+        teacher.subjects.push(subject._id)
+        await teacher.save()
+      }
+    }
 
     res.status(201).json({
       subject,
@@ -49,6 +67,33 @@ export const updateSubject = async (req, res) => {
       return res.status(404).json({ message: 'Subject not found' })
     }
 
+    const newTeacherIds = req.body.teacherId // Nouveaux IDs de professeurs
+
+    if (newTeacherIds && Array.isArray(newTeacherIds)) {
+      const oldTeachers = await Teacher.find({ subjects: subject._id })
+
+      for (const oldTeacher of oldTeachers) {
+        if (!newTeacherIds.includes(oldTeacher._id.toString())) {
+          oldTeacher.subjects.pull(subject._id) // Retirer l'ID de la matière
+          await oldTeacher.save()
+        }
+      }
+
+      for (const newTeacherId of newTeacherIds) {
+        const newTeacher = await Teacher.findById(newTeacherId)
+        if (!newTeacher) {
+          return res
+            .status(404)
+            .json({ message: `Teacher with ID ${newTeacherId} not found` })
+        }
+
+        if (!newTeacher.subjects.includes(subject._id)) {
+          newTeacher.subjects.push(subject._id)
+          await newTeacher.save()
+        }
+      }
+    }
+
     res.status(200).json({
       subject,
       message: 'Subject updated successfully',
@@ -57,6 +102,7 @@ export const updateSubject = async (req, res) => {
     res.status(400).json({ error: error.message })
   }
 }
+
 export const deleteSubject = async (req, res) => {
   try {
     const subject = await Subject.findByIdAndDelete(req.params.id)
