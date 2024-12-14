@@ -761,8 +761,6 @@ export const sendInternshipPlanningEmail = async (req, res) => {
       ) {
         // Add the current planning to the planningByType array
         planningByType.push(currentPlanning);
-      }else{
-        con
       }
     }
     console.log(planningByType)
