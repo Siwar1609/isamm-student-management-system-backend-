@@ -727,9 +727,9 @@ export const publishOrMaskPlanningById = async (req, res) => {
 }
 
 export const sendInternshipPlanningEmail = async (req, res) => {
-  const { type } = req.params // Extract the type (level) from the URL parameters
+  const { type } = req.params 
 
-  // Generate the link to the planning (replace with actual link generation logic)
+  
   const levelNumber = parseInt(type, 10)
 
   if (isNaN(levelNumber)) {
@@ -739,34 +739,27 @@ export const sendInternshipPlanningEmail = async (req, res) => {
     })
   }
   try {
-    // Create an empty array to store the matching plans
     let planningByType = [];
     const Plannings = await InternshipPlanning.find().populate({
       path: "idInternship",
       populate: {
         path: "studentId",
       },
-    }) // Populate internship details
-    .populate("EvaluatorId").exec(); // Populate teacher details
+    }) 
+    .populate("EvaluatorId").exec(); 
   
-    // Loop through the Plannings array
     for (let i = 0; i < Plannings.length; i++) {
-      // Access the current planning item
       const currentPlanning = Plannings[i]
 
-      // Check if the level==levelNumber and planning published not masked
       if (
         currentPlanning.idInternship.level === levelNumber &&
         currentPlanning.published === true
       ) {
-        // Add the current planning to the planningByType array
         planningByType.push(currentPlanning);
       }
     }
-    console.log(planningByType)
 
 
-    // Configure the email transporter with Nodemailer
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -782,15 +775,16 @@ export const sendInternshipPlanningEmail = async (req, res) => {
       // Extraire les emails de l'étudiant et de l'enseignant
       const studentEmail = planning.idInternship.studentId?.email;
       const evaluatorEmail = planning.EvaluatorId?.email;
+      const StudentFullName = `${planning.idInternship.studentId?.firstName || ''} ${planning.idInternship.studentId?.lastName || ''}`;
 
-      // Lien de planification (par exemple, un lien personnalisé pour chaque étudiant et enseignant)
-      const planningLink = `http://Internship.com/planning`;  // Modifiez l'URL selon vos besoins
-
+      
+      const planningLink = `http://Internship.com/planning`;  
       // Envoi à l'étudiant
       if (studentEmail) {
+        
         if (!planning.sentEmail) {
           // 1er envoi à l'étudiant
-          const studentEmailText = `Hello ${planning.idInternship.studentId?.name},\n\nHere is your internship planning link: ${planningLink}\n\nBest regards.`;
+          const studentEmailText = `Hello ${StudentFullName.trim()},\n\nHere is your internship planning link: ${planningLink}\n\nBest regards.`;
           const studentMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: studentEmail,
@@ -808,7 +802,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
           });
         } else {
           // 2ème envoi à l'étudiant si l'email a déjà été envoyé
-          const studentEmailText = `Hello again ${planning.idInternship.studentId?.name},\n\nThis is a reminder with your internship planning link: ${planningLink}\n\nBest regards.`;
+          const studentEmailText = `Hello again ${StudentFullName.trim()},\n\nThis is a reminder with your internship planning link: ${planningLink}\n\nBest regards.`;
           const studentMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: studentEmail,
@@ -828,9 +822,10 @@ export const sendInternshipPlanningEmail = async (req, res) => {
 
       // Envoi à l'enseignant
       if (evaluatorEmail) {
+        const EvaluatorFullName = `${planning.EvaluatorId?.firstName || ''} ${planning.EvaluatorId?.lastName || ''}`;        
         if (!planning.sentEmail) {
           // 1er envoi à l'enseignant
-          const evaluatorEmailText = `Hello ${planning.EvaluatorId.name},\n\nHere is the internship planning link for your student ${planning.idInternship.studentId?.name}: ${planningLink}\n\nBest regards.`;
+          const evaluatorEmailText = `Hello ${EvaluatorFullName.trim()},\n\nHere is the internship planning link for your student ${StudentFullName.trim()}: ${planningLink}\n\nBest regards.`;
           const evaluatorMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: evaluatorEmail,
@@ -848,7 +843,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
           });
         } else {
           // 2ème envoi à l'enseignant si l'email a déjà été envoyé
-          const evaluatorEmailText = `Hello again ${planning.EvaluatorId.name},\n\nThis is a reminder with the internship planning link for your student ${planning.idInternship.studentId?.name}: ${planningLink}\n\nBest regards.`;
+          const evaluatorEmailText = `Hello again ${EvaluatorFullName.trim()},\n\nThis is a reminder with the internship planning link for your student ${StudentFullName.trim()}: ${planningLink}\n\nBest regards.`;
           const evaluatorMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: evaluatorEmail,
@@ -871,7 +866,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Emails sent successfully.' });
 
     } catch (error) {
-      console.error('Error details:', error); // Log full error details
+      console.error('Error details:', error); 
     return res.status(500).json({ error: `An error occurred while sending the email: ${error.message}` });
     }
   };
@@ -880,7 +875,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
 export const getAssignedInternshipTeacher = async (req, res) => {
   try {
     // Retrieve the teacher's ID from the token
-    const teacherId = req.auth.userId // Ensure that req.auth.id is correctly populated by your middleware
+    const teacherId = req.auth.userId 
     console.log('Teacher ID:', teacherId)
 
     // Retrieve all internship plannings where the teacher is assigned
@@ -902,11 +897,11 @@ export const getAssignedInternshipTeacher = async (req, res) => {
       })
     }
 
-    // If internships are found, return the internships in the response
+    
     return res.status(200).json({
       success: true,
       model: plannings.map((planning) => ({
-        internship: planning.idInternship, // Internship details
+        internship: planning.idInternship, 
       })),
     })
   } catch (error) {
