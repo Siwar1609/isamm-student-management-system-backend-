@@ -5,6 +5,9 @@ import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
 import mongoose from 'mongoose'
 import nodemailer from 'nodemailer';
 import Student from '../../models/users-models/student_model.js';
+import SoutenancePfe from '../../models/soutenances-models/soutenance_pfe.js';
+import Teacher from '../../models/users-models/teacher_model.js';
+import {updateSoutenanceValidation} from '../../validators/updatePfeSoutenance_Validator.js';
 
 // Méthode pour ouvrir une période de dépôt PFE
 export const addPFE = async (req, res) => {
@@ -563,7 +566,7 @@ export const send_pfe_planning = async (req, res) => {
     // Envoyer les emails aux étudiants
     const emailPromises = students.map((student) => {
       return transporter.sendMail({
-        from: '" Équipe PFE 👻" <votre_email@gmail.com>',
+        from: `" Équipe PFE 👻" <${process.env.EMAIL_USER}>`,
         to: student.email,
         subject, 
         html: htmlContent,
@@ -585,3 +588,367 @@ export const send_pfe_planning = async (req, res) => {
     });
   }
 };
+
+export const assignTeacherToSoutenance = async (req, res) => {
+  try {
+    const { projectId, salle, date, teachers } = req.body; // Le tableau des enseignants : [{ idenseignant, type }]
+
+    // Vérifier que le tableau des enseignants est fourni et non vide
+    if (!Array.isArray(teachers) || teachers.length === 0) {
+      return res.status(400).json({
+        message: "❌ Vous devez fournir un tableau d'enseignants avec leurs rôles.",
+      });
+    }
+
+
+    // Récupérer le projet PFE associé
+    const pfe = await PFE.findById(projectId);
+    if (!pfe) {
+      return res.status(404).json({ message: "❌ Projet PFE introuvable." });
+    }
+
+    // Vérifier si une soutenance existe déjà pour ce projet PFE
+    let soutenance = await SoutenancePfe.findOne({ projectId }).populate("projectId");
+
+    // Si aucune soutenance n'existe, créer une nouvelle soutenance
+    if (!soutenance) {
+      soutenance = new SoutenancePfe({
+        projectId,
+        students: pfe.studentId,
+        academicYear: pfe.academicyear,
+        teachers: [{teacherId: pfe.teacherId, role: "encadrant"}],
+      });
+    }
+
+    // Vérification des chevauchements d'horaires et de salles
+    const chevauchement = await SoutenancePfe.findOne({
+      salleSoutenance: salle,
+      dateSoutenance: { $eq: new Date(date) },
+    });
+
+    if (chevauchement) {
+      return res.status(400).json({
+        message: "❌ Une autre soutenance est déjà planifiée dans cette salle à cette heure.",
+      });
+    }
+
+    // Vérification que la salle est valide
+    if (!salle || salle.trim() === "") {
+      return res.status(400).json({
+        message: "❌ La salle ne peut pas être vide.",
+      });
+    }
+
+    // Vérification de la date
+    if (!date || isNaN(new Date(date).getTime())) {
+      return res.status(400).json({
+        message: "❌ La date spécifiée n'est pas valide.",
+      });
+    }
+
+    // Vérification et ajout des enseignants
+    const validRoles = ["encadrant", "rapporteur", "président de jury"];
+
+    for (const teacher of teachers) {
+      const { teacherId, role } = teacher;
+
+      // Vérifier que le rôle est valide
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({
+          message: `❌ Le rôle spécifié (${role}) n'est pas valide pour l'enseignant ${teacherId}.`,
+        });
+      }
+
+      // Vérifier que l'enseignant existe
+      const teacherExists = await Teacher.findById(teacherId);
+      if (!teacherExists) {
+        return res.status(400).json({
+          message: `❌ L'enseignant avec l'ID ${teacherId} n'existe pas.`,
+        });
+      }
+
+      // Vérification du rôle "encadrant"
+      if (role === "encadrant" && pfe.teacherId.toString() !== teacherId.toString()) {
+        return res.status(400).json({
+          message: `❌ L'enseignant ${teacherId} n'est pas l'encadrant assigné à ce PFE.`,
+        });
+      }
+
+      // // Vérifier si l'enseignant est déjà assigné à la soutenance avec le même rôle
+      // const alreadyAssigned = soutenance.teachers.some(
+      //   (existingTeacher) =>
+      //     existingTeacher?.teacherId?.toString() === idenseignant.toString() &&
+      //     existingTeacher.role === type
+      // );
+
+      // if (alreadyAssigned) {
+      //   return res.status(400).json({
+      //     message: `❌ L'enseignant ${idenseignant} est déjà assigné à cette soutenance avec le rôle ${type}.`,
+      //   });
+      // }
+
+      // Ajouter l'enseignant avec son rôle à la soutenance
+      soutenance.teachers.push({ teacherId, role });
+      console.log(soutenance.teachers);
+    }
+  
+
+    // Mettre à jour les informations de la soutenance
+    soutenance.salleSoutenance = salle;
+    soutenance.dateSoutenance = new Date(date);
+
+    // Sauvegarder les modifications
+    await soutenance.save();
+
+    return res.status(200).json({
+      message: "✅ Enseignants assignés avec succès à la soutenance.",
+      soutenance: await SoutenancePfe.findById(soutenance._id)
+        .populate("students", "firstName lastName email")
+        .populate("teachers.teacherId", "firstName lastName email")
+        .populate("projectId", "title description"),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "❌ Une erreur est survenue lors de l'assignation.",
+      error: error.message,
+    });
+  }
+};
+
+export const send_soutenance_planning = async (req, res) => {
+  try {
+    // Rechercher les étudiants ayant le rôle "student" et niveau approprié
+    const students = await Student.find({ role: "student", level: "3" });
+    if (!students || students.length === 0) {
+      return res.status(404).json({ message: "Aucun étudiant trouvé." });
+    }
+
+    // Vérifier s'il existe au moins une soutenance avec `send=true`
+    const soutenanceSendStatus = await SoutenancePfe.findOne({ send: true }).select("send");
+    const isFirstSend = !soutenanceSendStatus; 
+
+    // Vérifier si au moins une soutenance existe
+    const soutenanceCount = await SoutenancePfe.countDocuments();
+    if (soutenanceCount === 0) {
+      return res.status(404).json({ message: "Aucune soutenance trouvée." });
+    }
+
+    // Configurer le transporteur d'email
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // Définir le contenu de l'email en fonction du type d'envoi
+    const subject = isFirstSend
+      ? "Planning des Soutenances"
+      : "Mise à jour : Planning des Soutenances";
+
+    const htmlContent = `
+      <table style="width: 100%; font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
+        <tr>
+          <td align="center">
+            <table style="width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); overflow: hidden;">
+              <tr>
+                <td style="background-color: #007bff; color: #ffffff; padding: 20px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 24px;">${subject}</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 20px;">
+                  <p style="font-size: 16px; color: #333333; line-height: 1.5;">
+                    Bonjour,
+                  </p>
+                  <p style="font-size: 16px; color: #333333; line-height: 1.5;">
+                    ${isFirstSend
+                      ? "Le planning des soutenances est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
+                      : "Le planning des soutenances a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"}
+                  </p>
+                  <div style="text-align: center; margin: 20px 0;">
+                    <a href="http://wwww.isamm.com" style="background-color: #007bff; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-size: 16px;">
+                      Voir le planning des soutenances
+                    </a>
+                  </div>
+                  <p style="font-size: 16px; color: #333333; line-height: 1.5;">
+                    Cordialement,<br />
+                    <strong>L'équipe Soutenance</strong>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background-color: #f1f1f1; color: #777777; font-size: 14px; text-align: center; padding: 10px;">
+                  <p style="margin: 0;">
+                    Vous recevez cet email parce que vous faites partie de la liste des destinataires pour les soutenances.
+                  </p>
+                  <p style="margin: 0;">
+                    © 2024 Équipe Soutenance, Tous droits réservés.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    `;
+
+    // Envoyer les emails aux étudiants
+    const emailPromises = students.map((student) => {
+      return transporter.sendMail({
+        from: `" Équipe PFE 👻" <${process.env.EMAIL_USER}>`,
+        to: student.email,
+        subject,
+        html: htmlContent,
+      });
+    });
+    await Promise.all(emailPromises);
+
+    if (isFirstSend) {
+      await SoutenancePfe.updateMany({}, { send: true });
+    }
+
+    return res.status(200).json({
+      message: `Emails envoyés avec succès (${isFirstSend ? "premier envoi" : "mise à jour"}).`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Erreur lors de l'envoi des emails.",
+      error: error.message,
+    });
+  }
+};
+export const publishOrHideSoutenances = async (req, res) => {
+  try {
+    const { response } = req.params;
+
+    // Vérification de la validité du paramètre `response`
+    if (!["publish", "hide"].includes(response)) {
+      return res.status(400).json({
+        message: "Valeur invalide pour 'response'. Utilisez 'publish' ou 'hide'.",
+      });
+    }
+
+    // Définir la valeur de `published` en fonction de `response`
+    const published = response === "publish";
+
+    // Mise à jour de toutes les SoutenancePfes
+    const result = await SoutenancePfe.updateMany({}, { $set: { published } });
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        message: "Aucune soutenance trouvée dans la base de données.",
+      });
+    }
+
+    res.status(200).json({
+      message: `Toutes les soutenances ont été ${published ? "publiées" : "masquées"} avec succès.`,
+      result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Erreur lors de la mise à jour de l'état de publication des soutenances.",
+      error,
+    });
+  }
+};
+
+
+
+export const updateSoutenance = async (req, res) => {
+  try {
+    // Validation des données de la requête
+    const { id } = req.params;
+    const { salleSoutenance, dateSoutenance, teachers } = req.body;
+
+    // Récupérer la soutenance existante
+    const soutenance = await SoutenancePfe.findById(id).populate('projectId');
+    if (!soutenance) {
+      return res.status(404).json({ message: '❌ Soutenance non trouvée' });
+    }
+
+    // Vérification des chevauchements d'horaires et de salles
+    const salleConflict = await SoutenancePfe.findOne({
+      salleSoutenance: salleSoutenance || soutenance.salleSoutenance,
+      dateSoutenance: { $eq: new Date(dateSoutenance || soutenance.dateSoutenance) },
+      _id: { $ne: id }, // Exclure la soutenance actuelle
+    });
+
+    if (salleConflict) {
+      return res.status(400).json({
+        message: "❌ Une autre soutenance est déjà planifiée dans cette salle à cette heure.",
+      });
+    }
+
+    // Vérification des enseignants et des rôles
+    for (const teacherData of teachers) {
+      const { teacherId, role } = teacherData;
+
+      // Vérification si l'enseignant existe
+      const teacherExists = await Teacher.findById(teacherId);
+      if (!teacherExists) {
+        return res.status(400).json({
+          message: `❌ L'enseignant avec l'ID ${teacherId} n'existe pas.`,
+        });
+      }
+
+      // Vérifier si l'enseignant est déjà assigné à cette soutenance avec ce rôle
+      const alreadyAssigned = soutenance.teachers.some(
+        (existingTeacher) =>
+          existingTeacher.teacherId.toString() === teacherId.toString() &&
+          existingTeacher.role === role
+      );
+      
+      if (alreadyAssigned) {
+        return res.status(400).json({
+          message: `❌ L'enseignant ${teacherId} est déjà assigné à cette soutenance avec le rôle ${role}.`,
+        });
+      }
+
+      // Vérifier si l'enseignant a une autre soutenance au même moment
+      const conflict = await SoutenancePfe.findOne({
+        "teachers.teacherId": teacherId,
+        dateSoutenance: { $eq: new Date(dateSoutenance || soutenance.dateSoutenance) },
+        _id: { $ne: id }, // Exclure la soutenance actuelle
+      });
+
+      if (conflict) {
+        return res.status(400).json({
+          message: `❌ L'enseignant ${teacherId} a déjà une autre soutenance prévue à cette date.`,
+        });
+      }
+    }
+
+    // Mise à jour des données
+    soutenance.salleSoutenance = salleSoutenance || soutenance.salleSoutenance;
+    soutenance.dateSoutenance = new Date(dateSoutenance || soutenance.dateSoutenance);
+
+    // Remplacer la liste des enseignants
+    soutenance.teachers = teachers.map(({ teacherId, role }) => ({
+      teacherId: teacherId,
+      role: role,
+    }));
+
+    // Sauvegarder les modifications
+    await soutenance.save();
+
+    return res.status(200).json({
+      message: '✅ Soutenance mise à jour avec succès',
+      data: await SoutenancePfe.findById(id)
+        .populate("projectId", "title description")
+        .populate("students", "firstName lastName email")
+        .populate("teachers.teacherId", "firstName lastName email"),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "❌ Erreur lors de la mise à jour de la soutenance.",
+      error: error.message,
+    });
+  }
+};
+
+
