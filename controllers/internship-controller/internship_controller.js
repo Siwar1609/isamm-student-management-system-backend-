@@ -325,15 +325,19 @@ export const assignTeachersToInternship = async (req, res) => {
       })
     }
 
-    
     const teacherSubjectCounts = await fetchTeacherSubjectCounts(teacherIds);
-    
 
-    // Sort the teachers by subject count
-    const sortedTeachers = teacherSubjectCounts.data.sort((a, b) => b.subjectCount - a.subjectCount);
-    console.log(sortedTeachers)
-    // Step 3: Distribute internships among the teachers
+    const teacherArray = teacherSubjectCounts.data.map(teacher => ({
+      teacherId: teacher.teacherId.toString(),
+      subjectCount: Number(teacher.subjectCount),
+    }));
     
+    // Calculate the total number of subjects
+    const totalSubjects = teacherArray.reduce((sum, teacher) => sum + teacher.subjectCount, 0);
+
+    if (totalSubjects === 0) {
+      return res.status(400).json({ success: false, message: "Les enseignants n'ont pas de matières attribuées." });
+    }
 
     // Filter unassigned internships
     const unassignedInternships = []
@@ -354,34 +358,34 @@ export const assignTeachersToInternship = async (req, res) => {
         message: 'No unassigned internships available for this level.',
       })
     }
+    // Step 4: Calculate the remaining quota for each teacher based on their subject count
+    const teacherAssignments = teacherArray.map(teacher => ({
+      teacherId: teacher.teacherId,
+      remainingQuota: Math.round((teacher.subjectCount / totalSubjects) * unassignedInternships.length),
+      assignedInternship:0
+    }));
+
+    console.log('Teacher Assignments before sorting:', teacherAssignments);
+
+    // Sort teachers by remainingQuota in ascending order
+    teacherAssignments.sort((a, b) => a.remainingQuota - b.remainingQuota);
+
+    console.log('Teacher Assignments after sorting:', teacherAssignments);
 
     // Distribute the unassigned internships among the teachers
 
     let assignments = [];
-    let teacherIndex = 0;
-
-    // Copie de sortedTeachers avec un compteur pour les stages restants
-    const teacherAssignments = sortedTeachers.map(teacher => ({
-      teacherId: teacher.teacherId,
-      remainingSubjects: teacher.subjectCount,
-    }));
+    
 
     for (let i = 0; i < unassignedInternships.length; i++) {
       const internship = unassignedInternships[i]
-      const teacher = sortedTeachers[teacherIndex]
+      
+      let assigned = false;
 
-      // Si aucun enseignant ne peut plus être assigné
-      if (teacherAssignments.every(teacher => teacher.remainingSubjects === 0)) {
-        console.log("No more teachers available for assignment.");
-        break;
-      }
+      for (let j = 0; j < teacherAssignments.length; j++) {
+        const teacher = teacherAssignments[j];
 
-      let foundAssignment = false;
-
-      while (!foundAssignment && teacherAssignments.length > 0) {
-        const teacher = teacherAssignments[teacherIndex];
-
-      if (teacher.remainingSubjects > 0) {
+      if (teacher.remainingQuota > 0) {
       // Assign the internship
       const planning = new InternshipPlanning({
         idInternship: internship._id, // Internship
@@ -395,33 +399,27 @@ export const assignTeachersToInternship = async (req, res) => {
       const savedPlanning = await planning.save()
       assignments.push(savedPlanning)
       // Réduire le nombre de matières restantes pour cet enseignant
-      teacher.remainingSubjects--;
+      teacher.remainingQuota--;
+      teacher.assignedInternship++;
 
-      // Si toutes les matières sont utilisées, passer au prochain enseignant
-      if (teacher.remainingSubjects === 0) {
-        console.log(`Teacher ${teacher.teacherId} has reached their quota : ${teacher.remainingSubjects}.`);
-        // Passer au prochain enseignant uniquement si le quota est atteint
-        teacherIndex = (teacherIndex + 1) % teacherAssignments.length;
-      }
-      foundAssignment = true; // Stage assigné, quitter la boucle
+      assigned = true;
+      break;
 
-
-      } else {
-        // Passer au prochain enseignant si l'enseignant actuel ne peut pas prendre le stage
-        teacherIndex = (teacherIndex + 1) % teacherAssignments.length;
-      }
-        
+      } 
     }
-      if (!foundAssignment) {
+      if (!assigned) {
         console.log(`Could not assign internship ${internship._id}. All teachers have reach their quota`);
       }
   }
-  console.log(assignments)
+  
     // Return the response with the successful assignments
     return res.status(200).json({
       success: true,
       message: `${assignments.length} internships successfully assigned to teachers !! All teachers have reach their quota .`,
-      data: assignments
+      data: {
+        assignments,
+        teacherAssignments
+      }
     });
     
 
