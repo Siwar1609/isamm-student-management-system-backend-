@@ -880,7 +880,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
 export const getAssignedInternshipTeacher = async (req, res) => {
   try {
     // Retrieve the teacher's ID from the token
-    const teacherId = req.auth.userId // Ensure that req.auth.id is correctly populated by your middleware
+    const teacherId = req.auth.userId 
     console.log('Teacher ID:', teacherId)
 
     // Retrieve all internship plannings where the teacher is assigned
@@ -917,6 +917,92 @@ export const getAssignedInternshipTeacher = async (req, res) => {
     })
   }
 }
+
+export const updatePlanningSoutenance = async (req,res)=>{
+  const {type,id} = req.params;
+  const {date,horaire,LienGoogleMeet} = req.body;
+  const teacherId = req.auth.userId;
+
+  //test For level matching
+  const internship = await Internship.findOne({
+    level: type, 
+  });
+  if (!internship) {
+    console.log('the level does not match.');
+    return;
+  }
+
+
+  try {
+  const planning  = await InternshipPlanning.findOneAndUpdate({
+    idInternship:id,
+    EvaluatorId:teacherId,
+  },
+  {
+    $set:{
+      'meeting.date':new Date(date),
+      'meeting.time':horaire,
+      'meeting.googleMeetLink':LienGoogleMeet,
+    },
+  },
+  { new: true , upsert: false } // Return updated document, do not create a new one
+  )
+  .populate({
+    path: "idInternship",
+    populate: {
+      path: "studentId",
+    },
+  })
+  .populate("EvaluatorId")
+  .exec();
+
+  if (!planning){
+    return res.status(403).json({
+      success:false,
+      message:`You are not assigned to this internship`
+    });
+  } 
+
+  //Send Email to Student
+  
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'oumaymaamzoughi@gmail.com', // Sender's email address
+      pass: 'znvw qfty lltn sajs', // Sender's email password
+    },
+  });
+  const studentEmail = planning.idInternship.studentId.email;
+  const StudentFullName = `${planning.idInternship.studentId?.firstName || ''} ${planning.idInternship.studentId?.lastName || ''}`;
+  const EvaluatorFullName = `${planning.EvaluatorId.firstName || ''} ${planning.EvaluatorId.lastName || ''}`;        
+  console.log(studentEmail)
+  console.log(StudentFullName)
+  console.log(EvaluatorFullName)
+
+  const mailOptions={
+    from:"oumaymaamzoughi@gmail.com",
+    replyTo: planning.EvaluatorId.email,
+    to:studentEmail,
+    subject: `Internship Meeting Scheduled with Sir/Madam ${EvaluatorFullName}`,
+    text: `Dear ${StudentFullName},\n\nYour internship  meeting has been scheduled.\n\nDetails:\nDate: ${date}\nTime: ${horaire}\nGoogle Meet Link: ${LienGoogleMeet}\n\nBest regards,`,
+  }
+  await transporter.sendMail(mailOptions);
+
+  return res.status(200).json({
+    success:true,
+    message:`Meeting details updated and email sent to the student.`,
+    model:planning,
+  });
+
+ 
+  }catch(err){
+    console.error(err);
+    return res.status(500).json({ error: "An error occurred while updating the planning." });
+  }
+
+}
+
+
 
 //first fnct
 export const getInternshipsByLevel = async (level) => {
