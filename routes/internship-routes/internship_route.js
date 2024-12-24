@@ -13,6 +13,7 @@ import {
   fetchAllPlanning,
   publishOrMaskPlanningById,
   getAssignedInternshipTeacher,
+  updatePlanningSoutenance,
 } from '../../controllers/internship-controller/internship_controller.js'
 import express from 'express'
 import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
@@ -34,6 +35,8 @@ router.patch('/:type/planning/publish/:response/:id', accessByRole(['admin']), p
 router.post('/:type/planning/send', accessByRole(['admin']), sendInternshipPlanningEmail)
 
 router.get('/:type/assigned-to-me', accessByRole(['teacher']), getAssignedInternshipTeacher)
+
+router.patch('/:type/:id', accessByRole(['teacher']), updatePlanningSoutenance)
 
 router.get('/students/all', accessByRole(['admin']), getAllStudents)
 
