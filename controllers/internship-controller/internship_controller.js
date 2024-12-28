@@ -1002,6 +1002,79 @@ export const updatePlanningSoutenance = async (req,res)=>{
 
 }
 
+export const GetPlanningInfoForStudent = async (req,res)=>{
+  try {
+
+    const Id = req.auth.userId 
+    const {type} = req.params
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing 'type' parameter.",
+      });
+    }
+
+    const internship = await Internship.findOne({
+      studentId:Id,
+      level: type, 
+    });
+
+    if (!internship) {
+      return res.status(404).json({
+        success: false,
+        message: "Internship not found for this student and level.",
+      });
+    }
+    
+    // Retrieve all internship plannings where the student is assigned
+    const planning = await InternshipPlanning.findOne({ idInternship: internship._id })
+    .populate({
+      path: 'idInternship',
+      populate: {
+        path: 'studentId', 
+      },
+    })
+    .populate({
+      path: 'EvaluatorId', 
+      select: 'firstName lastName email',
+    });
+
+
+    const isOwner = planning.idInternship.studentId._id.toString() === Id;
+    if (!isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "This internship does not belong to the connected student.",
+      });
+    }
+    const EvaluatorFullName = `${planning.EvaluatorId.firstName || ''} ${planning.EvaluatorId.lastName || ''}`;        
+    const responseData = {
+      teacher: {
+        EvaluatorFullName,
+        email: planning.EvaluatorId.email,
+      },
+      meeting: {
+        date: planning.meeting.date,
+        time: planning.meeting.time,
+        googleMeetLink: planning.meeting.googleMeetLink,
+      },
+    };
+    // If internships are found, return the internships in the response
+    return res.status(200).json({
+      success: true,
+      model: responseData,
+    })
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      success: false,
+      message: 'Error retrieving assigned internships.',
+    })
+
+    }  
+  }
+
 
 
 //first fnct
