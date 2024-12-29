@@ -170,3 +170,52 @@ export const getOptionsByStudentId = async (req, res) => {
     })
   }
 }
+export const publishOrMaskOption = async (req, res) => {
+  try {
+    const { response } = req.params // 'true' ou 'false' pour publier ou masquer la liste d'option
+
+    if (response !== 'true' && response !== 'false') {
+      return res.status(400).json({
+        success: false,
+        message:
+          'The value of "response" is invalid. It must be "true" or "false".',
+      })
+    }
+    
+    
+    const isPublished = response === 'true'
+    const optionBefore = await Option.find({published : { $ne: isPublished }})
+
+    if (optionBefore.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `All options are already ${isPublished ? 'published' : 'hidden'}. No update needed.`,
+        model: optionBefore,  
+      });
+    }
+
+
+    // Mise à jour de toutes les options dont l'état est différent
+    const result = await Option.updateMany(
+      { published: { $ne: isPublished } }, // Condition
+      { $set: { published: isPublished } }
+    );
+
+    const optionAfter = await Option.find({ published: isPublished });
+    return res.status(200).json({
+      success: true,
+      message: `The options have been successfully ${isPublished ? 'published' : 'hidden'}.`,
+      modelBefore: optionBefore,  
+      modelAfter: optionAfter, 
+    });
+
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message:
+        'Error while publishing or hiding the options.',
+      error: error.message,
+    })
+  }
+}
