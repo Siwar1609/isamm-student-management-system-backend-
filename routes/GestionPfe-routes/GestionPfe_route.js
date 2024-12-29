@@ -18,7 +18,9 @@ import {
   assignTeacherToSoutenance,
   publishOrHideSoutenances,
   send_soutenance_planning,
-  updateSoutenance
+  updateSoutenance,
+  getTeacherSoutenances,
+  getStudentSoutenances
 } from '../../controllers/pfe-controller/pfe_controller.js'
 import { accessByLevel, accessByRole,loggedMiddleware } from '../../middlewares/users-middlewares/auth_middleware.js'
 const router = express.Router()
@@ -62,6 +64,10 @@ router.post('/soutenances/publish/:response',loggedMiddleware, accessByRole(['ad
 router.post('/soutenances/send',loggedMiddleware, accessByRole(['admin']), send_soutenance_planning)
 //route pour mettre a jour le planning pfe
 router.patch('/:id/soutenances/',loggedMiddleware, accessByRole(['admin']), updateSoutenance)   
+//rote pour reuperer les soutenances de teacher
+router.get('/me',loggedMiddleware, accessByRole(['teacher']), getTeacherSoutenances)
+//route pour recuperer les soutenances d'un etudiant
+router.get('/student/me',loggedMiddleware, accessByRole(['student']), getStudentSoutenances)
 
 
 export default router

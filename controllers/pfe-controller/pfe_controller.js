@@ -591,23 +591,15 @@ export const send_pfe_planning = async (req, res) => {
 
 export const assignTeacherToSoutenance = async (req, res) => {
   try {
-    const { projectId, salle, date, teachers } = req.body; // Le tableau des enseignants : [{ idenseignant, type }]
+    const { projectId, salle, date, teachers } = req.body; // Tableau des enseignants : [{ teacherId, role }]
 
-    // Vérifier que le tableau des enseignants est fourni et non vide
-    if (!Array.isArray(teachers) || teachers.length === 0) {
-      return res.status(400).json({
-        message: "❌ Vous devez fournir un tableau d'enseignants avec leurs rôles.",
-      });
-    }
-
-
-    // Récupérer le projet PFE associé
+    // Vérification que le projet PFE existe
     const pfe = await PFE.findById(projectId);
     if (!pfe) {
       return res.status(404).json({ message: "❌ Projet PFE introuvable." });
     }
 
-    // Vérifier si une soutenance existe déjà pour ce projet PFE
+    // Vérification si une soutenance existe déjà pour ce projet PFE
     let soutenance = await SoutenancePfe.findOne({ projectId }).populate("projectId");
 
     // Si aucune soutenance n'existe, créer une nouvelle soutenance
@@ -616,7 +608,7 @@ export const assignTeacherToSoutenance = async (req, res) => {
         projectId,
         students: pfe.studentId,
         academicYear: pfe.academicyear,
-        teachers: [{teacherId: pfe.teacherId, role: "encadrant"}],
+        teachers: [{ teacherId: pfe.teacherId, role: "encadrant" }], // Ajout automatique de l'encadrant
       });
     }
 
@@ -624,6 +616,7 @@ export const assignTeacherToSoutenance = async (req, res) => {
     const chevauchement = await SoutenancePfe.findOne({
       salleSoutenance: salle,
       dateSoutenance: { $eq: new Date(date) },
+      projectId: { $ne: projectId },
     });
 
     if (chevauchement) {
@@ -632,66 +625,43 @@ export const assignTeacherToSoutenance = async (req, res) => {
       });
     }
 
-    // Vérification que la salle est valide
-    if (!salle || salle.trim() === "") {
-      return res.status(400).json({
-        message: "❌ La salle ne peut pas être vide.",
-      });
-    }
-
-    // Vérification de la date
-    if (!date || isNaN(new Date(date).getTime())) {
-      return res.status(400).json({
-        message: "❌ La date spécifiée n'est pas valide.",
-      });
-    }
-
-    // Vérification et ajout des enseignants
-    const validRoles = ["encadrant", "rapporteur", "président de jury"];
-
+    // Ajout des enseignants fournis dans la requête
     for (const teacher of teachers) {
       const { teacherId, role } = teacher;
 
-      // Vérifier que le rôle est valide
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({
-          message: `❌ Le rôle spécifié (${role}) n'est pas valide pour l'enseignant ${teacherId}.`,
-        });
-      }
-
-      // Vérifier que l'enseignant existe
+      // Vérifier si l'enseignant existe
       const teacherExists = await Teacher.findById(teacherId);
       if (!teacherExists) {
         return res.status(400).json({
           message: `❌ L'enseignant avec l'ID ${teacherId} n'existe pas.`,
         });
       }
+        // Vérifier si un rôle unique (président de jury ou rapporteur) est déjà attribué
+        if (
+          ["président de jury", "rapporteur"].includes(role) &&
+          soutenance.teachers.some((existingTeacher) => existingTeacher.role === role)
+        ) {
+          return res.status(400).json({
+            message: `❌ Un ${role} est déjà assigné à cette soutenance.`,
+          });
+        }
 
-      // Vérification du rôle "encadrant"
-      if (role === "encadrant" && pfe.teacherId.toString() !== teacherId.toString()) {
+      // Vérifier si l'enseignant est déjà assigné avec le même rôle
+      const alreadyAssigned = soutenance.teachers.some(
+        (existingTeacher) =>
+          existingTeacher.teacherId.toString() === teacherId.toString() &&
+          existingTeacher.role === role
+      );
+
+      if (alreadyAssigned) {
         return res.status(400).json({
-          message: `❌ L'enseignant ${teacherId} n'est pas l'encadrant assigné à ce PFE.`,
+          message: `❌ L'enseignant ${teacherId} est déjà assigné à cette soutenance avec le rôle ${role}.`,
         });
       }
 
-      // // Vérifier si l'enseignant est déjà assigné à la soutenance avec le même rôle
-      // const alreadyAssigned = soutenance.teachers.some(
-      //   (existingTeacher) =>
-      //     existingTeacher?.teacherId?.toString() === idenseignant.toString() &&
-      //     existingTeacher.role === type
-      // );
-
-      // if (alreadyAssigned) {
-      //   return res.status(400).json({
-      //     message: `❌ L'enseignant ${idenseignant} est déjà assigné à cette soutenance avec le rôle ${type}.`,
-      //   });
-      // }
-
       // Ajouter l'enseignant avec son rôle à la soutenance
       soutenance.teachers.push({ teacherId, role });
-      console.log(soutenance.teachers);
     }
-  
 
     // Mettre à jour les informations de la soutenance
     soutenance.salleSoutenance = salle;
@@ -716,17 +686,40 @@ export const assignTeacherToSoutenance = async (req, res) => {
   }
 };
 
+
 export const send_soutenance_planning = async (req, res) => {
   try {
     // Rechercher les étudiants ayant le rôle "student" et niveau approprié
-    const students = await Student.find({ role: "student", level: "3" });
+    const students = await Student.find({ role: "student", level: "3" }).select("email");
     if (!students || students.length === 0) {
       return res.status(404).json({ message: "Aucun étudiant trouvé." });
     }
 
+    // Rechercher les enseignants liés aux soutenances
+    const soutenances = await SoutenancePfe.find()
+      .populate({
+        path: "teachers.teacherId", // Charger les enseignants (encadrants, rapporteurs, etc.)
+        select: "email",
+      })
+      .select("teachers");
+
+    const teachers = [];
+    soutenances.forEach((soutenance) => {
+      soutenance.teachers.forEach((teacher) => {
+        if (teacher.teacherId && teacher.teacherId.email) {
+          teachers.push(teacher.teacherId.email);
+        }
+      });
+    });
+
+    // Fusionner les listes d'e-mails (enseignants et étudiants) et supprimer les doublons
+    const recipients = [
+      ...new Set([...students.map((s) => s.email), ...teachers]),
+    ];
+
     // Vérifier s'il existe au moins une soutenance avec `send=true`
     const soutenanceSendStatus = await SoutenancePfe.findOne({ send: true }).select("send");
-    const isFirstSend = !soutenanceSendStatus; 
+    const isFirstSend = !soutenanceSendStatus;
 
     // Vérifier si au moins une soutenance existe
     const soutenanceCount = await SoutenancePfe.countDocuments();
@@ -764,9 +757,11 @@ export const send_soutenance_planning = async (req, res) => {
                     Bonjour,
                   </p>
                   <p style="font-size: 16px; color: #333333; line-height: 1.5;">
-                    ${isFirstSend
-                      ? "Le planning des soutenances est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
-                      : "Le planning des soutenances a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"}
+                    ${
+                      isFirstSend
+                        ? "Le planning des soutenances est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
+                        : "Le planning des soutenances a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"
+                    }
                   </p>
                   <div style="text-align: center; margin: 20px 0;">
                     <a href="http://wwww.isamm.com" style="background-color: #007bff; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-size: 16px;">
@@ -795,17 +790,18 @@ export const send_soutenance_planning = async (req, res) => {
       </table>
     `;
 
-    // Envoyer les emails aux étudiants
-    const emailPromises = students.map((student) => {
+    // Envoyer les emails à tous les destinataires
+    const emailPromises = recipients.map((email) => {
       return transporter.sendMail({
-        from: `" Équipe PFE 👻" <${process.env.EMAIL_USER}>`,
-        to: student.email,
+        from: `"Équipe PFE 👻" <${process.env.EMAIL_USER}>`,
+        to: email,
         subject,
         html: htmlContent,
       });
     });
     await Promise.all(emailPromises);
 
+    // Mettre à jour le statut d'envoi
     if (isFirstSend) {
       await SoutenancePfe.updateMany({}, { send: true });
     }
@@ -820,6 +816,7 @@ export const send_soutenance_planning = async (req, res) => {
     });
   }
 };
+
 export const publishOrHideSoutenances = async (req, res) => {
   try {
     const { response } = req.params;
@@ -862,8 +859,8 @@ export const updateSoutenance = async (req, res) => {
   try {
     // Validation des données de la requête
     const { id } = req.params;
-    const { salleSoutenance, dateSoutenance, teachers } = req.body;
-
+    const { salleSoutenance, dateSoutenance, teachers = [] } = req.body;
+    
     // Récupérer la soutenance existante
     const soutenance = await SoutenancePfe.findById(id).populate('projectId');
     if (!soutenance) {
@@ -921,16 +918,53 @@ export const updateSoutenance = async (req, res) => {
         });
       }
     }
+     // Gestion des rôles "rapporteur" et "président de jury" : Remplacer les anciens par les nouveaux
+    const updatedTeachers = teachers.map(({ teacherId, role }) => {
+
+      // Si le rôle est rapporteur, vérifier si un rapporteur existe déjà
+      if (role === 'rapporteur') {
+        // Trouver l'enseignant actuel avec le rôle rapporteur et le remplacer
+        const existingRapporteurIndex = soutenance.teachers.findIndex(
+          (teacher) => teacher.role === 'rapporteur'
+        );
+        
+        if (existingRapporteurIndex !== -1) {
+          soutenance.teachers[existingRapporteurIndex] = { teacherId, role };
+        } else {
+          // Si pas de rapporteur actuel, ajouter le nouveau
+          return { teacherId, role };
+        }
+      }
+      
+      // Si le rôle est président de jury, vérifier si un président de jury existe déjà
+      if (role === 'président de jury' ) {
+        // Trouver l'enseignant actuel avec le rôle président de jury et le remplacer
+        const existingPresidentIndex = soutenance.teachers.findIndex(
+          (teacher) => teacher.role === 'président de jury'
+        );
+        
+        if (existingPresidentIndex !== -1) {
+          soutenance.teachers[existingPresidentIndex] = { teacherId, role };
+        } else {
+          // Si pas de président de jury actuel, ajouter le nouveau
+          return { teacherId, role };
+        }
+      }
+      // Retourner tous les autres enseignants sans modification
+      return { teacherId, role };
+    });
 
     // Mise à jour des données
     soutenance.salleSoutenance = salleSoutenance || soutenance.salleSoutenance;
     soutenance.dateSoutenance = new Date(dateSoutenance || soutenance.dateSoutenance);
-
-    // Remplacer la liste des enseignants
-    soutenance.teachers = teachers.map(({ teacherId, role }) => ({
-      teacherId: teacherId,
-      role: role,
-    }));
+    const existingEncadrant = soutenance.teachers.find(
+      (teacher) => teacher.role === 'encadrant'
+    );
+        if(updatedTeachers.length>0){
+          // Remplacer la liste des enseignants avec la nouvelle liste
+      soutenance.teachers = [...updatedTeachers,existingEncadrant];
+        }
+      
 
     // Sauvegarder les modifications
     await soutenance.save();
@@ -940,7 +974,9 @@ export const updateSoutenance = async (req, res) => {
       data: await SoutenancePfe.findById(id)
         .populate("projectId", "title description")
         .populate("students", "firstName lastName email")
-        .populate("teachers.teacherId", "firstName lastName email"),
+        .populate("teachers.teacherId", "firstName lastName email")
+        .select("-academicYear")
+
     });
   } catch (error) {
     console.error(error);
@@ -951,4 +987,136 @@ export const updateSoutenance = async (req, res) => {
   }
 };
 
+export const getTeacherSoutenances = async (req, res) => {
+  try {
+    const teacherId = req.auth.userId; // ID de l'enseignant connecté
+
+
+    // Récupérer toutes les soutenances où l'enseignant est impliqué
+    const teacherSoutenances = await SoutenancePfe.find({
+      "teachers.teacherId": teacherId,
+    }).populate("projectId", "title description")
+    .populate("students", "firstName lastName email")
+    .select("-academicYear")
+    
+
+
+    // Liste pour stocker les enseignants avec leurs détails
+    const populatedTeachers = [];
+
+    // Parcours des soutenances pour peupler les enseignants avec leurs détails
+    for (let soutenance of teacherSoutenances) {
+      // Parcours des enseignants dans chaque soutenance
+      soutenance.teachers = await Promise.all(
+        soutenance.teachers.map(async (teacher) => {
+          // Si le teacherId correspond, récupérer les informations de l'enseignant
+         
+            const teacherDetails = await Teacher.findById(teacher.teacherId).select("firstName lastName email");
+            
+            // Créer un objet avec les détails combinés
+            const populatedTeacher = {
+              teacherId: teacher.teacherId,
+              role: teacher.role,
+              firstName: teacherDetails.firstName,
+              lastName: teacherDetails.lastName,
+              email: teacherDetails.email,
+            };
+            
+            populatedTeachers.push(populatedTeacher); // Ajout de l'enseignant peuplé à la liste
+            return populatedTeacher; // Retourner l'enseignant avec les détails ajoutés
+          
+        })
+      );
+    }
+
+
+
+      // Ajouter les enseignants peuplés à chaque soutenance
+      const teacherSoutenancesObj = teacherSoutenances.map((soutenance) => {
+        return {
+        ...soutenance.toObject(),
+        teachers: soutenance.teachers.map((teacher) => {
+          return populatedTeachers.find(
+          (populatedTeacher) =>
+            populatedTeacher.teacherId.toString() === teacher.teacherId.toString()
+          );
+        }),
+        };
+      });
+
+      
+
+        const soutenancesAsRapporteur = teacherSoutenancesObj.filter((soutenance) =>
+          soutenance.teachers.some(
+          (teacher) =>
+            teacher.teacherId.toString() === teacherId.toString() &&
+            teacher.role === "rapporteur"
+          )
+        );
+
+        const soutenancesAsPresident = teacherSoutenancesObj.filter((soutenance) =>
+          soutenance.teachers.some(
+          (teacher) =>
+            teacher.teacherId.toString() === teacherId.toString() &&
+            teacher.role === "président de jury"
+          )
+        );
+    // Séparer les soutenances par rôle
+    const soutenancesAsEncadrant = teacherSoutenancesObj.filter((soutenance) =>
+      soutenance.teachers.some(
+        (teacher) =>
+          teacher.teacherId.toString() === teacherId.toString() &&
+          teacher.role === "encadrant"
+      )
+    );
+    // Construire la réponse
+    return res.status(200).json({
+      message: "✅ Soutenances récupérées avec succès.",
+      data: {
+        asEncadrant: soutenancesAsEncadrant,
+        asRapporteur: soutenancesAsRapporteur,
+        asPresident: soutenancesAsPresident,
+      
+        
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "❌ Erreur lors de la récupération des soutenances.",
+      error: error.message,
+    });
+  }
+};
+export const getStudentSoutenances=async(req,res)=>{  
+
+try {
+  const studentId = req.auth.userId; // ID de l'étudiant connecté
+
+  // Récupérer toutes les soutenances où l'étudiant est impliqué
+  const studentSoutenances = await SoutenancePfe.find({
+    students: studentId,
+  }).populate("projectId", "title description")
+  .populate("teachers.teacherId", "firstName lastName email")
+  .select("-academicYear")
+
+
+  // Construire la réponse
+  return res.status(200).json({
+    message: "✅ Soutenances récupérées avec succès.",
+    data: studentSoutenances,
+
+  });
+
+
+
+
+} catch (error) { 
+  console.error(error);
+  return res.status(500).json({
+    message: "❌ Erreur lors de la récupération des soutenances.",
+    error: error.message,
+  });
+} 
+};
 
