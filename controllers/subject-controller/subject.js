@@ -1,7 +1,11 @@
 import Subject from '../../models/subject-models/subject_model.js'
 import subjectValidator from '../../validators/subject_validator.js'
+import Joi from 'joi'
 import Teacher from '../../models/users-models/teacher_model.js'
-
+import nodemailer from 'nodemailer'
+import Student from '../../models/users-models/student_model.js'
+import dotenv from 'dotenv'
+dotenv.config() // This loads environment variables from the .env file
 export const addSubject = async (req, res) => {
   try {
     const { error } = subjectValidator.validate(req.body)
@@ -48,8 +52,8 @@ export const addSubject = async (req, res) => {
 
 export const updateSubject = async (req, res) => {
   try {
+    // Validate the request body using subjectValidator
     const { error } = subjectValidator.validate(req.body)
-
     if (error) {
       return res.status(400).json({
         error: error.message,
@@ -57,28 +61,53 @@ export const updateSubject = async (req, res) => {
       })
     }
 
-    const subject = await Subject.findOneAndUpdate(
-      { _id: req.params.id },
-      req.body,
-      { new: true },
-    )
-
-    if (!subject) {
+    // Fetch the existing subject from the database
+    const existingSubject = await Subject.findById(req.params.id).exec()
+    if (!existingSubject) {
       return res.status(404).json({ message: 'Subject not found' })
     }
 
-    const newTeacherIds = req.body.teacherId // Nouveaux IDs de professeurs
+    // Store the previous state in the history
+    const historyEntry = {
+      modifiedAt: new Date(),
+      previousState: {
+        title: existingSubject.title,
+        description: existingSubject.description,
+        level: existingSubject.level,
+        semester: existingSubject.semester,
+        chapId: existingSubject.chapId,
+        teacherId: existingSubject.teacherId,
+        skillId: existingSubject.skillId,
+        curriculumId: existingSubject.curriculumId,
+        academicYearId: existingSubject.academicYearId,
+      },
+    }
 
+    // Add the history entry to the subject's history array
+    existingSubject.history = [...(existingSubject.history || []), historyEntry]
+
+    // Apply the updates from the request body to the existing subject
+    const updatedFields = req.body
+    for (const key in updatedFields) {
+      if (key in existingSubject) {
+        existingSubject[key] = updatedFields[key]
+      }
+    }
+
+    // Handle updating teacher associations (teacherId)
+    const newTeacherIds = req.body.teacherId // New teacher IDs from the request
     if (newTeacherIds && Array.isArray(newTeacherIds)) {
-      const oldTeachers = await Teacher.find({ subjects: subject._id })
+      const oldTeachers = await Teacher.find({ subjects: existingSubject._id })
 
+      // Remove the subject from teachers who are no longer associated
       for (const oldTeacher of oldTeachers) {
         if (!newTeacherIds.includes(oldTeacher._id.toString())) {
-          oldTeacher.subjects.pull(subject._id) // Retirer l'ID de la matière
+          oldTeacher.subjects.pull(existingSubject._id) // Remove subject from teacher
           await oldTeacher.save()
         }
       }
 
+      // Add the subject to new teachers
       for (const newTeacherId of newTeacherIds) {
         const newTeacher = await Teacher.findById(newTeacherId)
         if (!newTeacher) {
@@ -87,22 +116,25 @@ export const updateSubject = async (req, res) => {
             .json({ message: `Teacher with ID ${newTeacherId} not found` })
         }
 
-        if (!newTeacher.subjects.includes(subject._id)) {
-          newTeacher.subjects.push(subject._id)
+        if (!newTeacher.subjects.includes(existingSubject._id)) {
+          newTeacher.subjects.push(existingSubject._id)
           await newTeacher.save()
         }
       }
     }
 
+    // Save the updated subject document
+    await existingSubject.save()
+
+    // Return the updated subject and its history
     res.status(200).json({
-      subject,
-      message: 'Subject updated successfully',
+      subject: existingSubject,
+      message: 'Subject updated successfully with history recorded',
     })
   } catch (error) {
     res.status(400).json({ error: error.message })
   }
 }
-
 export const deleteSubject = async (req, res) => {
   try {
     const subject = await Subject.findByIdAndDelete(req.params.id)
@@ -143,8 +175,10 @@ export const fetchSubjects = async (req, res) => {
       })
     }
 
-    // Récupérer les matières en fonction du filtre
+    // Récupérer les matières en fonction du filtre et peupler le champ teacherId
     const subjects = await Subject.find(filter)
+      .populate('teacherId') // Populate teacherId to get teacher details
+      .exec()
 
     res.status(200).json({
       model: subjects,
@@ -153,7 +187,7 @@ export const fetchSubjects = async (req, res) => {
   } catch (error) {
     res.status(400).json({
       error: error.message,
-      message: 'Error fetching subjects/',
+      message: 'Error fetching subjects',
     })
   }
 }
@@ -164,20 +198,24 @@ export const getSubjectbyID = async (req, res) => {
       .populate('chapId')
       .populate('skillId')
       .populate('curriculumId')
+      .populate('teacherId')
+      .populate('studentId')
       .exec()
 
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found' })
     }
 
+    // Only send the 'subject' model which contains the 'history'
     res.status(200).json({
-      model: subject,
+      model: subject, // This already includes the 'history' field
       message: 'Subject found',
     })
   } catch (error) {
     res.status(400).json({ error: error.message })
   }
 }
+
 // Publish a subject
 
 export const togglePublishSubject = async (req, res) => {
@@ -211,5 +249,213 @@ export const togglePublishSubject = async (req, res) => {
     })
   } catch (error) {
     res.status(400).json({ error: error.message })
+  }
+}
+
+/**
+ * Ajoute une proposition à l'historique d'une matière.
+ * @param {Object} req - L'objet de requête contenant les informations nécessaires.
+ * @param {Object} res - L'objet de réponse pour envoyer des réponses au client.
+ */
+
+/**
+ * Ajoute une proposition à l'historique d'une matière.
+ * @param {Object} req - L'objet de requête contenant les informations nécessaires.
+ * @param {Object} res - L'objet de réponse pour envoyer des réponses au client.
+ */
+
+export const addProposition = async (req, res) => {
+  const id = req.params.id
+  const { raisonDuChangement, skillId, title, ...autresInfos } = req.body
+
+  // Check if title or skillId is being updated
+  if (title !== undefined) {
+    return res
+      .status(400)
+      .json({ message: 'The title cannot be modified !' })
+  }
+  if (skillId !== undefined) {
+    return res
+      .status(400)
+      .json({ message: 'Skills cannot be modified !.' })
+  }
+
+  try {
+    // Vérification de l'existence de la matière
+    const subject = await Subject.findById(id)
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not Found' })
+    }
+    
+
+
+    // Création de la nouvelle entrée d'historique
+    const nouvelleHistoriqueEntry = {
+      modifiedAt: new Date(),
+      previousState: {
+        title: subject.title, // Capture current title
+        description: subject.description,
+        level: subject.level,
+        semester: subject.semester,
+        chapId: subject.chapId,
+        teacherId: subject.teacherId,
+        skillId: subject.skillId, // Capture current skillId
+        Assesment_Id: subject.Assesment_Id,
+        published: subject.published,
+        academicYearId: subject.academicYearId,
+        curriculumId: subject.curriculumId,
+        studentId: subject.studentId,
+      },
+      proposedState: {
+        ...autresInfos,
+        raisonDuChangement,
+        propositionValidated: false, // Par défaut, non validé
+      },
+    }
+
+    // Ajout de la nouvelle entrée d'historique
+    subject.history.push(nouvelleHistoriqueEntry)
+
+    // Sauvegarde des modifications
+    await subject.save()
+
+    return res
+      .status(200)
+      .json({
+        message: 'Proposition added successfully',
+        historique: nouvelleHistoriqueEntry,
+      })
+  } catch (error) {
+    console.error(error)
+    return res
+      .status(500)
+      .json({ message: "Error while adding the proposition" })
+  }
+}
+export const validateProposition = async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    // Récupérer la matière par ID
+    const subject = await Subject.findById(id);
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    // Afficher l'historique pour le débogage
+    console.log('History Array:', JSON.stringify(subject.history, null, 2));
+
+    // Trouver la dernière proposition non validée
+    const lastPropositionIndex = subject.history.findIndex(
+      (entry) =>
+        entry.proposedState && entry.proposedState.propositionValidated === false
+    );
+
+    if (lastPropositionIndex === -1) {
+      return res.status(400).json({ message: 'No unvalidated proposal found.' });
+    }
+
+    // Récupérer la proposition non validée
+    const lastProposition = subject.history[lastPropositionIndex];
+
+    // Sauvegarder l'état actuel comme ancien état
+    const previousState = {
+      title: subject.title,
+      description: subject.description,
+      level: subject.level,
+      semester: subject.semester,
+      chapId: subject.chapId,
+      teacherId: subject.teacherId,
+      skillId: subject.skillId,
+      Assesment_Id: subject.Assesment_Id,
+      published: subject.published,
+      academicYearId: subject.academicYearId,
+      curriculumId: subject.curriculumId,
+      studentId: subject.studentId,
+    };
+
+    // Appliquer les changements proposés au sujet
+    Object.assign(subject, lastProposition.proposedState);
+
+    // Marquer la proposition comme validée
+    subject.history[lastPropositionIndex].proposedState.propositionValidated = true;
+
+    // Ajouter l'ancien état dans l'historique
+    subject.history.push({
+      modifiedAt: new Date(),
+      previousState,
+    });
+
+    // Sauvegarder les modifications
+    await subject.save();
+
+    return res.status(200).json({
+      message: 'Proposition validated successfully',
+      subject,
+    });
+  } catch (error) {
+    console.error('Error in validateProposition:', error);
+    return res.status(500).json({ message: 'Error while validating the proposition' });
+  }
+};
+
+
+
+
+export const sendEvaluationEmail = async (req, res) => {
+  try {
+    const { id } = req.body // Subject ID from the request body
+
+    // Retrieve the subject and its associated students
+    const subject = await Subject.findById(id).populate('studentId')
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found.' })
+    }
+
+    // Get the email addresses of all students
+    const studentEmails = subject.studentId.map((student) => student.email)
+
+    // Ensure there are students enrolled
+    if (studentEmails.length === 0) {
+      return res
+        .status(400)
+        .json({ message: 'No students are enrolled in this subject.' })
+    }
+
+    // Configure the email transporter with Nodemailer
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'benboubakerchiraz054@gmail.com',
+        pass: 'brqd tlgs naoy rkwe',
+      },
+    })
+
+    // Email content
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: studentEmails,
+      subject: `Évaluation du cours: ${subject.title}`,
+      text: `Bonjour, nous vous invitons à remplir le formulaire d'évaluation pour le cours "${subject.title}". Veuillez cliquer sur le lien suivant pour accéder au formulaire: \n\n http://your-site.com/evaluation?subjectId=${subject._id}`,
+      html: `
+        <p>Bonjour,</p>
+        <p>Nous vous invitons à remplir le formulaire d'évaluation pour le cours <strong>"${subject.title}"</strong>.</p>
+        <p>Veuillez cliquer sur le lien ci-dessous pour accéder au formulaire d'évaluation :</p>
+        <a href="http://your-site.com/evaluation?subjectId=${subject._id}" style="background-color: #007bff; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-size: 16px;">Accédez au formulaire</a>
+        <p>Merci pour vos retours !</p>
+      `,
+    }
+
+    // Send the email
+    await transporter.sendMail(mailOptions)
+    console.log('Email sent successfully')
+
+    // Respond with success
+    res.status(200).json({ message: 'Emails evaluation sent successfully.' })
+  } catch (error) {
+    console.error('Error sending evaluation emails:', error)
+    res
+      .status(500)
+      .json({ error: 'An error occurred while sending evaluation emails.' })
   }
 }

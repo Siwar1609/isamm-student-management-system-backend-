@@ -13,8 +13,8 @@ import usersRouter from './routes/users-routes/users_route.js'
 import studentsRouter from './routes/users-routes/students_route.js'
 import teachersRouter from './routes/users-routes/teachers_route.js'
 import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
-import { scheduleStudentReminder } from './controllers/notifications-controller/student_reminder.js'
-import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
+//import { scheduleStudentReminder } from './controllers/notifications-controller/student_reminder.js'
+//import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_middleware.js'
 import pfa_route from './routes/pfa-routes/pfa_routes.js'
 import choice_pfa_route from './routes/pfa-routes/pfa_choice_routes.js'
@@ -53,8 +53,8 @@ app.get('/', (req, res) => {
   res.send(' <h1> Server is Running correctly ✅ </h1> ')
 })
 
-scheduleStudentReminder()
-scheduleTeacherReminder()
+//scheduleStudentReminder()
+//scheduleTeacherReminder()
 
 app.use('/api/auth', routerAuth)
 app.use('/api/accounts', usersRouter)
@@ -80,5 +80,6 @@ app.use('/api/teachers', teachersRouter)
 app.use('/api/subject/publish/:response', RouterPublishSubject)
 app.use('/api/option', option_period_route)
 app.use('/api/options', routerOption)
+
 
 export default app
