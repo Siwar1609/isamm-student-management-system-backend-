@@ -2,6 +2,7 @@ import Option from '../../models/option-models/option_model.js'
 import AcademicYear from '../../models/academic_year_models/academic-year-model.js'
 import Period from '../../models/period-model/period_model.js'
 import Student from '../../models/users-models/student_model.js'
+import OptionResults from '../../models/option-models/option_result_model.js'
 
 // Add Option Controller
 export const addOption = async (req, res) => {
@@ -215,6 +216,329 @@ export const publishOrMaskOption = async (req, res) => {
       success: false,
       message:
         'Error while publishing or hiding the options.',
+      error: error.message,
+    })
+  }
+}
+
+export const calculateOptionResults = async (req, res) => {
+  try {
+    // Fetch all option submissions with students populated
+    const options = await Option.find().populate('student')
+
+    if (!options || options.length === 0) {
+      return res.status(404).json({ message: 'No options found.' })
+    }
+
+    // Total number of students
+    const totalOptions = options.length
+    console.log('Total Options:', totalOptions)
+
+    // Calculate the capacity split
+    const inlogCapacity = Math.floor(totalOptions * 0.75) // 75% for INLOG
+    const inrevCapacity = totalOptions - inlogCapacity // Remaining 25% for INREV
+
+    console.log('INLOG Capacity:', inlogCapacity)
+    console.log('INREV Capacity:', inrevCapacity)
+
+    // Calculate the specific capacities for 1ing and concours spécifique
+    const inrevCapacity1ing = Math.floor(inrevCapacity * 0.86) // 86% of INREV for 1ing
+    const inrevCapacityConcours = inrevCapacity - inrevCapacity1ing // Remaining for concours
+
+    const inlogCapacity1ing = Math.floor(inlogCapacity * 0.86) // 86% of INLOG for 1ing
+    const inlogCapacityConcours = inlogCapacity - inlogCapacity1ing // Remaining for concours
+
+    console.log('INREV Capacity for 1ing:', inrevCapacity1ing)
+    console.log('INREV Capacity for Concours:', inrevCapacityConcours)
+    console.log('INLOG Capacity for 1ing:', inlogCapacity1ing)
+    console.log('INLOG Capacity for Concours:', inlogCapacityConcours)
+
+    // Calculate scores for each option and student
+    const results = options.map((option) => {
+      const {
+        student,
+        name,
+        generalAverage,
+        webDevGrade,
+        algorithmsGrade,
+        oopGrade,
+        integrationYear,
+      } = option
+
+      // Calculate the score
+      let score = 2 * generalAverage + webDevGrade + algorithmsGrade + oopGrade
+
+      return {
+        student,
+        optionName: name,
+        score,
+      }
+    })
+
+    // Log the results array
+    console.log('Calculated Results:', results)
+    console.log('Results Array Length:', results.length)
+
+    // Sort students by score in descending order
+    results.sort((a, b) => b.score - a.score)
+
+    // Log the sorted results
+    console.log('Sorted Results:', results)
+
+    // Assign students to options, respecting their preference and dynamic capacity
+    const inrevResults = []
+    const inlogResults = []
+    const studentAssignments = {}
+
+    // Log the initial arrays
+    console.log('Initial INREV Results:', inrevResults)
+    console.log('Initial INLOG Results:', inlogResults)
+
+    // Assign students to options
+    results.forEach((result) => {
+      const { student, score, optionName, integrationYear } = result
+
+      console.log('Assigning student:', student._id, 'with score:', score)
+
+      // Skip if already assigned
+      if (studentAssignments[student._id]) {
+        console.log('Student already assigned:', student._id)
+        return
+      }
+
+      if (integrationYear === '1') {
+        // Assign based on 1ing student preference
+        if (optionName === 'INLOG' && inlogResults.length < inlogCapacity1ing) {
+          inlogResults.push({
+            student: student._id,
+            optionName: 'INLOG',
+            score,
+          })
+          studentAssignments[student._id] = 'INLOG' // Assign to INLOG
+        } else if (
+          optionName === 'INREV' &&
+          inrevResults.length < inrevCapacity1ing
+        ) {
+          inrevResults.push({
+            student: student._id,
+            optionName: 'INREV',
+            score,
+          })
+          studentAssignments[student._id] = 'INREV' // Assign to INREV
+        } else {
+          // If preferred option is full, assign to the other option
+          if (inlogResults.length < inlogCapacity1ing) {
+            inlogResults.push({
+              student: student._id,
+              optionName: 'INLOG',
+              score,
+            })
+            studentAssignments[student._id] = 'INLOG'
+          } else if (inrevResults.length < inrevCapacity1ing) {
+            inrevResults.push({
+              student: student._id,
+              optionName: 'INREV',
+              score,
+            })
+            studentAssignments[student._id] = 'INREV'
+          }
+        }
+      } else {
+        // Assign based on concours spécifique student preference
+        if (
+          optionName === 'INLOG' &&
+          inlogResults.length < inlogCapacityConcours
+        ) {
+          inlogResults.push({
+            student: student._id,
+            optionName: 'INLOG',
+            score,
+          })
+          studentAssignments[student._id] = 'INLOG' // Assign to INLOG
+        } else if (
+          optionName === 'INREV' &&
+          inrevResults.length < inrevCapacityConcours
+        ) {
+          inrevResults.push({
+            student: student._id,
+            optionName: 'INREV',
+            score,
+          })
+          studentAssignments[student._id] = 'INREV' // Assign to INREV
+        } else {
+          // If preferred option is full, assign to the other option
+          if (inlogResults.length < inlogCapacityConcours) {
+            inlogResults.push({
+              student: student._id,
+              optionName: 'INLOG',
+              score,
+            })
+            studentAssignments[student._id] = 'INLOG'
+          } else if (inrevResults.length < inrevCapacityConcours) {
+            inrevResults.push({
+              student: student._id,
+              optionName: 'INREV',
+              score,
+            })
+            studentAssignments[student._id] = 'INREV'
+          }
+        }
+      }
+    })
+
+    // Log the final assigned results
+    console.log('Final INREV Results:', inrevResults)
+    console.log('Final INLOG Results:', inlogResults)
+
+    // Log the combined final results
+    console.log('Final Results:', [...inlogResults, ...inrevResults])
+
+    // If no results, respond with an error
+    if (inlogResults.length === 0 && inrevResults.length === 0) {
+      return res
+        .status(400)
+        .json({ message: 'No results to save in the database.' })
+    }
+
+    // Now, re-sort the results by score to assign ranks dynamically
+    const allResults = [...inlogResults, ...inrevResults]
+    allResults.sort((a, b) => b.score - a.score) // Sort by score in descending order
+
+    // Log the sorted final results
+    console.log('Sorted Final Results:', allResults)
+
+    // Reassign ranks based on sorted order
+    allResults.forEach((result, index) => {
+      result.rank = index + 1 // Rank starts at 1
+    })
+
+    // Store results in the OptionResults collection
+    await OptionResults.deleteMany() // Clear previous results
+    await OptionResults.insertMany(
+      allResults.map((result) => ({
+        student: result.student,
+        optionName: result.optionName,
+        score: result.score,
+        rank: result.rank,
+      })),
+    )
+
+    // Respond with the final results
+    res.status(201).json({
+      message: 'Option results calculated and stored successfully.',
+      results: allResults,
+    })
+  } catch (error) {
+    console.error('Error calculating option results:', error)
+    res.status(500).json({
+      message: 'An error occurred while calculating option results.',
+      error: error.message,
+    })
+  }
+}
+
+export const updateOptionResults = async (req, res) => {
+  try {
+    // Get the ID of the OptionResult to update
+    const { optionResultId } = req.params
+
+    // Get the new data from the request body (optionName, reason, valid)
+    const { optionName, reason, valid } = req.body
+
+    // Validate the input data (ensure optionName is valid)
+    if (optionName && !['INREV', 'INLOG'].includes(optionName)) {
+      return res
+        .status(400)
+        .json({ message: 'Invalid option name. It should be INREV or INLOG.' })
+    }
+
+    // If optionName is being modified, reason is required
+    if (optionName && !reason) {
+      return res.status(400).json({
+        message: 'If you change the optionName, you must specify a reason.',
+      })
+    }
+    // Find the OptionResult by ID
+    const optionResult = await OptionResults.findById(optionResultId)
+    if (!optionResult) {
+      return res.status(404).json({ message: 'OptionResult not found.' })
+    }
+
+    // Update the OptionResult fields (only if provided in the request body)
+    if (optionName) {
+      optionResult.optionName = optionName
+    }
+    if (reason) {
+      optionResult.reason = reason
+    }
+    if (valid !== undefined) {
+      optionResult.valid = valid
+    }
+
+    // Update the modification date
+    optionResult.dateOfModification = Date.now()
+
+    // Save the updated OptionResult
+    await optionResult.save()
+
+    // Respond with the updated OptionResult
+    res.status(200).json({
+      message: 'OptionResult updated successfully.',
+      optionResult,
+    })
+  } catch (error) {
+    console.error('Error updating option result:', error)
+    res.status(500).json({
+      message: 'An error occurred while updating the option result.',
+      error: error.message,
+    })
+  }
+}
+
+export const getClassementByOption = async (req, res) => {
+  try {
+    // Get the option name from the request parameters (either INREV or INLOG)
+    const { optionName } = req.params
+
+    // Check if the optionName is valid (either INREV or INLOG)
+    if (!['INREV', 'INLOG'].includes(optionName)) {
+      return res
+        .status(400)
+        .json({ message: 'Invalid option name. It should be INREV or INLOG.' })
+    }
+
+    // Fetch the results for the specific option and populate the student details
+    const optionResults = await OptionResults.find({ optionName })
+      .populate('student') // Populate the student details
+      .sort({ score: -1 }) // Sort by score in descending order
+
+    if (!optionResults || optionResults.length === 0) {
+      return res
+        .status(404)
+        .json({ message: `No results found for option ${optionName}.` })
+    }
+
+    // Map the results to return the student details, score, and rank
+    const classement = optionResults.map((result, index) => ({
+      student: {
+        id: result.student._id, // Student ID
+        firstName: result.student.firstName, // Student first name
+        lastName: result.student.lastName, // Student last name
+        cin: result.student.cin, // Student CIN
+      },
+      score: result.score,
+      rank: index + 1, // Rank starts at 1
+    }))
+
+    // Respond with the ranking for the selected option
+    res.status(200).json({
+      message: `Classement for option ${optionName} fetched successfully.`,
+      classement,
+    })
+  } catch (error) {
+    console.error('Error fetching classement by option:', error)
+    res.status(500).json({
+      message: 'An error occurred while fetching classement by option.',
       error: error.message,
     })
   }
