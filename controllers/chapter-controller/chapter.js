@@ -80,56 +80,74 @@ export const addChapter = async (req, res) => {
 
 export const updateProgressChapter = async (req, res) => {
   try {
-    const chapterId = req.params.id
-    const { sectionIndex, newSection, ...updates } = req.body
+    const chapterId = req.params.id // Get the Chapter ID from the URL
+    const { sectionIndex, advancement, content, ...updates } = req.body // Destructure input fields
 
-    // Find the chapter
+    console.log('Incoming payload:', req.body)
+
+    // Find the chapter by ID
     const chapter = await Chapter.findById(chapterId)
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' })
     }
 
-    let emailNeeded = false
+    console.log('Current chapter sections:', chapter.section)
 
-    if (newSection) {
-      // Add a new section
-      chapter.section.push(newSection)
-    } else if (sectionIndex !== undefined) {
-      // Validate section index
+    let emailNeeded = false
+    let chapterCompletedEmailNeeded = false
+
+    // Update the specific section using sectionIndex
+    if (sectionIndex !== undefined) {
       if (sectionIndex < 0 || sectionIndex >= chapter.section.length) {
         return res.status(400).json({ message: 'Invalid section index' })
       }
 
       const sectionToUpdate = chapter.section[sectionIndex]
 
-      // Check if advancement is being updated
-      if (
-        updates.advancement &&
-        updates.advancement !== sectionToUpdate.advancement
-      ) {
-        emailNeeded = true
+      // Update the section's advancement if provided
+      if (advancement && advancement !== sectionToUpdate.advancement) {
+        emailNeeded = true // Email will be triggered for advancement update
+        sectionToUpdate.advancement = advancement
+        sectionToUpdate.modificationDate = new Date() // Set modification date
       }
 
-      // Update section fields dynamically
-      Object.keys(updates).forEach((key) => {
-        if (sectionToUpdate[key] !== undefined) {
-          sectionToUpdate[key] = updates[key]
-        }
-      })
-    } else {
-      // Update chapter fields dynamically
-      Object.keys(updates).forEach((key) => {
-        if (chapter[key] !== undefined) {
-          chapter[key] = updates[key]
-        }
-      })
+      // Update the section's content if provided
+      if (content) {
+        sectionToUpdate.content = content
+        sectionToUpdate.modificationDate = new Date() // Update modification date for content change
+      }
+    }
+
+    // Apply any other updates to the chapter (e.g., title, order)
+    Object.keys(updates).forEach((key) => {
+      if (chapter[key] !== undefined) {
+        chapter[key] = updates[key]
+      }
+    })
+
+    // Check if all sections are now completed
+    const allSectionsCompleted = chapter.section.every(
+      (section) => section.advancement === 'completed',
+    )
+
+    if (allSectionsCompleted && !chapter.completed) {
+      chapter.completed = true // Mark chapter as completed
+      chapter.completedDate = new Date() // Set the completed date
+      chapterCompletedEmailNeeded = true // Email will be triggered for chapter completion
+    } else if (!allSectionsCompleted && chapter.completed) {
+      chapter.completed = false // Unmark chapter as completed if not all sections are completed
+      chapter.completedDate = undefined // Reset the completed date
     }
 
     // Save the updated chapter
     await chapter.save()
 
+    console.log('Chapter updated successfully:', chapter)
+
     // Send email if the advancement was updated
     if (emailNeeded) {
+      console.log('Preparing to send email for section advancement update...')
+
       const subject = await Subject.findById(chapter.subjectId).populate(
         'studentId',
       )
@@ -138,24 +156,68 @@ export const updateProgressChapter = async (req, res) => {
       }
 
       const student = await Student.findById(subject.studentId[0])
+      console.log('Found student:', student)
+
       if (!student || !student.email) {
         return res.status(404).json({ message: 'Student email not found' })
       }
 
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
-        auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
       })
 
       const mailOptions = {
-        from: 'your-email@gmail.com',
+        from: process.env.EMAIL_USER,
         to: student.email,
         subject: 'Chapter Section Progress Update',
-        text: `Dear ${student.firstName} ${student.lastName},\n\nThe progress of the section titled "${chapter.section[sectionIndex].content}" in the chapter "${chapter.title}" has been updated to "${updates.advancement}".\n\nBest regards,\nYour Team`,
+        text: `Dear ${student.firstName} ${student.lastName},\n\nThe progress of the section titled "${chapter.section[sectionIndex].content}" in the chapter "${chapter.title}" has been updated to "${advancement}" on ${chapter.section[sectionIndex].modificationDate}.\n\nBest regards,\nYour Team`,
       }
 
-      await transporter.sendMail(mailOptions)
-      console.log('Email sent successfully to:', student.email)
+      try {
+        await transporter.sendMail(mailOptions)
+        console.log('Email sent successfully to:', student.email)
+      } catch (err) {
+        console.error('Error sending email:', err.message)
+      }
+    }
+
+    // Send email if the chapter is fully completed
+    if (chapterCompletedEmailNeeded) {
+      console.log('Preparing to send email for chapter completion...')
+
+      const subject = await Subject.findById(chapter.subjectId).populate(
+        'studentId',
+      )
+      if (!subject || !subject.studentId || subject.studentId.length === 0) {
+        return res.status(404).json({ message: 'Related student not found' })
+      }
+
+      const student = await Student.findById(subject.studentId[0])
+      console.log('Found student:', student)
+
+      if (!student || !student.email) {
+        return res.status(404).json({ message: 'Student email not found' })
+      }
+
+      const transporter = nodemailer.createTransport({
+        service: 'Gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+      })
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: student.email,
+        subject: 'Chapter Completed',
+        text: `Dear ${student.firstName} ${student.lastName},\n\nCongratulations! The chapter "${chapter.title}" has been fully completed on ${chapter.completedDate}.\n\nBest regards,\nYour Team`,
+      }
+
+      try {
+        await transporter.sendMail(mailOptions)
+        console.log('Completion email sent successfully to:', student.email)
+      } catch (err) {
+        console.error('Error sending email:', err.message)
+      }
     }
 
     res.status(200).json({
@@ -163,7 +225,7 @@ export const updateProgressChapter = async (req, res) => {
       message: 'Chapter updated successfully!',
     })
   } catch (error) {
-    console.error('Error during updateChapter:', error)
+    console.error('Error during updateProgressChapter:', error)
     res
       .status(400)
       .json({ error: error.message, message: 'Failed to update chapter' })

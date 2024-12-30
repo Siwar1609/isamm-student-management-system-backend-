@@ -20,8 +20,9 @@ router.post('/', loggedMiddleware, accessByRole(['admin']), addChapter)
 router.patch(
   '/:id',
   loggedMiddleware,
-  accessByRole(['admin']),
+  accessByRole(['admin', 'teacher']),
   updateProgressChapter,
 )
+
 router.delete('/:id', loggedMiddleware, accessByRole(['admin']), deleteChapter)
 export default router
