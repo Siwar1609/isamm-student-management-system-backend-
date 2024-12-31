@@ -7,6 +7,7 @@ import {
   calculateOptionResults,
   getClassementByOption,
   updateOptionResults,
+  SentEmailFinalOption,
 } from '../../controllers/option-controller/option_controller.js'
 import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
 
@@ -19,5 +20,6 @@ router.post('/publish/:response', accessByRole(['admin']), publishOrMaskOption)
 router.post('/result', accessByRole(['admin']), calculateOptionResults)
 router.get('/order/:optionName', accessByRole(['admin']), getClassementByOption)
 router.patch('/:optionResultId', accessByRole(['admin']), updateOptionResults)
+router.get('/send/email', accessByRole(['admin']), SentEmailFinalOption)
 
 export default router
