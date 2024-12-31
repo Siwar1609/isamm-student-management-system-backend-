@@ -3,6 +3,7 @@ import AcademicYear from '../../models/academic_year_models/academic-year-model.
 import Period from '../../models/period-model/period_model.js'
 import Student from '../../models/users-models/student_model.js'
 import OptionResults from '../../models/option-models/option_result_model.js'
+import nodemailer from 'nodemailer'
 
 // Add Option Controller
 export const addOption = async (req, res) => {
@@ -543,3 +544,70 @@ export const getClassementByOption = async (req, res) => {
     })
   }
 }
+export const SentEmailFinalOption =  async(req,res)=>{
+
+  try{
+    const optionResult = await OptionResults.find().populate('student').exec()
+
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'oumaymaamzoughi@gmail.com', 
+        pass: 'znvw qfty lltn sajs',
+      },
+    })
+    const listOptionLink = `http://Options/Finallist`; 
+
+    
+    for (const result of optionResult) {
+      const studentEmail = result.student.email;
+      const studentFullName = `${result.student.firstName || ''} ${result.student.lastName || ''}`; 
+      const i=1
+      console.log('etudiant:',i)
+      console.log(studentEmail)
+      console.log(studentFullName)
+      
+      let studentEmailText;
+      let emailSubject;
+      if (!result.reason) {
+        studentEmailText = `Hello ${studentFullName.trim()},\n\nHere is your Option Affectation. Click on the link: ${listOptionLink}\n\nBest regards.`;
+        emailSubject = 'Option Affectation';
+      } else {
+        studentEmailText = `Hello ${studentFullName.trim()},\n\nYour option result has been modified for a reason. Click on the link: ${listOptionLink}\n\nBest regards.`;
+        emailSubject = 'Option Affectation Updated';
+      }
+      console.log(studentEmailText)
+      console.log(emailSubject)
+
+      
+      const studentMailOptions = {
+        from: 'oumaymaamzoughi@gmail.com',
+        to: studentEmail,
+        subject: emailSubject,
+        text: studentEmailText,
+      };
+
+      
+      await transporter.sendMail(studentMailOptions);
+
+      
+      await OptionResults.findByIdAndUpdate(result._id, {
+        $set: { sentEmail: true },
+      });
+    }
+
+    console.log(optionResult);
+    res.status(200).json({
+      message: 'List of Final Option Results sent successfully.',
+      model: optionResult,
+    });
+    
+  } catch (error) {
+    console.error('Error fetching Result Option:', error);
+    res.status(500).json({
+      message: 'An error occurred while fetching the option result.',
+      error: error.message,
+    });
+  }
+};
