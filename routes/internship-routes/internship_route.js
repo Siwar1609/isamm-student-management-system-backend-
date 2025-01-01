@@ -13,6 +13,8 @@ import {
   fetchAllPlanning,
   publishOrMaskPlanningById,
   getAssignedInternshipTeacher,
+  updatePlanningSoutenance,
+  GetPlanningInfoForStudent,
 } from '../../controllers/internship-controller/internship_controller.js'
 import express from 'express'
 import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
@@ -68,6 +70,10 @@ router.get(
   accessByRole(['teacher']),
   getAssignedInternshipTeacher,
 )
+
+router.patch('/:type/:id', accessByRole(['teacher']), updatePlanningSoutenance)
+router.get('/:type/me', accessByRole(['student']), GetPlanningInfoForStudent)
+
 
 router.get('/students/all', accessByRole(['admin']), getAllStudents)
 router.get('/student/me', accessByRole(['student']), getStudentDetails)
