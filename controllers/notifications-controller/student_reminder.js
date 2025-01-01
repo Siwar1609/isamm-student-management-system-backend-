@@ -2,8 +2,7 @@ import cron from 'node-cron'
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
 import Student from '../../models/users-models/student_model.js'
-import Document from '../../models/document-models/document_model.js'
-
+import Internship from '../../models/internship-models/internship_model.js'
 dotenv.config()
 
 // Create transporter for sending emails
@@ -17,8 +16,8 @@ const transporter = nodemailer.createTransport({
 
 // Function to schedule the student reminder
 export const scheduleStudentReminder = () => {
-  cron.schedule('* * * * *', async () => {
-    console.log('Starting the check for students without postulations...')
+  cron.schedule('0 0 * * *', async () => {
+    console.log('Starting the check for students without internships...')
 
     try {
       const today = new Date()
@@ -33,22 +32,22 @@ export const scheduleStudentReminder = () => {
       }
 
       for (const student of students) {
-        // Check if the student has any documents associated with internships
-        const documents = await Document.find({ uploadedBy: student._id })
-          .populate('internship', 'title periodeId')
-          .exec()
+        // Check if the student has any internship associated with their ID
+        const internshipExists = await Internship.findOne({
+          studentId: student._id, // Assuming 'studentId' is the reference to the student in the Internship model
+        })
 
-        // If the student has uploaded documents, skip sending an email
-        if (documents.length > 0) {
+        // If the student has at least one internship, skip sending an email
+        if (internshipExists) {
           console.log(
-            `Student ${student.firstName} ${student.lastName} has postulated successfully for at least one internship.`,
+            `Student ${student.firstName} ${student.lastName} has at least one internship.`,
           )
           continue
         }
 
-        // Send email reminder if no documents are found
+        // Send email reminder if no internship is found
         console.log(
-          `Student ${student.firstName} ${student.lastName} has not postulated.`,
+          `Student ${student.firstName} ${student.lastName} has no internship.`,
         )
 
         if (student.email) {
@@ -57,7 +56,7 @@ export const scheduleStudentReminder = () => {
               from: process.env.EMAIL_USER,
               to: student.email,
               subject: 'Internship Postulation Reminder',
-              text: `Dear ${student.firstName} ${student.lastName},\n\nWe noticed that you have not postulated for any internship. Please ensure to submit your documents before the deadlines.\n\nBest regards,\nYour Team`,
+              text: `Dear ${student.firstName} ${student.lastName},\n\nWe noticed that you have not applied for any internship. Please make sure to apply for an internship before the deadline.\n\nBest regards,\nYour Team`,
             })
             console.log(`Email sent successfully to ${student.email}`)
           } catch (emailError) {
@@ -73,7 +72,7 @@ export const scheduleStudentReminder = () => {
       }
     } catch (error) {
       console.error(
-        'Error occurred while checking for students without postulations:',
+        'Error occurred while checking for students without internships:',
         error,
       )
     }

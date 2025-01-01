@@ -1,4 +1,3 @@
-// import mongoose from "mongoose";
 import mongoose from 'mongoose'
 
 const internshipSchema = new mongoose.Schema({
@@ -38,18 +37,20 @@ const internshipSchema = new mongoose.Schema({
     ref: 'Student',
     required: true,
   },
-  published: { type: Boolean, default: 'true' },
+  published: { type: Boolean, default: true },
 
   Validate: {
-    value: { type: Boolean, default: 'false' },
+    value: { type: Boolean, default: false },
     reason: { type: String },
   },
+
+  // Change to store file URLs directly
   documents: [
     {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Document',
+      type: String, // Store the file path or URL as a string
     },
   ],
+
   periodeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Period',
