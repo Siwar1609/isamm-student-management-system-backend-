@@ -611,3 +611,58 @@ export const SentEmailFinalOption =  async(req,res)=>{
     });
   }
 };
+export const getFinalList = async (req,res)=>{
+  try {
+    const studentId = req.auth.userId 
+
+    const optionResults = await OptionResults.find()
+      .populate('student')  
+      .exec();
+
+    if (optionResults.length === 0) {
+      return res.status(404).json({ message: 'Aucun résultat trouvé pour les options.' });
+    }
+    const finalList = optionResults.map(result => {
+      return {
+        studentId: result.student._id,
+        studentName: `${result.student.firstName} ${result.student.lastName}`,
+        studentEmail: result.student.email,
+        selectedOption: result.optionName,  
+        score: result.score,
+        rank: result.rank,
+        reason: result.reason,
+        valid: result.valid,
+        sentEmail: result.sentEmail,
+        dateOfModification: result.dateOfModification,
+      };
+    });  
+
+    const studentChoice = optionResults.find(optionResult => optionResult.student._id.toString() === studentId);
+    let studentChoiceDetails = null;
+    if (studentChoice) {
+      studentChoiceDetails = {
+        studentId: studentChoice.student._id,
+        studentName: `${studentChoice.student.firstName} ${studentChoice.student.lastName}`,
+        selectedOption: studentChoice.optionName,
+        score: studentChoice.score,
+        rank: studentChoice.rank,
+        reason: studentChoice.reason,
+        valid: studentChoice.valid,
+        sentEmail: studentChoice.sentEmail,
+        dateOfModification: studentChoice.dateOfModification,
+      };
+    }
+    
+    res.status(200).json({
+      message: 'Liste finale des options et des choix des étudiants.',
+      FinalList: finalList,
+      studentChoice: studentChoiceDetails,
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des résultats d\'option:', error);
+    res.status(500).json({
+      message: 'Une erreur est survenue lors de la récupération des résultats.',
+      error: error.message,
+    });
+  }
+}
