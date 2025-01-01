@@ -325,15 +325,19 @@ export const assignTeachersToInternship = async (req, res) => {
       })
     }
 
-    
     const teacherSubjectCounts = await fetchTeacherSubjectCounts(teacherIds);
-    
 
-    // Sort the teachers by subject count
-    const sortedTeachers = teacherSubjectCounts.data.sort((a, b) => b.subjectCount - a.subjectCount);
-    console.log(sortedTeachers)
-    // Step 3: Distribute internships among the teachers
+    const teacherArray = teacherSubjectCounts.data.map(teacher => ({
+      teacherId: teacher.teacherId.toString(),
+      subjectCount: Number(teacher.subjectCount),
+    }));
     
+    // Calculate the total number of subjects
+    const totalSubjects = teacherArray.reduce((sum, teacher) => sum + teacher.subjectCount, 0);
+
+    if (totalSubjects === 0) {
+      return res.status(400).json({ success: false, message: "Les enseignants n'ont pas de matières attribuées." });
+    }
 
     // Filter unassigned internships
     const unassignedInternships = []
@@ -354,34 +358,34 @@ export const assignTeachersToInternship = async (req, res) => {
         message: 'No unassigned internships available for this level.',
       })
     }
+    // Step 4: Calculate the remaining quota for each teacher based on their subject count
+    const teacherAssignments = teacherArray.map(teacher => ({
+      teacherId: teacher.teacherId,
+      remainingQuota: Math.round((teacher.subjectCount / totalSubjects) * unassignedInternships.length),
+      assignedInternship:0
+    }));
+
+    console.log('Teacher Assignments before sorting:', teacherAssignments);
+
+    // Sort teachers by remainingQuota in ascending order
+    teacherAssignments.sort((a, b) => a.remainingQuota - b.remainingQuota);
+
+    console.log('Teacher Assignments after sorting:', teacherAssignments);
 
     // Distribute the unassigned internships among the teachers
 
     let assignments = [];
-    let teacherIndex = 0;
-
-    // Copie de sortedTeachers avec un compteur pour les stages restants
-    const teacherAssignments = sortedTeachers.map(teacher => ({
-      teacherId: teacher.teacherId,
-      remainingSubjects: teacher.subjectCount,
-    }));
+    
 
     for (let i = 0; i < unassignedInternships.length; i++) {
       const internship = unassignedInternships[i]
-      const teacher = sortedTeachers[teacherIndex]
+      
+      let assigned = false;
 
-      // Si aucun enseignant ne peut plus être assigné
-      if (teacherAssignments.every(teacher => teacher.remainingSubjects === 0)) {
-        console.log("No more teachers available for assignment.");
-        break;
-      }
+      for (let j = 0; j < teacherAssignments.length; j++) {
+        const teacher = teacherAssignments[j];
 
-      let foundAssignment = false;
-
-      while (!foundAssignment && teacherAssignments.length > 0) {
-        const teacher = teacherAssignments[teacherIndex];
-
-      if (teacher.remainingSubjects > 0) {
+      if (teacher.remainingQuota > 0) {
       // Assign the internship
       const planning = new InternshipPlanning({
         idInternship: internship._id, // Internship
@@ -395,33 +399,27 @@ export const assignTeachersToInternship = async (req, res) => {
       const savedPlanning = await planning.save()
       assignments.push(savedPlanning)
       // Réduire le nombre de matières restantes pour cet enseignant
-      teacher.remainingSubjects--;
+      teacher.remainingQuota--;
+      teacher.assignedInternship++;
 
-      // Si toutes les matières sont utilisées, passer au prochain enseignant
-      if (teacher.remainingSubjects === 0) {
-        console.log(`Teacher ${teacher.teacherId} has reached their quota : ${teacher.remainingSubjects}.`);
-        // Passer au prochain enseignant uniquement si le quota est atteint
-        teacherIndex = (teacherIndex + 1) % teacherAssignments.length;
-      }
-      foundAssignment = true; // Stage assigné, quitter la boucle
+      assigned = true;
+      break;
 
-
-      } else {
-        // Passer au prochain enseignant si l'enseignant actuel ne peut pas prendre le stage
-        teacherIndex = (teacherIndex + 1) % teacherAssignments.length;
-      }
-        
+      } 
     }
-      if (!foundAssignment) {
+      if (!assigned) {
         console.log(`Could not assign internship ${internship._id}. All teachers have reach their quota`);
       }
   }
-  console.log(assignments)
+  
     // Return the response with the successful assignments
     return res.status(200).json({
       success: true,
       message: `${assignments.length} internships successfully assigned to teachers !! All teachers have reach their quota .`,
-      data: assignments
+      data: {
+        assignments,
+        teacherAssignments
+      }
     });
     
 
@@ -727,9 +725,9 @@ export const publishOrMaskPlanningById = async (req, res) => {
 }
 
 export const sendInternshipPlanningEmail = async (req, res) => {
-  const { type } = req.params // Extract the type (level) from the URL parameters
+  const { type } = req.params 
 
-  // Generate the link to the planning (replace with actual link generation logic)
+  
   const levelNumber = parseInt(type, 10)
 
   if (isNaN(levelNumber)) {
@@ -739,34 +737,27 @@ export const sendInternshipPlanningEmail = async (req, res) => {
     })
   }
   try {
-    // Create an empty array to store the matching plans
     let planningByType = [];
     const Plannings = await InternshipPlanning.find().populate({
       path: "idInternship",
       populate: {
         path: "studentId",
       },
-    }) // Populate internship details
-    .populate("EvaluatorId").exec(); // Populate teacher details
+    }) 
+    .populate("EvaluatorId").exec(); 
   
-    // Loop through the Plannings array
     for (let i = 0; i < Plannings.length; i++) {
-      // Access the current planning item
       const currentPlanning = Plannings[i]
 
-      // Check if the level==levelNumber and planning published not masked
       if (
         currentPlanning.idInternship.level === levelNumber &&
         currentPlanning.published === true
       ) {
-        // Add the current planning to the planningByType array
         planningByType.push(currentPlanning);
       }
     }
-    console.log(planningByType)
 
 
-    // Configure the email transporter with Nodemailer
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -782,15 +773,16 @@ export const sendInternshipPlanningEmail = async (req, res) => {
       // Extraire les emails de l'étudiant et de l'enseignant
       const studentEmail = planning.idInternship.studentId?.email;
       const evaluatorEmail = planning.EvaluatorId?.email;
+      const StudentFullName = `${planning.idInternship.studentId?.firstName || ''} ${planning.idInternship.studentId?.lastName || ''}`;
 
-      // Lien de planification (par exemple, un lien personnalisé pour chaque étudiant et enseignant)
-      const planningLink = `http://Internship.com/planning`;  // Modifiez l'URL selon vos besoins
-
+      
+      const planningLink = `http://Internship.com/planning`;  
       // Envoi à l'étudiant
       if (studentEmail) {
+        
         if (!planning.sentEmail) {
           // 1er envoi à l'étudiant
-          const studentEmailText = `Hello ${planning.idInternship.studentId?.name},\n\nHere is your internship planning link: ${planningLink}\n\nBest regards.`;
+          const studentEmailText = `Hello ${StudentFullName.trim()},\n\nHere is your internship planning link: ${planningLink}\n\nBest regards.`;
           const studentMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: studentEmail,
@@ -808,7 +800,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
           });
         } else {
           // 2ème envoi à l'étudiant si l'email a déjà été envoyé
-          const studentEmailText = `Hello again ${planning.idInternship.studentId?.name},\n\nThis is a reminder with your internship planning link: ${planningLink}\n\nBest regards.`;
+          const studentEmailText = `Hello again ${StudentFullName.trim()},\n\nThis is a reminder with your internship planning link: ${planningLink}\n\nBest regards.`;
           const studentMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: studentEmail,
@@ -828,9 +820,10 @@ export const sendInternshipPlanningEmail = async (req, res) => {
 
       // Envoi à l'enseignant
       if (evaluatorEmail) {
+        const EvaluatorFullName = `${planning.EvaluatorId?.firstName || ''} ${planning.EvaluatorId?.lastName || ''}`;        
         if (!planning.sentEmail) {
           // 1er envoi à l'enseignant
-          const evaluatorEmailText = `Hello ${planning.EvaluatorId.name},\n\nHere is the internship planning link for your student ${planning.idInternship.studentId?.name}: ${planningLink}\n\nBest regards.`;
+          const evaluatorEmailText = `Hello ${EvaluatorFullName.trim()},\n\nHere is the internship planning link for your student ${StudentFullName.trim()}: ${planningLink}\n\nBest regards.`;
           const evaluatorMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: evaluatorEmail,
@@ -848,7 +841,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
           });
         } else {
           // 2ème envoi à l'enseignant si l'email a déjà été envoyé
-          const evaluatorEmailText = `Hello again ${planning.EvaluatorId.name},\n\nThis is a reminder with the internship planning link for your student ${planning.idInternship.studentId?.name}: ${planningLink}\n\nBest regards.`;
+          const evaluatorEmailText = `Hello again ${EvaluatorFullName.trim()},\n\nThis is a reminder with the internship planning link for your student ${StudentFullName.trim()}: ${planningLink}\n\nBest regards.`;
           const evaluatorMailOptions = {
             from: 'oumaymaamzoughi@gmail.com',
             to: evaluatorEmail,
@@ -871,7 +864,7 @@ export const sendInternshipPlanningEmail = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Emails sent successfully.' });
 
     } catch (error) {
-      console.error('Error details:', error); // Log full error details
+      console.error('Error details:', error); 
     return res.status(500).json({ error: `An error occurred while sending the email: ${error.message}` });
     }
   };
@@ -902,11 +895,11 @@ export const getAssignedInternshipTeacher = async (req, res) => {
       })
     }
 
-    // If internships are found, return the internships in the response
+    
     return res.status(200).json({
       success: true,
       model: plannings.map((planning) => ({
-        internship: planning.idInternship, // Internship details
+        internship: planning.idInternship, 
       })),
     })
   } catch (error) {
