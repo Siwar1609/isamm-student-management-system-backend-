@@ -15,6 +15,7 @@ import {
   update_pfa,
 } from '../../controllers/pfa-controller/pfa_controller.js'
 import {
+  accessByLevel,
   accessByRole,
   loggedMiddleware,
 } from '../../middlewares/users-middlewares/auth_middleware.js'
@@ -23,8 +24,8 @@ const pfa_route = express.Router()
 
 //---------------- student Routes ---------------------------
 
-pfa_route.get('/choice/', accessByRole(['student']), fetsh_published_pfa)
-pfa_route.get('/choice/:id', accessByRole(['student']), get_published_pfa_by_id)
+pfa_route.get('/choice/', accessByRole(['student']), accessByLevel(['1']) ,fetsh_published_pfa)
+pfa_route.get('/choice/:id', accessByRole(['student']), accessByLevel(['1']) , get_published_pfa_by_id)
 
 //-------- Teacher Routes -----------------
 pfa_route.post('/post', loggedMiddleware, accessByRole(['teacher']), add_my_pfa)

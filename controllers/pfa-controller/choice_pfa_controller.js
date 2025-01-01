@@ -2,20 +2,17 @@ import Student from '../../models/users-models/student_model.js'
 import choice_pfa from '../../models/project_models/choice_pfa.js'
 import validateChoicePFA from '../../validators/choice_pfa_validator.js'
 import PFA from '../../models/project_models/project_pfa.js'
-import nodemailer from 'nodemailer'
+import { sendApprovalEmails } from '../../utils/Send_Pfa_Email.js'
 import dotenv from 'dotenv'
 import period_model from '../../models/period-model/period_model.js'
 dotenv.config()
 
+// --------------------------- Student Functions -----------------------------------------------------
 export const choose_pfa = async (req, res) => {
   try {
     const { priority, binomeId, approval } = req.body
     const projectId = req.params.id // L'ID du projet
     const authenticatedStudentId = req.auth.userId // L'ID de l'étudiant authentifié
-    // const authenticatedStudent = await Student.findById(authenticatedStudentId).exec();
-    // if (!authenticatedStudent || authenticatedStudent.level !== "2") {
-    //   return res.status(403).json({ message: "Vous n'êtes pas autorisé à choisir ce sujet." });
-    // }
 
     // Vérification si le délai est dépassé pour le choix de sujet
     const period = await period_model.findOne({
@@ -81,7 +78,7 @@ export const choose_pfa = async (req, res) => {
       priority,
       numberOfStudents: pfa.numberOfStudents,
       studentList,
-      approval: approval || false, // Par défaut `false` si non spécifié
+      approval: approval || false,
     })
     res.status(201).json({
       message: 'Choix du sujet effectué avec succès.',
@@ -94,6 +91,55 @@ export const choose_pfa = async (req, res) => {
     })
   }
 }
+
+export const InformApproval = async (req, res) => {
+  try {
+    const { choiceId } = req.params
+
+    // Vérification que l'étudiant est bien dans la liste des étudiants de ce choix
+    const choice = await choice_pfa.findById(choiceId) // On charge aussi la liste des étudiants
+    if (!choice) {
+      return res.status(404).json({ message: 'Choix PFA introuvable.' })
+    }
+
+    // Vérifier si l'étudiant fait bien partie de la liste des étudiants pour ce choix
+    const studentId = req.auth.userId // L'ID de l'étudiant connecté
+    if (
+      !choice.studentList.some(
+        (student) => student._id.toString() === studentId.toString(),
+      )
+    ) {
+      return res.status(403).json({
+        message:
+          "Vous n'êtes pas autorisé à demander l'approbation pour ce choix.",
+      })
+    }
+
+    // Vérifier si le choix a déjà été approuvé
+    if (choice.approval) {
+      return res.status(400).json({ message: 'Ce choix a déjà été approuvé.' })
+    }
+
+    // Mise à jour du champ 'approved' à true pour indiquer que l'enseignant a confirmé
+    choice.approval = true
+    await choice.save()
+
+    // Retourner une réponse de succès
+    res.status(200).json({
+      message: "Déclaration d'acceptation de d'enseignant envoyée avec succès.",
+      data: choice,
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message:
+        "Erreur lors de l'envoi de déclaration d'acceptation de d'enseignan.",
+      error: error.message,
+    })
+  }
+}
+
+// --------------------------- Teacher Functions -----------------------------------------------------
 export const getChoicesForProject = async (req, res) => {
   try {
     const { projectId } = req.params // ID du projet passé en paramètre
@@ -128,9 +174,6 @@ export const getChoicesForProject = async (req, res) => {
     })
   }
 }
-// Pour que l'enseignant choisit l'étudiant concerné , il l'intègre directement dans l route deja faite en 2.2 ,
-//          ou bien il le choisit en consultant la liste des choix et puis lui assigné approval : true et l'attribut à lui meme
-
 export const approveChoicePFA = async (req, res) => {
   try {
     const { projectId, choiceId } = req.params // ID du projet et du choix à approuver
@@ -183,6 +226,7 @@ export const approveChoicePFA = async (req, res) => {
       .json({ message: "Erreur lors de l'approbation.", error: error.message })
   }
 }
+
 export const sendApprovalEmails = async (emails, pfa) => {
   try {
     // Configurer le transporteur d'emails avec Nodemailer
@@ -238,21 +282,4 @@ export const InformApproval = async (req, res) => {
       return res.status(400).json({ message: 'Ce choix a déjà été approuvé.' })
     }
 
-    // Mise à jour du champ 'approved' à true pour indiquer que l'enseignant a confirmé
-    choice.approval = true
-    await choice.save()
 
-    // Retourner une réponse de succès
-    res.status(200).json({
-      message: "Déclaration d'acceptation de d'enseignant envoyée avec succès.",
-      data: choice,
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({
-      message:
-        "Erreur lors de l'envoi de déclaration d'acceptation de d'enseignan.",
-      error: error.message,
-    })
-  }
-}

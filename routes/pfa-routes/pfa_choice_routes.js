@@ -1,5 +1,5 @@
 import express from 'express'
-import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
+import { accessByRole, accessByLevel } from '../../middlewares/users-middlewares/auth_middleware.js'
 import {
   approveChoicePFA,
   choose_pfa,
@@ -10,10 +10,12 @@ import {
 const choice_pfa_route = express.Router()
 
 // ----------------------- Student Routes --------------------------------------------------------
-choice_pfa_route.post('/:choiceId', accessByRole(['student']), InformApproval)
+choice_pfa_route.patch('/:choiceId', accessByRole(['student']), accessByLevel(['1']), InformApproval)
 
-choice_pfa_route.post('/:id/choice', accessByRole(['student']), choose_pfa)
+choice_pfa_route.post('/:id/choice', accessByRole(['student']), accessByLevel(['1']), choose_pfa)
 
+
+// -------------------- Teacher Routes ----------------------------------
 choice_pfa_route.get(
   '/choices/:projectId',
   accessByRole(['teacher']),
