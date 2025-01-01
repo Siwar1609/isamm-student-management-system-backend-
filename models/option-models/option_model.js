@@ -59,9 +59,7 @@ const optionSchema = mongoose.Schema({
   webDevGrade: { type: Number, required: true },
   oopGrade: { type: Number, required: true },
   algorithmsGrade: { type: Number, required: true },
-  published: { 
-    type: Boolean, 
-    required: true },
+  
 })
 
 export default mongoose.model('Option', optionSchema)
