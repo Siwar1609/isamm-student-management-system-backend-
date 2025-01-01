@@ -23,9 +23,13 @@ export const login = async (req, res) => {
       return res.status(404).json({ message: 'password is incorrect' })
     }
 
-    const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, {
-      expiresIn: '24h', // Set token expiration (e.g., 24 hours)
-    })
+    const token = jwt.sign(
+      { userId: user._id, role: user.role, level: user.level },
+      JWT_SECRET,
+      {
+        expiresIn: '24h', // Set token expiration (e.g., 24 hours)
+      },
+    )
     res.status(200).json({ token })
   } catch (error) {
     res.status(400).json({ message: error.message })
