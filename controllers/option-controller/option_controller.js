@@ -186,7 +186,7 @@ export const publishOrMaskOption = async (req, res) => {
     
     
     const isPublished = response === 'true'
-    const optionBefore = await Option.find({published : { $ne: isPublished }})
+    const optionBefore = await OptionResults.find({published : { $ne: isPublished }})
 
     if (optionBefore.length === 0) {
       return res.status(400).json({
@@ -198,12 +198,12 @@ export const publishOrMaskOption = async (req, res) => {
 
 
     // Mise à jour de toutes les options dont l'état est différent
-    const result = await Option.updateMany(
+    const result = await OptionResults.updateMany(
       { published: { $ne: isPublished } }, // Condition
       { $set: { published: isPublished } }
     );
-
-    const optionAfter = await Option.find({ published: isPublished });
+    
+    const optionAfter = await OptionResults.find({ published: isPublished });
     return res.status(200).json({
       success: true,
       message: `The options have been successfully ${isPublished ? 'published' : 'hidden'}.`,
