@@ -563,29 +563,14 @@ export const SentEmailFinalOption =  async(req,res)=>{
     for (const result of optionResult) {
       const studentEmail = result.student.email;
       const studentFullName = `${result.student.firstName || ''} ${result.student.lastName || ''}`; 
-      const i=1
-      console.log('etudiant:',i)
-      console.log(studentEmail)
-      console.log(studentFullName)
-      
-      let studentEmailText;
-      let emailSubject;
-      if (!result.reason) {
-        studentEmailText = `Hello ${studentFullName.trim()},\n\nHere is your Option Affectation. Click on the link: ${listOptionLink}\n\nBest regards.`;
-        emailSubject = 'Option Affectation';
-      } else {
-        studentEmailText = `Hello ${studentFullName.trim()},\n\nYour option result has been modified for a reason. Click on the link: ${listOptionLink}\n\nBest regards.`;
-        emailSubject = 'Option Affectation Updated';
-      }
-      console.log(studentEmailText)
-      console.log(emailSubject)
 
+      const emailHtml = generateEmailTemplateOptionInfo(studentFullName, result.reason, listOptionLink);
       
       const studentMailOptions = {
         from: 'oumaymaamzoughi@gmail.com',
         to: studentEmail,
-        subject: emailSubject,
-        text: studentEmailText,
+        subject: result.reason ? 'Option Affectation Updated' : 'Option Affectation',
+        html: emailHtml,
       };
 
       
@@ -665,4 +650,102 @@ export const getFinalList = async (req,res)=>{
       error: error.message,
     });
   }
+}
+
+export function generateEmailTemplateOptionInfo(studentFullName, reason, listOptionLink) {
+  let emailSubject = '';
+  let studentEmailText = '';
+
+  if (!reason) {
+    studentEmailText = `Hello ${studentFullName.trim()},\n\nHere is your Option Affectation. Click on the link: ${listOptionLink}\n.`;
+    emailSubject = 'Option Affectation';
+  } else {
+    studentEmailText = `Hello ${studentFullName.trim()},\n\nYour option result has been modified for a reason. Click on the link: ${listOptionLink}\n.`;
+    emailSubject = 'Option Affectation Updated';
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+      body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f9;
+          color: #333;
+      }
+      .email-container {
+          max-width: 600px;
+          margin: 20px auto;
+          background: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+          background-color: #0078d7;
+          color: #fff;
+          text-align: center;
+          padding: 20px;
+      }
+      .header h1 {
+          margin: 0;
+          font-size: 1.8rem;
+      }
+      .content {
+          padding: 20px;
+          text-align: left;
+      }
+      .content p {
+          margin: 0 0 15px;
+          line-height: 1.6;
+      }
+      .content .highlight {
+          color: #0078d7;
+          font-weight: bold;
+      }
+      .footer {
+          background-color: #f4f4f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 0.9rem;
+          color: #666;
+      }
+      .footer img {
+          display: block;
+          margin: 10px auto;
+          width: 65px;
+          height: 50px;
+      }
+      .footer p {
+          margin: 5px 0;
+      }
+      .black {
+        color: #000;
+      }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+      <div class="header">
+          <h1>Option Affectation - ISAMM</h1>
+      </div>
+      <div class="content">
+          <p class="black">Hello ${studentFullName.trim()},</p>
+          <p class="black">${studentEmailText}</p>
+          <p class="black">Best Regars.</p>
+          <hr>
+          <p class="black">L'équipe du système de gestion des options de l'ISAMM - <span style="font-size: 0.7rem; color: #666;">${new Date().toLocaleDateString()}</span></p>
+      </div>
+      <div class="footer">
+          <img src="https://isa2m.rnu.tn/assets/img/logo-dark.png" alt="ISAMM Logo">
+          <p>&copy; ISAMM Option Management System</p>
+      </div>
+  </div>
+</body>
+</html>`;
 }
