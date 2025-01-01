@@ -77,6 +77,7 @@ export const add_my_pfa = async (req, res) => {
 
     // Envoi d'emails si la liste des étudiants est fournie
     if (list_of_student && list_of_student.length > 0) {
+      savedPFA.affected = true
       // Récupérer les étudiants à partir de leurs ID
       const students = await Student.find({ _id: { $in: list_of_student } });
       if (students.length === 0) {
@@ -84,9 +85,19 @@ export const add_my_pfa = async (req, res) => {
           message: 'Aucun étudiant correspondant trouvé pour les ID fournis.',
         });
       }
-
       // Envoyer les e-mails
       await sendApprovalEmails(students, savedPFA);
+      // Extraire les e-mails des étudiants
+      req.body.list_of_student.map(
+        // search for each student email then send the email
+        async (studentId) => {
+          const student = await Student.findById(studentId)
+          if (student) {
+            await sendApprovalEmails(student.email, savedPFA)
+          }
+        },
+      )
+
     }
     return res
       .status(201)
@@ -138,14 +149,20 @@ export const update_my_pfa = async (req, res) => {
     )
     // Envoi d'emails si la liste des étudiants est mise à jour
     if (req.body.list_of_student && req.body.list_of_student.length > 0) {
-      const studentEmails = req.body.list_of_student.map(
-        (student) => student.email,
-      ) // Adaptez selon votre structure
-      await sendApprovalEmails(studentEmails, updated_pfa)
+      req.body.list_of_student.map(
+        // search for each student email then send the email
+        async (studentId) => {
+          const student = await Student.findById(studentId)
+          if (student) {
+            await sendApprovalEmails(student.email, updated_pfa)
+          }
+        },
+      )
+      // Adaptez selon votre structure
     }
     if (req.body.list_of_student.length > 0) {
-      updated_pfa.affected = true;
-      await updated_pfa.save(); // Sauvegarde du changement
+      updated_pfa.affected = true
+      await updated_pfa.save() // Sauvegarde du changement
     }
 
     res.status(200).json({
@@ -343,11 +360,11 @@ export const send_pfa_list_email = async (req, res) => {
     }
 
     // Vérifier s'il existe au moins un PFA avec send=true
-    const pfaSendStatus = await PFA.findOne({ send: true }).select('send');
-    const isFirstSend = !pfaSendStatus; // Si aucun PFA avec send=true, c'est le premier envoi
-
-    if (!pfaSendStatus) {
-      return res.status(404).json({ message: 'Aucun PFA trouvé.' });
+    const pfaSendStatus = await PFA.findOne({ send: true }).exec()
+    const isFirstSend = !pfaSendStatus // Si aucun PFA avec send=true, c'est le premier envoi
+    const pfaCount = await PFA.countDocuments()
+    if (pfaCount === 0) {
+      return res.status(404).json({ message: 'Aucun PFA trouvé.' })
     }
 
     // Configurer le transporteur d'email
@@ -355,7 +372,7 @@ export const send_pfa_list_email = async (req, res) => {
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASSWORD,
       },
     });
 
