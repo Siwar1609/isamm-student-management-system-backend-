@@ -35,6 +35,9 @@ const optionResultsSchema = mongoose.Schema({
     type: Boolean,
     required: false  // Indicates if the email has been sent or not
   },
+  published: { 
+    type: Boolean, 
+    required: true },
 })
 
 export default mongoose.model('OptionResults', optionResultsSchema)
