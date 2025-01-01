@@ -15,6 +15,12 @@ import {
   publishOrHidePFEAssignments,
   send_pfe_planning,
   publishOrHidePFEAssignments2,
+  assignTeacherToSoutenance,
+  publishOrHideSoutenances,
+  send_soutenance_planning,
+  updateSoutenance,
+  getTeacherSoutenances,
+  getStudentSoutenances
 } from '../../controllers/pfe-controller/pfe_controller.js'
 import {
   accessByLevel,
@@ -36,15 +42,9 @@ router.patch(
 router.get('/open', loggedMiddleware, accessByRole(['admin']), getPFEPeriod)
 
 //Route pour sauvegarder un nouveau pfe
-router.post('/post', loggedMiddleware, accessByRole(['student']), addPFE)
+router.post('/post', loggedMiddleware,accessByRole(['student']), addPFE)
 // Route pour mettre à jour un PFE
-router.patch(
-  '/:id',
-  loggedMiddleware,
-  accessByRole(['student']),
-  accessByLevel('3'),
-  updatePFE,
-)
+router.patch('/:id',loggedMiddleware, accessByRole(['student']), updatePFE)
 //route pour recuperer tous les pfe
 router.get(
   '/',
@@ -103,5 +103,18 @@ router.post(
   send_pfe_planning,
 )
 
-//
+// route pour créer planning soutenances PFE
+router.post('/soutenances',loggedMiddleware, accessByRole(['admin']), assignTeacherToSoutenance)
+//router pour publier oum masquer planning pfe
+router.post('/soutenances/publish/:response',loggedMiddleware, accessByRole(['admin']), publishOrHideSoutenances)
+//route pour envoi le planning par l'email
+router.post('/soutenances/send',loggedMiddleware, accessByRole(['admin']), send_soutenance_planning)
+//route pour mettre a jour le planning pfe
+router.patch('/:id/soutenances/',loggedMiddleware, accessByRole(['admin']), updateSoutenance)   
+//rote pour reuperer les soutenances de teacher
+router.get('/me',loggedMiddleware, accessByRole(['teacher']), getTeacherSoutenances)
+//route pour recuperer les soutenances d'un etudiant
+router.get('/student/me',loggedMiddleware, accessByRole(['student']), getStudentSoutenances)
+
+
 export default router
