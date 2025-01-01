@@ -1,8 +1,9 @@
-import mongoose from 'mongoose';
+import mongoose from 'mongoose'
 const historySchema = new mongoose.Schema({
   modifiedAt: { type: Date, required: true },
   previousState: { type: Object, required: true },
-  proposedState: { type: Object }, });
+  proposedState: { type: Object },
+})
 
 const SubjectSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -10,7 +11,7 @@ const SubjectSchema = new mongoose.Schema({
   level: { type: Number, required: true },
   semester: { type: Number, required: true },
   chapId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Chapter' }],
-  teacherId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
+  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
   skillId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Skill' }],
   Assesment_Id: [
     { type: mongoose.Schema.Types.ObjectId, ref: 'SubjectAssessment' },
@@ -25,6 +26,6 @@ const SubjectSchema = new mongoose.Schema({
   curriculumId: { type: mongoose.Schema.Types.ObjectId, ref: 'Curriculum' },
   studentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
   history: [historySchema], // Ajouter l'historique
-});
+})
 
-export default mongoose.model('Subject', SubjectSchema);
+export default mongoose.model('Subject', SubjectSchema)

@@ -21,13 +21,7 @@ const subjectValidator = Joi.object({
     "number.min": '"semester" must be an integer greater than or equal to 1.',
     "number.max": '"semester" must be an integer less than or equal to 2.',
   }),
-  teacherId: Joi.array()
-    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
-    .optional()
-    .messages({
-      "array.base": '"teacherId" must be an array.',
-      "array.items": 'Each element in "teacherId" must be a valid ObjectId.',
-    }),
+
   skillId: Joi.array()
     .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional()
@@ -42,6 +36,13 @@ const subjectValidator = Joi.object({
     .optional()
     .messages({
       "string.pattern.base": '"curriculumId" must be a valid ObjectId.',
+    }),
+  teacherId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .optional()
+    .messages({
+     
+      "array.items": 'Each element in "teacherId" must be a valid ObjectId.',
     }),
   academicYearId: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/)
