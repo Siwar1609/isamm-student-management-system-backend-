@@ -11,6 +11,7 @@ const ChapterSchema = new mongoose.Schema({
         enum: ['not yet', 'in progress', 'completed'],
         default: 'not yet',
       },
+      modificationDate: { type: Date }, // New field for section modification date
     },
   ],
   subjectId: {
@@ -18,6 +19,11 @@ const ChapterSchema = new mongoose.Schema({
     ref: 'Subject',
     required: true,
   },
+  completed: {
+    type: Boolean,
+    default: false,
+  },
+  completedDate: { type: Date }, // New field for chapter completion date
 })
 
 export default mongoose.model('Chapter', ChapterSchema)
