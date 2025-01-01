@@ -658,6 +658,17 @@ export const assignTeacherToSoutenance = async (req, res) => {
           message: `❌ L'enseignant ${teacherId} est déjà assigné à cette soutenance avec le rôle ${role}.`,
         });
       }
+      // Vérifier si l'enseignant est déjà assigné à une autre soutenance avec la même date
+  const conflictSoutenance = await SoutenancePfe.findOne({
+    "teachers.teacherId": teacherId,
+    date: date, 
+  });
+
+  if (conflictSoutenance) {
+    return res.status(400).json({
+      message: `❌ L'enseignant ${teacherId} est déjà assigné à une autre soutenance le ${date}.`,
+    });
+  }
 
       // Ajouter l'enseignant avec son rôle à la soutenance
       soutenance.teachers.push({ teacherId, role });

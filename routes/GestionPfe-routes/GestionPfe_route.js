@@ -57,7 +57,7 @@ router.post('/planning/publish/:response',loggedMiddleware,accessByRole(['admin'
 router.post('/planning/send',loggedMiddleware, accessByRole(['admin']), send_pfe_planning)
 
 // route pour créer planning soutenances PFE
-router.post('/:id/soutenances',loggedMiddleware, accessByRole(['admin']), assignTeacherToSoutenance)
+router.post('/soutenances',loggedMiddleware, accessByRole(['admin']), assignTeacherToSoutenance)
 //router pour publier oum masquer planning pfe
 router.post('/soutenances/publish/:response',loggedMiddleware, accessByRole(['admin']), publishOrHideSoutenances)
 //route pour envoi le planning par l'email
