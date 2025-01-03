@@ -1,12 +1,14 @@
 import Student from '../../models/users-models/student_model.js'
 import { addStudent } from '../../services/students_services.js'
-import { updatePassword } from '../../services/users_services.js'
-
+import { emailTemplate, updatePassword } from '../../services/users_services.js'
+import { sendEmail } from '../../services/users_services.js'
 import readXlsxFile from 'read-excel-file/node'
 import userValidator from '../../validators/user_validator.js'
 import mongoose from 'mongoose'
 import PFA from '../../models/project_models/project_pfa.js'
 import PFE from '../../models/project_models/project_pfe.js'
+import pkg from 'lodash'
+const { chunk } = pkg
 
 //**************************************************************
 // create a new student
@@ -283,7 +285,7 @@ const getStudentCV = async (req, res) => {
   }
 }
 
-//******************************************************************************** */
+//************************************************************** */
 
 // update student cv data : add diplomas / certifications languages / proffesional experience :
 const updateStudentCV = async (req, res) => {
@@ -383,6 +385,42 @@ const getNextLevel = (currentLevel) => {
     ? levels[index + 1]
     : currentLevel
 }
+//**************************************************************
+// notify old students to update their cv info ( diplomes / certifications / langues / competences / experiences )
+const notifyOldStudents = async (req, res) => {
+  try {
+    const graduated_students = await Student.find({
+      isGraduated: true,
+      status: 'graduated_student',
+    })
+    const emailBatches = chunk(graduated_students, 10)
+    for (const batch of emailBatches) {
+      await Promise.all(
+        batch.map(async (student) => {
+          const fullName = `${student.firstName} ${student.lastName}`
+          const text = `
+          Congratulations! You have graduated from our school.
+          Please update your CV with your latest diplomas, certifications, languages, competences, and professional experiences.`
+          // send email to the student to update their cv
+          await sendEmail({
+            to: student.email,
+            subject: 'Update your CV',
+            html: emailTemplate(fullName, text),
+          })
+        }),
+      )
+    }
+
+    return res.status(200).json({
+      message: 'Emails sent successfully',
+      students: graduated_students,
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+//**************************************************************
 export {
   getStudents,
   getStudent,
@@ -396,4 +434,5 @@ export {
   updateStudentCV,
   updateStudentProfile,
   evaluteStudentStatus,
+  notifyOldStudents,
 }

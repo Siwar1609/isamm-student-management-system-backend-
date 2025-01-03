@@ -72,13 +72,4 @@ router.patch(
 //**************************
 router.get('/cv/me', loggedMiddleware, accessByRole(['student']), getStudentCV) // // tested and working ✅
 //**************************
-
-// evaluete a student
-router.patch(
-  '/evaluate/:id',
-  loggedMiddleware,
-  accessByRole(['admin']),
-  evaluteStudentStatus,
-) // // tested and working ✅
-
 export default router

@@ -29,6 +29,7 @@ import option_period_route from './routes/options-routes/option_period_routes.js
 import routerOption from './routes/options-routes/option_routes.js'
 import soutenance_pfa_route from './routes/soutenance-routes/soutenanance_pfa.js'
 import routerEvaluation from './routes/subject-routes/evaluation_routes.js'
+import routerYears from './routes/academic-year-routes/years_route.js'
 
 dotenv.config()
 
@@ -70,6 +71,7 @@ app.use('/api/v1/pfasoutenance', soutenance_pfa_route)
 app.use('/api/period/', internship_period_route)
 app.use('/api/subject', routerSubject)
 app.use('/api/academicyear', routerAcademicYear)
+app.use('/api/years', routerYears)
 app.use('/api/skill', routerSkill)
 app.use('/api/chapter', routerChapter)
 app.use('/api/curriculum', routerCurriculum)
