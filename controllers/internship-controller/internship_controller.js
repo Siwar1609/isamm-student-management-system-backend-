@@ -1047,12 +1047,13 @@ export const updatePlanningSoutenance = async (req, res) => {
 export const GetPlanningInfoForStudent = async (req, res) => {
   try {
     const Id = req.auth.userId
-    const { type } = req.params
+    const type = Number(req.params.type) // Type of internship (1 or 2), converted to number
 
-    if (!type) {
+    // Check if the internship type is valid (1 or 2)
+    if (![1, 2].includes(type)) {
       return res.status(400).json({
         success: false,
-        message: "Missing 'type' parameter.",
+        message: 'Invalid internship type. Must be 1 or 2.',
       })
     }
 
