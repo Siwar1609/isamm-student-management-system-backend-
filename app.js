@@ -30,7 +30,6 @@ import routerOption from './routes/options-routes/option_routes.js'
 import soutenance_pfa_route from './routes/soutenance-routes/soutenanance_pfa.js'
 import routerEvaluation from './routes/subject-routes/evaluation_routes.js'
 
-
 dotenv.config()
 
 const DATABASE_URL = process.env.DATABASE_URL
@@ -83,6 +82,5 @@ app.use('/api/subject/publish/:response', RouterPublishSubject)
 app.use('/api/option', option_period_route)
 app.use('/api/options', routerOption)
 app.use('/api/evaluation', routerEvaluation)
-
 
 export default app

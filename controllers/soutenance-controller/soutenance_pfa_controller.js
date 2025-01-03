@@ -572,7 +572,7 @@ export const fetch_my_soutenance_byId = async (req, res) => {
       })
       .populate({
         path: 'list_of_student',
-        select: 'firstName lastName email phone fieldOfStudy',
+        select: 'firstName lastName email phone academicYearlevel',
       })
       .exec()
     // Vérification si le projet existe
