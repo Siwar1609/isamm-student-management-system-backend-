@@ -547,8 +547,10 @@ export const getClassementByOption = async (req, res) => {
 export const SentEmailFinalOption =  async(req,res)=>{
 
   try{
-    const optionResult = await OptionResults.find().populate('student').exec()
-
+    const optionResult = await OptionResults.find({ published: true }).populate('student').exec()
+    if (!optionResult || optionResult.length === 0) {
+      return res.status(404).json({ message: 'All options are hidden' });
+    }
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -615,10 +617,7 @@ export const getFinalList = async (req,res)=>{
         selectedOption: result.optionName,  
         score: result.score,
         rank: result.rank,
-        reason: result.reason,
-        valid: result.valid,
-        sentEmail: result.sentEmail,
-        dateOfModification: result.dateOfModification,
+       
       };
     });  
 
@@ -631,10 +630,7 @@ export const getFinalList = async (req,res)=>{
         selectedOption: studentChoice.optionName,
         score: studentChoice.score,
         rank: studentChoice.rank,
-        reason: studentChoice.reason,
-        valid: studentChoice.valid,
-        sentEmail: studentChoice.sentEmail,
-        dateOfModification: studentChoice.dateOfModification,
+        
       };
     }
     
