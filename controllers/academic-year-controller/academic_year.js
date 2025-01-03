@@ -1,5 +1,5 @@
 import AcademicYear from '../../models/academic_year_models/academic-year-model.js';
-import academicYearValidator from '../../validators/academicYear_validator.js'; 
+import academicYearValidator from '../../validators/academic_year_validator.js';
 
 export const createAcademicYear = async (req, res) => {
   try {
