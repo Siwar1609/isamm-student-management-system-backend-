@@ -7,6 +7,7 @@ import Teacher from '../../models/users-models/teacher_model.js'
 import InternshipPlanning from '../../models/planning-models/Internship_planning.js'
 import nodemailer from 'nodemailer'
 import { getTeacher } from '../../services/teachers_services.js'
+import { internshipPlanningValidator } from '../../validators/internshipPlanning_validator.js'
 
 export const addInternship = async (req, res) => {
   try {
@@ -489,6 +490,7 @@ export const fetchAllPlanning = async (req, res) => {
         },
       }) // Populate internship details
       .populate('EvaluatorId') // Populate teacher details
+      .populate('academicyear')
 
     if (!planning || planning.length === 0) {
       return res.status(404).json({
@@ -959,6 +961,11 @@ export const updatePlanningSoutenance = async (req, res) => {
   const { date, horaire, LienGoogleMeet } = req.body
   const teacherId = req.auth.userId
 
+  // Validation des données
+  const { error } = internshipPlanningValidator.validate(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
   //test For level matching
   const internship = await Internship.findOne({
     level: type,
@@ -1049,7 +1056,7 @@ export const GetPlanningInfoForStudent = async (req, res) => {
       })
     }
 
-    const internship = await Internship.findOne({
+    const internship = await Internship.find({
       studentId: Id,
       level: type,
     })
@@ -1062,9 +1069,10 @@ export const GetPlanningInfoForStudent = async (req, res) => {
     }
 
     // Retrieve all internship plannings where the student is assigned
-    const planning = await InternshipPlanning.findOne({
-      idInternship: internship._id,
-    })
+    const planningDetails = await Promise.all(internship.map(async (internship) => {
+      const planning = await InternshipPlanning.findOne({
+        idInternship: internship._id,
+      })
       .populate({
         path: 'idInternship',
         populate: {
@@ -1075,6 +1083,7 @@ export const GetPlanningInfoForStudent = async (req, res) => {
         path: 'EvaluatorId',
         select: 'firstName lastName email',
       })
+      .populate('academicyear')
 
     const isOwner = planning.idInternship.studentId._id.toString() === Id
     if (!isOwner) {
@@ -1084,7 +1093,7 @@ export const GetPlanningInfoForStudent = async (req, res) => {
       })
     }
     const EvaluatorFullName = `${planning.EvaluatorId.firstName || ''} ${planning.EvaluatorId.lastName || ''}`
-    const responseData = {
+    return {
       teacher: {
         EvaluatorFullName,
         email: planning.EvaluatorId.email,
@@ -1094,11 +1103,23 @@ export const GetPlanningInfoForStudent = async (req, res) => {
         time: planning.meeting.time,
         googleMeetLink: planning.meeting.googleMeetLink,
       },
+      AcademicYear: `${new Date(planning.academicyear.start_year).getFullYear()}-${new Date(planning.academicyear.end_year).getFullYear()}`,
     }
+  }))
+
+  // if no planning found
+  const validPlannings = planningDetails.filter(planning => planning.success !== false)
+    
+  if (validPlannings.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'No valid internship planning found.',
+    })
+  }
     // If internships are found, return the internships in the response
     return res.status(200).json({
       success: true,
-      model: responseData,
+      model: validPlannings,
     })
   } catch (error) {
     console.error(error)
