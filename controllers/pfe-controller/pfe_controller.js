@@ -929,53 +929,56 @@ export const updateSoutenance = async (req, res) => {
         });
       }
     }
-     // Gestion des rôles "rapporteur" et "président de jury" : Remplacer les anciens par les nouveaux
-    const updatedTeachers = teachers.map(({ teacherId, role }) => {
-
-      // Si le rôle est rapporteur, vérifier si un rapporteur existe déjà
+    // Gestion des enseignants à rôles spécifiques
+    // On met à jour ou ajoute les enseignants avec des rôles spécifiques comme rapporteur ou président de jury
+    teachers.forEach(({ teacherId, role }) => {
       if (role === 'rapporteur') {
-        // Trouver l'enseignant actuel avec le rôle rapporteur et le remplacer
         const existingRapporteurIndex = soutenance.teachers.findIndex(
           (teacher) => teacher.role === 'rapporteur'
         );
-        
         if (existingRapporteurIndex !== -1) {
           soutenance.teachers[existingRapporteurIndex] = { teacherId, role };
         } else {
-          // Si pas de rapporteur actuel, ajouter le nouveau
-          return { teacherId, role };
+          soutenance.teachers.push({ teacherId, role });
         }
-      }
-      
-      // Si le rôle est président de jury, vérifier si un président de jury existe déjà
-      if (role === 'président de jury' ) {
-        // Trouver l'enseignant actuel avec le rôle président de jury et le remplacer
+      } else if (role === 'président de jury') {
         const existingPresidentIndex = soutenance.teachers.findIndex(
           (teacher) => teacher.role === 'président de jury'
         );
-        
         if (existingPresidentIndex !== -1) {
           soutenance.teachers[existingPresidentIndex] = { teacherId, role };
         } else {
-          // Si pas de président de jury actuel, ajouter le nouveau
-          return { teacherId, role };
+          soutenance.teachers.push({ teacherId, role });
+        }
+      } else {
+        // Ajouter les autres enseignants sans changement
+        const existingTeacherIndex = soutenance.teachers.findIndex(
+          (teacher) => teacher.teacherId.toString() === teacherId.toString()
+        );
+        if (existingTeacherIndex === -1) {
+          soutenance.teachers.push({ teacherId, role });
         }
       }
-      // Retourner tous les autres enseignants sans modification
-      return { teacherId, role };
     });
+
+    // Ajout ou maintien de l'encadrant
+    const existingEncadrant = soutenance.teachers.find(
+      (teacher) => teacher.role === 'encadrant'
+    );
+
+    if (existingEncadrant) {
+      // Si l'encadrant existe déjà, ne pas l'ajouter à nouveau
+      soutenance.teachers = soutenance.teachers.filter(
+        (teacher) => teacher.role !== 'encadrant'
+      );
+      soutenance.teachers.push(existingEncadrant);
+    }
+
 
     // Mise à jour des données
     soutenance.salleSoutenance = salleSoutenance || soutenance.salleSoutenance;
     soutenance.dateSoutenance = new Date(dateSoutenance || soutenance.dateSoutenance);
-    const existingEncadrant = soutenance.teachers.find(
-      (teacher) => teacher.role === 'encadrant'
-    );
-        if(updatedTeachers.length>0){
-          // Remplacer la liste des enseignants avec la nouvelle liste
-      soutenance.teachers = [...updatedTeachers,existingEncadrant];
-        }
-      
+  
 
     // Sauvegarder les modifications
     await soutenance.save();
