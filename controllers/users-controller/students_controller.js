@@ -155,7 +155,6 @@ const createStudentsAccountsExcelFile = async (req, res) => {
         lastName: row[3].toString(),
         email: row[4].toString(),
         phone: row[5].toString(),
-        cv: row[6]?.toString() || '',
         academicYearlevel: row[7].toString(),
         level: row[8].toString(),
         status: row[9].toString(),
