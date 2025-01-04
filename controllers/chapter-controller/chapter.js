@@ -6,8 +6,9 @@ import dotenv from 'dotenv'
 import Student from '../../models/users-models/student_model.js'
 
 dotenv.config()
+
 const EMAIL_USER = process.env.EMAIL_USER
-const EMAIL_PASS = process.env.EMAIL_PASS
+const EMAIL_PASS = process.env.EMAIL_PASSWORD
 
 export const fetchChapter = async (req, res) => {
   try {
@@ -90,6 +91,7 @@ export const updateProgressChapter = async (req, res) => {
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' })
     }
+    console.log('Current chapter sections:', chapter.section)
 
     console.log('Current chapter sections:', chapter.section)
 
@@ -139,8 +141,16 @@ export const updateProgressChapter = async (req, res) => {
       chapter.completedDate = undefined // Reset the completed date
     }
 
+    // Apply other updates to the chapter
+    Object.keys(updates).forEach((key) => {
+      if (chapter[key] !== undefined) {
+        chapter[key] = updates[key]
+      }
+    })
+
     // Save the updated chapter
     await chapter.save()
+    console.log('Chapter updated successfully:', chapter)
 
     console.log('Chapter updated successfully:', chapter)
 
