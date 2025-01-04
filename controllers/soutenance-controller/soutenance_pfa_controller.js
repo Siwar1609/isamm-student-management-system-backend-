@@ -185,8 +185,8 @@ export const planifier = async (req, res) => {
   try {
     // Étape 1 : Récupérer les PFAs
     const pfaList = await PFA.find(
-      {},
-      // { affected: true, rejected: false },
+      // {},
+      { affected: true, rejected: false },
       { list_of_student: 1, _id: 1, teacherId: 1 },
     )
 
@@ -215,12 +215,12 @@ export const planifier = async (req, res) => {
         time: element.time,
         room: element.room,
         pfa: element.pfaId,
-        encadrant: element.encadrant ,
+        encadrant: element.encadrant,
         rapporteur: element.rapporteur,
-        list_of_student: element.students
-      });
+        list_of_student: element.students,
+      })
 
-      const saved = await soutenance.save();
+      const saved = await soutenance.save()
     }
     res.status(200).json(planning)
   } catch (error) {
@@ -273,9 +273,9 @@ export const updateSoutenance = async (req, res) => {
       date: updatedData.date,
       time: updatedData.time,
       $or: [
-        { room: updatedData.room }, 
-        { encadrant: updatedData.encadrant }, 
-        { rapporteur: updatedData.rapporteur }, 
+        { room: updatedData.room },
+        { encadrant: updatedData.encadrant },
+        { rapporteur: updatedData.rapporteur },
       ],
     })
 

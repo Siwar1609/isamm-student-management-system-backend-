@@ -541,16 +541,3 @@ export const get_published_pfa_by_id = async (req, res) => {
     })
   }
 }
-
-
-
-// export const delete_pfa = async (req, res) => {
-//   try {
-//     await PFA.deleteOne({ _id: req.params.id })
-//     res.status(200).json({
-//       message: 'Object supprimé',
-//     })
-//   } catch (error) {
-//     res.status(400).json({ error: error.message })
-//   }
-// }
