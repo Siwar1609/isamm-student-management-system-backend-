@@ -56,7 +56,7 @@ router.post('/upload', upload.single('file'), createStudentsAccountsExcelFile)
 router.get(
   '/:id/cv',
   loggedMiddleware,
-  accessByRole(['admin, teacher']),
+  accessByRole(['admin', 'teacher']),
   getStudentCVInfo,
 )
 

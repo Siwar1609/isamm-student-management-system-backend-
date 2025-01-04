@@ -289,11 +289,16 @@ const getStudentCV = async (req, res) => {
 const getStudentCVInfo = async (req, res) => {
   try {
     const studentId = req.params.id
-    const student = await Student.findById(studentId)
+    const student = await Student.findById(studentId).populate('internships')
     if (!student) {
       return res.status(404).json({ message: 'Student not found' })
     }
-    res.status(200).json(student.cv)
+    res.status(200).json({
+      etudiant: student.firstName + ' ' + student.lastName,
+      cv: student.cv,
+      internships: student.internships,
+
+    })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

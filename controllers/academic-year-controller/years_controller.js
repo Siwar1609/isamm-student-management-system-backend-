@@ -4,6 +4,7 @@ import PFE from '../../models/project_models/project_pfe.js'
 import Subject from '../../models/subject-models/subject_model.js'
 import Internship from '../../models/internship-models/internship_model.js'
 import Option from '../../models/option-models/option_result_model.js'
+import OptionChoice from '../../models/option-models/option_model.js'
 
 export const openNewSeason = async (req, res) => {
   const { start_year, end_year } = req.body
@@ -70,6 +71,9 @@ export const switchAcademicYear = async (req, res) => {
       academicYear: academicYearId,
     })
     const options = await Option.find({ academic_year: academicYearId })
+    const optionChoices = await OptionChoice.find({
+      academic_year: academicYearId,
+    })
 
     res.status(200).json({
       message: 'Switched to selected academic year.',
@@ -79,6 +83,7 @@ export const switchAcademicYear = async (req, res) => {
       matieres,
       internships,
       options,
+      optionChoices,
     })
   } catch (error) {
     res.status(500).json({ message: 'Server error.', error: error.message })
