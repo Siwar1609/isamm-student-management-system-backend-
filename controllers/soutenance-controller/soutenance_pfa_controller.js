@@ -55,7 +55,7 @@ function generateSlots(jours, salles) {
       salles.forEach((salle) => {
         slots.push({ date: jour, time: currentTime, room: salle })
       })
-      currentTime = incrementTime(currentTime, 60)
+      currentTime = incrementTime(currentTime, 30)
       slotsPerDay++
     }
   })
@@ -185,8 +185,8 @@ export const planifier = async (req, res) => {
   try {
     // Étape 1 : Récupérer les PFAs
     const pfaList = await PFA.find(
-      {},
-      // { affected: true, rejected: false },
+      // {},
+      { affected: true, rejected: false },
       { list_of_student: 1, _id: 1, teacherId: 1 },
     )
 
@@ -209,19 +209,19 @@ export const planifier = async (req, res) => {
     console.log(teacherOccurrences)
 
     // // Étape 6 : Enregistrer le planning dans `soutenance`
-    // for (const element of planning) {
-    //   const soutenance = new soutenance_pfa({
-    //     date: element.date,
-    //     time: element.time,
-    //     room: element.room,
-    //     pfa: element.pfaId,
-    //     encadrant: element.encadrant ,
-    //     rapporteur: element.rapporteur,
-    //     list_of_student: element.students
-    //   });
+    for (const element of planning) {
+      const soutenance = new soutenance_pfa({
+        date: element.date,
+        time: element.time,
+        room: element.room,
+        pfa: element.pfaId,
+        encadrant: element.encadrant,
+        rapporteur: element.rapporteur,
+        list_of_student: element.students,
+      })
 
-    //   const saved = await soutenance.save();
-    //}
+      const saved = await soutenance.save()
+    }
     res.status(200).json(planning)
   } catch (error) {
     console.error('Erreur lors de la planification :', error.stack || error)
@@ -273,9 +273,9 @@ export const updateSoutenance = async (req, res) => {
       date: updatedData.date,
       time: updatedData.time,
       $or: [
-        { room: updatedData.room }, // Vérifier la salle
-        { encadrant: updatedData.encadrant }, // Vérifier l'encadrant
-        { rapporteur: updatedData.rapporteur }, // Vérifier le rapporteur
+        { room: updatedData.room },
+        { encadrant: updatedData.encadrant },
+        { rapporteur: updatedData.rapporteur },
       ],
     })
 
@@ -393,9 +393,9 @@ export const send_soutenancePfa_list_email = async (req, res) => {
 
     // Si c'est le premier envoi, mettre à jour "send" à true pour tous les PFA
     // -------------
-    // if (isFirstSend) {
-    //   await soutenance_pfa.updateMany({}, { send: true })
-    // }
+    if (isFirstSend) {
+      await soutenance_pfa.updateMany({}, { send: true })
+    }
 
     return res.status(200).json({
       message: `Emails envoyés avec succès (${isFirstSend ? 'premier envoi' : 'mise à jour'}).`,
