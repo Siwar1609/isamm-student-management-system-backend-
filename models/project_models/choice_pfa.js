@@ -5,7 +5,7 @@ const ChoicePFASchema = mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'Pfa'
   },
-  priority: {
+  priority: { // priority 
     type: Number
   },
   numberOfStudents: {
@@ -16,11 +16,11 @@ const ChoicePFASchema = mongoose.Schema({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
     ref : 'Student'
   },
-  approval: {
+  approval: { // student 
     type: Boolean,
     default: false
   },
-  validate: {
+  validate: { //admin 
     type: Boolean,
     default: false
   },

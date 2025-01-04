@@ -1,0 +1,372 @@
+{
+	"info": {
+		"_postman_id": "bd4d020a-211a-4c0e-96b6-9d89a58669ca",
+		"name": "Platform-ISAMM",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "38641782"
+	},
+	"item": [
+		{
+			"name": "period pfa",
+			"item": [
+				{
+					"name": "fetchPeriodPFA",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/pfaperiod/open"
+					},
+					"response": []
+				},
+				{
+					"name": "GetPeriodPFA_ById",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "GET",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfaperiod/open/674b6eb8c17d3bfc294b0ac8"
+					},
+					"response": []
+				},
+				{
+					"name": "AddPeriodPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Dépôt des Sujet des PFA\",\r\n    \"start_date\": \"2024-02-01T00:00:00.000+00:00\",\r\n    \"end_date\" : \"2024-01-01T00:00:00.000+00:00\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/pfaperiod/open/post"
+					},
+					"response": []
+				},
+				{
+					"name": "UpdatePeriodPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Dépôt des Sujet des PFA\",\r\n    \"start_date\": \"2024-02-01T00:00:00.000+00:00\",\r\n    \"end_date\" : \"2024-03-01T00:00:00.000+00:00\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/pfaperiod/open/674b6f79c17d3bfc294b0acd"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "teacher vs PFA",
+			"item": [
+				{
+					"name": "GetMyPFAById",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/pfa/mine/675762aad8c3e97a5c543c31"
+					},
+					"response": []
+				},
+				{
+					"name": "getAllMyPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "GET",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfa/mine"
+					},
+					"response": []
+				},
+				{
+					"name": "AddMyPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\": \"Conception et developpement d'un site web\" ,\r\n    \"description\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" ,\r\n    \"technologies_list\" : [\"ExpressJs\", \"NodeJs\", \"Python\"] , \r\n    \"numberOfStudents\": \"Monome\" ,\r\n    \"list_of_student\": [\"675631579498da1351c0eb16\"]\r\n\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/pfa/post"
+					},
+					"response": []
+				},
+				{
+					"name": "DeleteMyPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfa/67520896616d42d908fb9d72/mine"
+					},
+					"response": []
+				},
+				{
+					"name": "UpdateMyPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\": \"cccccccccccccccccccccccccccccccccccccccccccccccccccc\" ,\r\n    \"description\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" ,\r\n    \"technologies_list\" : [\"ExpressJs\", \"NodeJS\"]  \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/pfa/675220f184ffee3f4935a1ec/mine"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin vs teacher",
+			"item": [
+				{
+					"name": "getPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "GET",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfa"
+					},
+					"response": []
+				},
+				{
+					"name": "RejectPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "PATCH",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfa/6752190b62389143f19f1f60"
+					},
+					"response": []
+				},
+				{
+					"name": "getPfabyId",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "GET",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfa/675762aad8c3e97a5c543c31"
+					},
+					"response": []
+				},
+				{
+					"name": "publishPFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"start_date\" : \"2024-02-01\" ,\r\n    \"end_date\" : \"2025-01-15\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/pfa/publish/true"
+					},
+					"response": []
+				},
+				{
+					"name": "sendEmail",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzUyYzE0ZjkxYTk3YTM5MDY2ZGFiN2QiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzM5NDAwMDEsImV4cCI6MTczNDAyNjQwMX0.evaIY4k0Ud9EpJY7LnwixlBX8US-lI6cNNtLU1aJYgw"
+							}
+						},
+						"method": "POST",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfa/list/send"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "PFA choice",
+			"item": [
+				{
+					"name": "fetch one pfa",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/pfa/"
+					},
+					"response": []
+				},
+				{
+					"name": "choosePFA",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzU2MzE1Nzk0OThkYTEzNTFjMGViMTYiLCJyb2xlIjoic3R1ZGVudCIsImlhdCI6MTczMzc3ODAxMSwiZXhwIjoxNzMzODY0NDExfQ.oESWVEMt24ASt4sM6C-G-S2MFic2hFzSo9fmtecBy2Q"
+							}
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"priority\": 4 ,\r\n  \"approval\": false \r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:5000/api/v1/choice/675762aad8c3e97a5c543c31/choice"
+					},
+					"response": []
+				},
+				{
+					"name": "approvePFAChoice",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzU2MWZlYTRkZmIxNThjMDczMjU5NzUiLCJyb2xlIjoidGVhY2hlciIsImlhdCI6MTczMzc2ODE4MCwiZXhwIjoxNzMzODU0NTgwfQ.bD-S7ci7d04ettuZAYybOobbU1yyUGF0EF7ZTeVX4QQ"
+							}
+						},
+						"method": "POST",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/choice/675762aad8c3e97a5c543c31/choice/6757659da2dded70a8cda4ce/approve"
+					},
+					"response": []
+				},
+				{
+					"name": "getChoice_per_MyPfa",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": {
+								"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzU2MWZlYTRkZmIxNThjMDczMjU5NzUiLCJyb2xlIjoidGVhY2hlciIsImlhdCI6MTczMzc2ODE4MCwiZXhwIjoxNzMzODU0NTgwfQ.bD-S7ci7d04ettuZAYybOobbU1yyUGF0EF7ZTeVX4QQ"
+							}
+						},
+						"method": "GET",
+						"header": [],
+						"url": "http://localhost:5000/api/v1/choice/choices/675762aad8c3e97a5c543c31"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

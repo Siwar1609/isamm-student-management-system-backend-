@@ -2,15 +2,20 @@ import express from 'express'
 
 import {
   add_my_pfa,
+  autoAllocatePFA,
   delete_my_pfa,
   fetch_all_pfa,
   fetch_my_pfa,
   fetch_my_pfa_byId,
+  fetchStudentChoices,
   fetsh_published_pfa,
   get_pfa_ByID,
   get_published_pfa_by_id,
+  manualAssignPFA,
   publish_pfa,
   send_pfa_list_email,
+  sendEmailToRecipients,
+  togglePublishPFA,
   update_my_pfa,
   update_pfa,
 } from '../../controllers/pfa-controller/pfa_controller.js'
@@ -29,12 +34,17 @@ pfa_route.patch('/:id/mine', accessByRole(['teacher']), update_my_pfa)
 pfa_route.delete('/:id/mine', accessByRole(['teacher']), delete_my_pfa)
 
 //---------------- Admin Routes ---------------------------
+
+
 pfa_route.get('/', accessByRole(['admin']), fetch_all_pfa)
 pfa_route.get('/:id', accessByRole(['admin']), get_pfa_ByID)
 pfa_route.patch('/:id', accessByRole(['admin']), update_pfa)
 pfa_route.post('/post', accessByRole(['admin']), add_my_pfa)
 pfa_route.post('/publish/:response', accessByRole(['admin']), publish_pfa)
 pfa_route.post('/list/send', accessByRole(['admin']), send_pfa_list_email)
+
+
+
 
 //---------------- student Routes ---------------------------
 
