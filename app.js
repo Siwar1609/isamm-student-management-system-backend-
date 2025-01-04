@@ -78,7 +78,7 @@ app.use('/api/students', studentsRouter)
 app.use('/api/teachers', teachersRouter)
 app.use('/api/subject/publish/:response', RouterPublishSubject)
 app.use('/api/option', option_period_route)
-app.use('/api/options', routerOption)
+app.use('/api/options', loggedMiddleware, routerOption)
 app.use('/api/evaluation', routerEvaluation)
 
 export default app

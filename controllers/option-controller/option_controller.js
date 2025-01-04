@@ -337,36 +337,22 @@ export const calculateOptionResults = async (req, res) => {
       }
     })
 
-    // Log the final assigned results
-    console.log('Final INREV Results:', inrevResults)
-    console.log('Final INLOG Results:', inlogResults)
+    // Assign ranks within INLOG and INREV independently
+    inlogResults.sort((a, b) => b.score - a.score)
+    inrevResults.sort((a, b) => b.score - a.score)
 
-    // Log the combined final results
-    console.log('Final Results:', [...inlogResults, ...inrevResults])
+    inlogResults.forEach((result, index) => {
+      result.rank = index + 1 // Rank starts at 1
+    })
 
-    // If no results, respond with an error
-    if (inlogResults.length === 0 && inrevResults.length === 0) {
-      return res
-        .status(400)
-        .json({ message: 'No results to save in the database.' })
-    }
-
-    // Now, re-sort the results by score to assign ranks dynamically
-    const allResults = [...inlogResults, ...inrevResults]
-    allResults.sort((a, b) => b.score - a.score) // Sort by score in descending order
-
-    // Log the sorted final results
-    console.log('Sorted Final Results:', allResults)
-
-    // Reassign ranks based on sorted order
-    allResults.forEach((result, index) => {
+    inrevResults.forEach((result, index) => {
       result.rank = index + 1 // Rank starts at 1
     })
 
     // Store results in the OptionResults collection
     await OptionResults.deleteMany() // Clear previous results
     await OptionResults.insertMany(
-      allResults.map((result) => ({
+      [...inlogResults, ...inrevResults].map((result) => ({
         student: result.student,
         optionName: result.optionName,
         score: result.score,
@@ -377,7 +363,8 @@ export const calculateOptionResults = async (req, res) => {
     // Respond with the final results
     res.status(201).json({
       message: 'Option results calculated and stored successfully.',
-      results: allResults,
+      inlogResults,
+      inrevResults,
     })
   } catch (error) {
     console.error('Error calculating option results:', error)
@@ -409,11 +396,15 @@ export const updateOptionResults = async (req, res) => {
         message: 'If you change the optionName, you must specify a reason.',
       })
     }
+
     // Find the OptionResult by ID
     const optionResult = await OptionResults.findById(optionResultId)
     if (!optionResult) {
       return res.status(404).json({ message: 'OptionResult not found.' })
     }
+
+    // Track the old optionName for comparison
+    const oldOptionName = optionResult.optionName
 
     // Update the OptionResult fields (only if provided in the request body)
     if (optionName) {
@@ -432,10 +423,58 @@ export const updateOptionResults = async (req, res) => {
     // Save the updated OptionResult
     await optionResult.save()
 
-    // Respond with the updated OptionResult
+    // Handle the dynamic re-ranking and array movement logic
+    const allResults = await OptionResults.find() // Fetch all OptionResults
+    const inlogResults = []
+    const inrevResults = []
+
+    // Reassign results to their respective arrays based on optionName
+    allResults.forEach((result) => {
+      if (result.optionName === 'INLOG') {
+        inlogResults.push(result)
+      } else if (result.optionName === 'INREV') {
+        inrevResults.push(result)
+      }
+    })
+
+    // Sort both arrays by score in descending order
+    inlogResults.sort((a, b) => b.score - a.score)
+    inrevResults.sort((a, b) => b.score - a.score)
+
+    // Reassign ranks within each array
+    inlogResults.forEach((result, index) => {
+      result.rank = index + 1 // Rank starts at 1
+    })
+    inrevResults.forEach((result, index) => {
+      result.rank = index + 1 // Rank starts at 1
+    })
+
+    // Save the updated ranks
+    await Promise.all(
+      [...inlogResults, ...inrevResults].map((result) => result.save()),
+    )
+
+    // Find the updated rank for the specific OptionResult
+    let updatedRank
+    if (optionResult.optionName === 'INLOG') {
+      updatedRank = inlogResults.find((res) =>
+        res._id.equals(optionResult._id),
+      ).rank
+    } else if (optionResult.optionName === 'INREV') {
+      updatedRank = inrevResults.find((res) =>
+        res._id.equals(optionResult._id),
+      ).rank
+    }
+
+    // Update the rank in the updatedOptionResult response
+    optionResult.rank = updatedRank
+
+    // Respond with the updated OptionResult and the new arrays
     res.status(200).json({
-      message: 'OptionResult updated successfully.',
-      optionResult,
+      message: 'OptionResult updated successfully, and ranks recalculated.',
+      updatedOptionResult: optionResult,
+      inlogResults,
+      inrevResults,
     })
   } catch (error) {
     console.error('Error updating option result:', error)
