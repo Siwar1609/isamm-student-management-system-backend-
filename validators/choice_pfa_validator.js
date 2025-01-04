@@ -1,35 +1,38 @@
 import Joi from 'joi'
+import Student from '../models/users-models/student_model.js'
 
-const validateChoicePFA = (data) => {
-  const schema = Joi.object({
-    projectId: Joi.number().integer().min(1).required().messages({
-      'number.base': 'Le projectId doit être un nombre entier',
-      'number.min': 'Le projectId doit être un nombre positif',
-      'any.required': 'Le projectId est obligatoire',
+const validateChoicePFA = Joi.object({
+  priority: Joi.number().required().messages({
+    'number.base': 'La priorité doit être un nombre.',
+    'any.required': 'La priorité est obligatoire.',
+  }),
+  binomeId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .allow(null, '') // Permet de rendre `binomeId` optionnel
+    .messages({
+      'string.pattern.base': "L'ID du binôme doit être un ObjectId valide.",
     }),
-    priority: Joi.number().integer().min(1).required().messages({
-      'number.base': 'La priorité doit être un nombre entier',
-      'number.min': 'La priorité doit être un nombre positif',
-      'any.required': 'La priorité est obligatoire',
-    }),
-    etudiantsList: Joi.array()
-      .items(Joi.string().regex(/^[0-9a-fA-F]{24}$/)) // Validation ObjectId pour chaque étudiant
-      .min(1)
-      .required()
-      .messages({
-        'array.base': 'La liste des étudiants doit être un tableau',
-        'array.min': 'La liste des étudiants ne peut pas être vide',
-        'any.required': 'La liste des étudiants est obligatoire',
-      }),
-    approval: Joi.boolean().required().messages({
-      'any.required': "L'approbation est obligatoire",
-    }),
-    validate: Joi.boolean().required().messages({
-      'any.required': 'La validation est obligatoire',
-    }),
+  approval: Joi.boolean().default(false).messages({
+    'boolean.base': "L'approbation doit être une valeur booléenne.",
+  }),
+})
+  .custom(async (value, helpers) => {
+    // Vérification si un binomeId a été fourni
+    if (value.binomeId) {
+      const binomeExists = await Student.findById(value.binomeId)
+      if (!binomeExists) {
+        return helpers.message(
+          "Le binôme spécifié n'existe pas ou n'est pas valide.",
+        )
+      }
+      if (binomeExists.level !== "2") {
+        return helpers.message('Le binôme doit avoir le niveau 2.')
+      }
+    }
+    return value
+  })
+  .messages({
+    'object.base': 'Les données fournies doivent être un objet.',
   })
 
-  return schema.validate(data)
-}
-
-export { validateChoicePFA }
+export default validateChoicePFA

@@ -33,11 +33,23 @@ JWT_SECRET = 'JWT_SECRET'
 
 ```
 
+this is the new database link :
+
+```
+DATABASE_URL = "mongodb+srv://isammprojetbackend:isammprojetbackend@isamm-backend-plateform.qxu31.mongodb.net/"
+```
+
 ### 4- start the project by running
 
 ```
 npm run dev
 
+```
+
+### This is the link For the Postman collections to test the api
+
+```
+https://drive.google.com/drive/folders/1uLtXHQLCvavD-4EEZ3iMU7OmKScpIbeb?usp=sharing
 ```
 
 ### for each user story create a new branch with the us name and enjoy coding

@@ -13,7 +13,6 @@ export const loggedMiddleware = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({ error: 'Token is required' })
     }
-
     // Verify the token and decode it
     const decodedToken = jwt.verify(token, JWT_SECRET)
     if (!decodedToken) {
@@ -21,7 +20,7 @@ export const loggedMiddleware = async (req, res, next) => {
     }
 
     // Extract userId and role from the decoded token
-    const { userId, role } = decodedToken
+    const { userId, role, level } = decodedToken
 
     // Check if the user exists in the database
     const user = await User.findById(userId)
@@ -30,7 +29,7 @@ export const loggedMiddleware = async (req, res, next) => {
     }
 
     // Add userId and role to the req.auth object
-    req.auth = { userId, role }
+    req.auth = { userId, role, level }
 
     next()
   } catch (error) {
@@ -50,8 +49,6 @@ export const accessByRole = (roles) => async (req, res, next) => {
   }
   try {
     const payload = jwt.verify(token, JWT_SECRET)
-    console.log(payload)
-
     if (!payload) {
       return res.status(401).json({ message: 'Invalid token' })
     }
@@ -61,5 +58,34 @@ export const accessByRole = (roles) => async (req, res, next) => {
     return res.status(401).json({ message: 'Unauthorized' })
   } catch (e) {
     return res.status(401).json({ message: 'Invalid/expired token' })
+  }
+}
+
+export const accessByLevel = (requiredLevel) => async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1]
+  if (!token) {
+    return res.status(401).json({
+      message: 'Access denied. No token provided. Please login to get a token.',
+    })
+  }
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+    if (!payload) {
+      return res.status(401).json({ message: 'Invalid token.' })
+    }
+
+    // Vérification du niveau directement à partir du token
+    if (String(payload.level) === String(requiredLevel)) {
+      return next() // Autorisé
+    }
+
+    return res.status(403).json({
+      message: `Unauthorized. Required level: ${requiredLevel}, your level: ${payload.level}.`,
+    })
+  } catch (error) {
+    return res.status(401).json({
+      message: 'Invalid/expired token.',
+      error: error.message,
+    })
   }
 }

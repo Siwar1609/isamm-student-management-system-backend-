@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 
 const document_Schema = mongoose.Schema({
-  name: {
+  type: {
     type: String,
     enum: [
       'rapport de stage',
@@ -16,10 +16,7 @@ const document_Schema = mongoose.Schema({
     type: String,
     required: true,
   },
-  encadrant: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Teacher', // References the encadrant (teacher)
-  },
+
   internship: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Internship', // References the internship

@@ -1,5 +1,7 @@
 import express from 'express'
 
+import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
+
 import {
   getUsers,
   getUser,
@@ -8,15 +10,13 @@ import {
   deleteUser,
 } from '../../controllers/users-controller/users_controller.js'
 
-
 const router = express.Router()
 
 // users accounts management routes
-router.get('/', getUsers)
-router.get('/:id', getUser)
 router.post('/', createUser)
-router.put('/:id', updateUser)
-router.delete('/:id', deleteUser)
-
+router.get('/', accessByRole(['admin']), getUsers)
+router.get('/:id', accessByRole(['admin']), getUser)
+router.put('/:id', accessByRole(['admin']), updateUser)
+router.delete('/:id', accessByRole(['admin']), deleteUser)
 
 export default router
