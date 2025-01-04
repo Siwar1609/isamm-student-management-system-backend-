@@ -8,6 +8,10 @@ import {
   evaluteStudentStatus,
   notifyOldStudents,
 } from '../../controllers/users-controller/students_controller.js'
+import {
+  openNewSeason,
+  switchAcademicYear,
+} from '../../controllers/academic-year-controller/years_controller.js'
 
 const router = express.Router()
 
@@ -19,11 +23,17 @@ router.patch(
   evaluteStudentStatus,
 )
 
-// not testes yet ⛔ US 7.2
-// router.post('/', loggedMiddleware, accessByRole(['admin']), createAcademicYear)
+// tested and working ✅  US 7.2
+router.post('/', loggedMiddleware, accessByRole(['admin']), openNewSeason)
 
-// not testes yet ⛔ US 7.3
-// router.delete('/:id', loggedMiddleware, accessByRole(['admin']), switchAcademicYear)
+// tested and working ✅  US 7.3
+// switch academic year
+router.post(
+  '/switchyear',
+  loggedMiddleware,
+  accessByRole(['admin']),
+  switchAcademicYear,
+)
 
 // tested and working ✅  US 8.1
 router.post(

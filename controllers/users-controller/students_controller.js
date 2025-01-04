@@ -284,6 +284,20 @@ const getStudentCV = async (req, res) => {
     })
   }
 }
+//**************************************************************** */
+
+const getStudentCVInfo = async (req, res) => {
+  try {
+    const studentId = req.params.id
+    const student = await Student.findById(studentId)
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+    res.status(200).json(student.cv)
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
 
 //************************************************************** */
 
@@ -435,4 +449,5 @@ export {
   updateStudentProfile,
   evaluteStudentStatus,
   notifyOldStudents,
+  getStudentCVInfo,
 }

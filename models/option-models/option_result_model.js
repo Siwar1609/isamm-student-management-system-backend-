@@ -33,11 +33,17 @@ const optionResultsSchema = mongoose.Schema({
   },
   sentEmail: {
     type: Boolean,
-    required: false  // Indicates if the email has been sent or not
+    required: false, // Indicates if the email has been sent or not
   },
-  published: { 
-    type: Boolean, 
-    required: true },
+  published: {
+    type: Boolean,
+    required: true,
+  },
+  academic_year: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYear',
+    required: true,
+  },
 })
 
 export default mongoose.model('OptionResults', optionResultsSchema)
