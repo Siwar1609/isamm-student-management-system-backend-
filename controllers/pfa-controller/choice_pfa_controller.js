@@ -210,12 +210,12 @@ export const approveChoicePFA = async (req, res) => {
         pfa.list_of_student.push(studentId)
       }
     })
-
+    console.log(studentsToAdd)
     pfa.affected = true
     await pfa.save()
-    // Envoi des emails aux étudiants concernés
-    const studentEmails = choice.studentList.map((student) => student.email)
-    sendApprovalEmails(studentEmails, pfa)
+    // Étape 5 : Envoi des emails aux étudiants concernés
+    const students = choice.studentList
+    await sendApprovalEmails(students, pfa)
     res.status(200).json({
       message: 'Choix approuvé et étudiants notifiés.',
       data: choice,
@@ -226,30 +226,3 @@ export const approveChoicePFA = async (req, res) => {
       .json({ message: "Erreur lors de l'approbation.", error: error.message })
   }
 }
-
-// export const sendApprovalEmails = async (emails, pfa) => {
-//   try {
-//     // Configurer le transporteur d'emails avec Nodemailer
-//     console.log('------------------', emails, pfa)
-
-//     const transporter = nodemailer.createTransport({
-//       service: 'gmail',
-//       auth: {
-//         user: process.env.EMAIL_USER,
-//         pass: process.env.EMAIL_PASSWORD,
-//       },
-//     })
-//     // Contenu de l'email
-//     const mailOptions = {
-//       from: process.env.EMAIL_USER,
-//       to: emails,
-//       subject: `Votre choix PFA a été approuvé`,
-//       text: `Félicitations, votre choix pour le projet "${pfa.title}" a été approuvé. Vous êtes désormais affecté à ce projet.`,
-//     }
-//     // Envoi de l'email
-//     await transporter.sendMail(mailOptions)
-//     console.log('Emails envoyés avec succès.')
-//   } catch (error) {
-//     console.error("Erreur lors de l'envoi des emails : ", error.message)
-//   }
-// }
