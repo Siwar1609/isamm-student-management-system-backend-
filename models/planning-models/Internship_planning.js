@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { setAcademicYear } from '../../utils/setAcademicYear.js'
 
 const InternshipPlanningSchema = new mongoose.Schema({
   idInternship: {
@@ -34,6 +35,12 @@ const InternshipPlanningSchema = new mongoose.Schema({
     type: Date,
     required: false // Date when the email was sent
   },
+  academicyear: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AcademicYear',
+    }
 })
+//Appliquer le middleware pour définir l'année académique par défaut
+InternshipPlanningSchema.pre('save', setAcademicYear)
 
 export default mongoose.model('InternshipPlanning', InternshipPlanningSchema)

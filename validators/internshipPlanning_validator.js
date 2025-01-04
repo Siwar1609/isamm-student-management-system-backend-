@@ -1,35 +1,26 @@
 import Joi from 'joi';
 // Validation du schéma de la planification de stage
 export const internshipPlanningValidator = Joi.object({
-  
-  meeting: Joi.object({
-    date: Joi.date()
-      .optional()
-      .messages({
-        'date.base': 'La date de la réunion doit être une date valide.',
-      }),
-    
-    time: Joi.string()
-      .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/) // Format horaire valide HH:mm
-      .optional()
-      .messages({
-        'string.pattern.base': 'Le format de l\'horaire doit être HH:mm.',
-      }),
-    
-    googleMeetLink: Joi.string()
-      .uri()
-      .optional()
-      .messages({
-        'string.uri': 'Le lien Google Meet doit être une URL valide.',
-      }),
-  }).optional(),
+  date: Joi.string()
+  .pattern(/^\d{4}-\d{2}-\d{2}$/) // Format ISO strict : YYYY-MM-DD
+  .optional()
+  .messages({
+    'string.pattern.base': 'La date doit être dans un format valide (YYYY-MM-DD).',
+  }),
 
-  sentEmail: Joi.boolean()
-    .default(false)
-    .optional(),
+  horaire: Joi.string()
+  .pattern(/^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i) // Format 12 heures avec AM/PM obligatoires
+  .required()
+  .messages({
+    'string.pattern.base': 'Le format de l\'horaire doit être HH:mm AM ou HH:mm PM.',
+    'any.required': 'Le champ horaire est obligatoire.',
+  }),
 
-  sentAt: Joi.date()
+  LienGoogleMeet: Joi.string()
+    .uri()
     .optional()
-    .allow(null),
+    .messages({
+      'string.uri': 'Le lien Google Meet doit être une URL valide.',
+    }),
 });
 

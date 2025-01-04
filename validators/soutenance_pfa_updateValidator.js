@@ -1,4 +1,4 @@
-import Joi from 'joi';
+import Joi from 'joi'
 
 // Définir le schéma de validation
 const soutenancePFAUpdateValidator = Joi.object({
@@ -15,19 +15,18 @@ const soutenancePFAUpdateValidator = Joi.object({
       'string.pattern.base': "L'heure doit être au format HH:mm.",
       'any.required': "L'heure est obligatoire.",
     }),
-  room: Joi.string()
-    .messages({
-      'string.base': 'La salle doit être une chaîne de caractères.',
-      'any.required': 'La salle est obligatoire.',
-    }),
+  room: Joi.string().messages({
+    'string.base': 'La salle doit être une chaîne de caractères.',
+    'any.required': 'La salle est obligatoire.',
+  }),
   encadrant: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/) // Valide un ObjectId
     .messages({
-      'string.pattern.base': "L'ID de l'encadrant doit être un ObjectId valide.",
+      'string.pattern.base':
+        "L'ID de l'encadrant doit être un ObjectId valide.",
     }),
   rapporteur: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/) // Valide un ObjectId
-    .required()
     .messages({
       'string.pattern.base': "L'ID du rapporteur doit être un ObjectId valide.",
     }),
