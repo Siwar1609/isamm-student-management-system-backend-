@@ -175,7 +175,9 @@ export const getOptionsByStudentId = async (req, res) => {
 export const calculateOptionResults = async (req, res) => {
   try {
     // Fetch all option submissions with students populated
-    const options = await Option.find().populate('student')
+    const options = await Option.find()
+      .populate('student')
+      .populate('academic_year')
 
     if (!options || options.length === 0) {
       return res.status(404).json({ message: 'No options found.' })
@@ -213,7 +215,7 @@ export const calculateOptionResults = async (req, res) => {
         webDevGrade,
         algorithmsGrade,
         oopGrade,
-        integrationYear,
+        academic_year, // Add academic_year here
       } = option
 
       // Calculate the score
@@ -223,6 +225,7 @@ export const calculateOptionResults = async (req, res) => {
         student,
         optionName: name,
         score,
+        academic_year: academic_year._id, // Set academic year from option
       }
     })
 
@@ -247,7 +250,8 @@ export const calculateOptionResults = async (req, res) => {
 
     // Assign students to options
     results.forEach((result) => {
-      const { student, score, optionName, integrationYear } = result
+      const { student, score, optionName, integrationYear, academic_year } =
+        result
 
       console.log('Assigning student:', student._id, 'with score:', score)
 
@@ -264,6 +268,7 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INLOG',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INLOG' // Assign to INLOG
         } else if (
@@ -274,6 +279,7 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INREV',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INREV' // Assign to INREV
         } else {
@@ -283,6 +289,7 @@ export const calculateOptionResults = async (req, res) => {
               student: student._id,
               optionName: 'INLOG',
               score,
+              academic_year,
             })
             studentAssignments[student._id] = 'INLOG'
           } else if (inrevResults.length < inrevCapacity1ing) {
@@ -290,6 +297,7 @@ export const calculateOptionResults = async (req, res) => {
               student: student._id,
               optionName: 'INREV',
               score,
+              academic_year,
             })
             studentAssignments[student._id] = 'INREV'
           }
@@ -304,6 +312,7 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INLOG',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INLOG' // Assign to INLOG
         } else if (
@@ -314,6 +323,7 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INREV',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INREV' // Assign to INREV
         } else {
@@ -323,6 +333,7 @@ export const calculateOptionResults = async (req, res) => {
               student: student._id,
               optionName: 'INLOG',
               score,
+              academic_year,
             })
             studentAssignments[student._id] = 'INLOG'
           } else if (inrevResults.length < inrevCapacityConcours) {
@@ -330,6 +341,7 @@ export const calculateOptionResults = async (req, res) => {
               student: student._id,
               optionName: 'INREV',
               score,
+              academic_year,
             })
             studentAssignments[student._id] = 'INREV'
           }
@@ -357,6 +369,7 @@ export const calculateOptionResults = async (req, res) => {
         optionName: result.optionName,
         score: result.score,
         rank: result.rank,
+        academic_year: result.academic_year, // Store academic year in the result
       })),
     )
 

@@ -31,6 +31,11 @@ const optionResultsSchema = mongoose.Schema({
     type: Boolean, // Whether the result is valid
     default: false,
   },
+  academic_year: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYear',
+    required: true,
+  },
 })
 
 export default mongoose.model('OptionResults', optionResultsSchema)
