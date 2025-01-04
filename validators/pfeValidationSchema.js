@@ -1,6 +1,5 @@
 import Joi from 'joi'
 
-
 export const pfeValidationSchema = Joi.object({
   company_name: Joi.string().required(),
   title: Joi.string().required(),
@@ -26,7 +25,7 @@ export const pfeValidationSchema = Joi.object({
   WorkMode: Joi.string().valid('Binome', 'Monome').required(),
   affected: Joi.boolean().optional().default(false),
   published: Joi.boolean().optional().default(false),
-  academicYear: Joi.string().required(),
+  academicyear: Joi.string().optional(),
   documentId: Joi.array()
   .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
   .required()
@@ -35,11 +34,5 @@ export const pfeValidationSchema = Joi.object({
     'array.includes': 'Each Document ID must be a valid 24-character hex string.',
     'any.required': 'Document ID is required.',
   }),
-  periodId: Joi.string()
-  .pattern(/^[0-9a-fA-F]{24}$/)
-  .required()
-  .messages({
-    'string.pattern.base': 'Period ID must be a valid 24-character hex string.',
-    'any.required': 'Period ID is required.',
-  }),
 })
+

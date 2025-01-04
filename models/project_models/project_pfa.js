@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import { setAcademicYear } from '../../utils/setAcademicYear.js';
+import { setAcademicYear } from '../../utils/setAcademicYear.js'
 
 // Schéma PFA
 const PFA_Schema = mongoose.Schema({
@@ -15,20 +15,20 @@ const PFA_Schema = mongoose.Schema({
     default: 'PFA',
   },
   technologies_list: {
-    type: [String], // Tableau de chaînes représentant les technologies utilisées
+    type: [String],
   },
 
   numberOfStudents: {
     type: String,
     enum: ['Binome', 'Monome'],
-    default: 'Monome'
+    default: 'Monome',
   },
   list_of_student: {
     type: [mongoose.Schema.Types.ObjectId],
     ref: 'Student',
   },
   teacherId: {
-    type: mongoose.Schema.Types.ObjectId, // Référence vers un enseignant
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',
   },
   affected: { //teacher admin if == true : assigned list 
@@ -57,10 +57,10 @@ const PFA_Schema = mongoose.Schema({
     ],
     default: [],
   },
-  send:  {
+  send: {
     type: Boolean,
     default: false,
-  }
+  },
 })
 
 //Appliquer le middleware pour définir l'année académique par défaut

@@ -7,6 +7,7 @@ import {
   getTeachers,
   updateTeacher,
 } from '../../services/teachers_services.js'
+import { updatePassword } from '../../services/users_services.js'
 
 // excel file path to read teachers data 👨‍🏫
 let filePath = 'data\\teachers.xlsx'
@@ -28,6 +29,7 @@ const getOneTeacher = async function (req, res) {
   const teacherId = req.params.id
   try {
     const teacher = await getTeacher(teacherId)
+
     res.status(200).json(teacher)
   } catch (err) {
     res.status(500).json({ message: err.message })
@@ -91,10 +93,17 @@ const deleteOneTeacher = async function (req, res) {
 //**************************************************************
 const createTeachersAccountsExcelFile = async function (req, res) {
   try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' })
+    }
+
+    filePath = req.file.path
     const rows = await readXlsxFile(filePath)
+
     let teachersNames = []
     let errors = []
 
+    // remove the header row
     rows.shift()
 
     for (const row of rows) {
@@ -104,16 +113,15 @@ const createTeachersAccountsExcelFile = async function (req, res) {
         firstName: row[2].toString(),
         lastName: row[3].toString(),
         email: row[4].toString(),
-        password: row[5].toString(),
-        phone: row[6].toString(),
-        cv: row[7]?.toString() || '',
+        phone: row[5].toString(),
+        cv: row[6]?.toString(),
       }
 
       // check if the teacher already exists
       const teacherExist = await Teacher.findOne({ cin: teacher.cin }).exec()
       if (teacherExist) {
         errors.push(
-          `Teacher ${teacher.firstName} ${teacher.lastName} already exists`,
+          `An Account with the same CIN Already Exist for ${teacher.firstName} ${teacher.lastName}`,
         )
         continue
       }
@@ -121,6 +129,8 @@ const createTeachersAccountsExcelFile = async function (req, res) {
       await addTeacher(teacher)
       teachersNames.push(`${teacher.firstName} ${teacher.lastName}`)
     }
+
+    console.log(teachersNames, ' just added to the database')
 
     res.status(201).json({
       message: `${teachersNames.length} teachers added successfully`,
@@ -132,6 +142,34 @@ const createTeachersAccountsExcelFile = async function (req, res) {
   }
 }
 
+//**************************************************************
+const updateTeacherPassword = async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id).exec()
+    if (!teacher) {
+      const error = new Error('Teacher not found')
+      error.statusCode = 404
+      throw error
+    }
+
+    const teacherFullName = `${teacher.firstName} ${teacher.lastName}`
+
+    if (req.body.password !== req.body.confirmPassword) {
+      const error = new Error('Passwords do not match')
+      error.statusCode = 400
+      throw error
+    }
+
+    await updatePassword(req.params.id, req.body.password, Teacher)
+    res.status(200).json({
+      message: ` Password of teacher  ${teacherFullName} updated successfully`,
+    })
+  } catch (error) {
+    console.error('Error in updateTeacherPassword function: ', error)
+    throw error
+  }
+}
+
 export {
   getAllTeachers,
   getOneTeacher,
@@ -139,4 +177,5 @@ export {
   updateOneTeacher,
   deleteOneTeacher,
   createTeachersAccountsExcelFile,
+  updateTeacherPassword,
 }

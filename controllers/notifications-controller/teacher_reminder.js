@@ -7,7 +7,7 @@ dotenv.config()
 
 // Environment variables for email credentials
 const EMAIL_USER = process.env.EMAIL_USER
-const EMAIL_PASS = process.env.EMAIL_PASS
+const EMAIL_PASS = process.env.EMAIL_PASSWORD
 
 // Create transporter for sending email
 const transporter = nodemailer.createTransport({
@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
 
 // Function to schedule the email reminder
 export const scheduleTeacherReminder = () => {
-  cron.schedule('0 9 1 * *', async () => {
+  cron.schedule('* * * * *', async () => {
     console.log('Starting the email reminders for teachers...')
 
     try {
