@@ -331,22 +331,22 @@ export const calculateOptionResults = async (req, res) => {
           studentAssignments[student._id] = 'INREV' // Assign to INREV
         } else {
           // If preferred option is full, assign to the other option
-          if (inlogResults.length < inlogCapacity1ing) {
+          if (inlogResults.length >= inlogCapacity1ing) {
             inlogResults.push({
-              student: student._id,
-              optionName: 'INLOG',
-              score,
-              academic_year,
-            })
-            studentAssignments[student._id] = 'INLOG'
-          } else if (inrevResults.length < inrevCapacity1ing) {
-            inrevResults.push({
               student: student._id,
               optionName: 'INREV',
               score,
               academic_year,
             })
             studentAssignments[student._id] = 'INREV'
+          } else if (inrevResults.length >= inrevCapacity1ing) {
+            inrevResults.push({
+              student: student._id,
+              optionName: 'INLOG',
+              score,
+              academic_year,
+            })
+            studentAssignments[student._id] = 'INLOG'
           }
         }
       } else {
@@ -375,22 +375,22 @@ export const calculateOptionResults = async (req, res) => {
           studentAssignments[student._id] = 'INREV' // Assign to INREV
         } else {
           // If preferred option is full, assign to the other option
-          if (inlogResults.length < inlogCapacityConcours) {
+          if (inlogResults.length >= inlogCapacityConcours) {
             inlogResults.push({
-              student: student._id,
-              optionName: 'INLOG',
-              score,
-              academic_year,
-            })
-            studentAssignments[student._id] = 'INLOG'
-          } else if (inrevResults.length < inrevCapacityConcours) {
-            inrevResults.push({
               student: student._id,
               optionName: 'INREV',
               score,
               academic_year,
             })
             studentAssignments[student._id] = 'INREV'
+          } else if (inrevResults.length > +inrevCapacityConcours) {
+            inrevResults.push({
+              student: student._id,
+              optionName: 'INLOG',
+              score,
+              academic_year,
+            })
+            studentAssignments[student._id] = 'INLOG'
           }
         }
       }
@@ -434,7 +434,6 @@ export const calculateOptionResults = async (req, res) => {
     })
   }
 }
-
 export const updateOptionResults = async (req, res) => {
   try {
     // Get the ID of the OptionResult to update
@@ -593,12 +592,13 @@ export const getClassementByOption = async (req, res) => {
     })
   }
 }
-export const SentEmailFinalOption =  async(req,res)=>{
-
-  try{
-    const optionResult = await OptionResults.find({ published: true }).populate('student').exec()
+export const SentEmailFinalOption = async (req, res) => {
+  try {
+    const optionResult = await OptionResults.find({ published: true })
+      .populate('student')
+      .exec()
     if (!optionResult || optionResult.length === 0) {
-      return res.status(404).json({ message: 'All options are hidden' });
+      return res.status(404).json({ message: 'All options are hidden' })
     }
 
     const transporter = nodemailer.createTransport({
@@ -668,9 +668,8 @@ export const getFinalList = async (req, res) => {
         selectedOption: result.optionName,
         score: result.score,
         rank: result.rank,
-       
-      };
-    });  
+      }
+    })
 
     const studentChoice = optionResults.find(
       (optionResult) => optionResult.student._id.toString() === studentId,
@@ -683,8 +682,7 @@ export const getFinalList = async (req, res) => {
         selectedOption: studentChoice.optionName,
         score: studentChoice.score,
         rank: studentChoice.rank,
-        
-      };
+      }
     }
 
     res.status(200).json({

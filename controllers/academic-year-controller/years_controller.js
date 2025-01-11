@@ -36,6 +36,18 @@ export const openNewSeason = async (req, res) => {
     // get all matières
 
     await Subject.updateMany({}, { studentId: [], teacherId: [] })
+    // after realeasing the students and the teachers in the database we have to add it to the new year created
+    // get all matières
+    const matieres = await Subject.find()
+    // get the new year created
+    const academicYear = await AcademicYear.findOne({ current: true })
+    // loop through the matières and add the new year to it
+    matieres.forEach(async (matiere) => {
+      matiere.academicYearId = academicYear._id
+      await matiere.save()
+    })
+    // Reset option results
+    // await Option.deleteMany({})
 
     res
       .status(201)

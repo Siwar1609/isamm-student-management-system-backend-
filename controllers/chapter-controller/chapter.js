@@ -7,9 +7,6 @@ import Student from '../../models/users-models/student_model.js'
 
 dotenv.config()
 
-const EMAIL_USER = process.env.EMAIL_USER
-const EMAIL_PASS = process.env.EMAIL_PASSWORD
-
 export const fetchChapter = async (req, res) => {
   try {
     const chapters = await Chapter.find()
@@ -174,7 +171,10 @@ export const updateProgressChapter = async (req, res) => {
 
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
       })
 
       const mailOptions = {
@@ -212,7 +212,10 @@ export const updateProgressChapter = async (req, res) => {
 
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
       })
 
       const mailOptions = {

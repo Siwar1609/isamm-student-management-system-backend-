@@ -27,6 +27,11 @@ export const addInternship = async (req, res) => {
     if (!academicYearExists) {
       return res.status(404).json({ message: 'Academic Year not found.' })
     }
+    if (level.toString() !== type) {
+      return res.status(400).json({
+        message: `Different types cannot be submitted. Level: ${level}, Type: ${type}`,
+      })
+    }
 
     // Check if student exists
     const student = await Student.findById(studentId)
@@ -379,12 +384,10 @@ export const assignTeachersToInternship = async (req, res) => {
     )
 
     if (totalSubjects === 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Les enseignants n'ont pas de matières attribuées.",
-        })
+      return res.status(400).json({
+        success: false,
+        message: "Les enseignants n'ont pas de matières attribuées.",
+      })
     }
 
     // Filter unassigned internships
@@ -962,9 +965,9 @@ export const updatePlanningSoutenance = async (req, res) => {
   const teacherId = req.auth.userId
 
   // Validation des données
-  const { error } = internshipPlanningValidator.validate(req.body);
+  const { error } = internshipPlanningValidator.validate(req.body)
   if (error) {
-    return res.status(400).json({ message: error.details[0].message });
+    return res.status(400).json({ message: error.details[0].message })
   }
   //test For level matching
   const internship = await Internship.findOne({
@@ -1070,53 +1073,58 @@ export const GetPlanningInfoForStudent = async (req, res) => {
     }
 
     // Retrieve all internship plannings where the student is assigned
-    const planningDetails = await Promise.all(internship.map(async (internship) => {
-      const planning = await InternshipPlanning.findOne({
-        idInternship: internship._id,
-      })
-      .populate({
-        path: 'idInternship',
-        populate: {
-          path: 'studentId',
-        },
-      })
-      .populate({
-        path: 'EvaluatorId',
-        select: 'firstName lastName email',
-      })
-      .populate('academicyear')
+    const planningDetails = await Promise.all(
+      internship.map(async (internship) => {
+        const planning = await InternshipPlanning.findOne({
+          idInternship: internship._id,
+        })
+          .populate({
+            path: 'idInternship',
+            populate: {
+              path: 'studentId',
+            },
+          })
+          .populate({
+            path: 'EvaluatorId',
+            select: 'firstName lastName email',
+          })
+          .populate('academicyear')
 
-    const isOwner = planning.idInternship.studentId._id.toString() === Id
-    if (!isOwner) {
-      return res.status(403).json({
+        const isOwner = planning.idInternship.studentId._id.toString() === Id
+        if (!isOwner) {
+          return res.status(403).json({
+            success: false,
+            message:
+              'This internship does not belong to the connected student.',
+          })
+        }
+        const EvaluatorFullName = `${planning.EvaluatorId.firstName || ''} ${planning.EvaluatorId.lastName || ''}`
+        return {
+          teacher: {
+            EvaluatorFullName,
+            email: planning.EvaluatorId.email,
+          },
+          meeting: {
+            date: planning.meeting.date,
+            time: planning.meeting.time,
+            googleMeetLink: planning.meeting.googleMeetLink,
+          },
+          AcademicYear: `${new Date(planning.academicyear.start_year).getFullYear()}-${new Date(planning.academicyear.end_year).getFullYear()}`,
+        }
+      }),
+    )
+
+    // if no planning found
+    const validPlannings = planningDetails.filter(
+      (planning) => planning.success !== false,
+    )
+
+    if (validPlannings.length === 0) {
+      return res.status(404).json({
         success: false,
-        message: 'This internship does not belong to the connected student.',
+        message: 'No valid internship planning found.',
       })
     }
-    const EvaluatorFullName = `${planning.EvaluatorId.firstName || ''} ${planning.EvaluatorId.lastName || ''}`
-    return {
-      teacher: {
-        EvaluatorFullName,
-        email: planning.EvaluatorId.email,
-      },
-      meeting: {
-        date: planning.meeting.date,
-        time: planning.meeting.time,
-        googleMeetLink: planning.meeting.googleMeetLink,
-      },
-      AcademicYear: `${new Date(planning.academicyear.start_year).getFullYear()}-${new Date(planning.academicyear.end_year).getFullYear()}`,
-    }
-  }))
-
-  // if no planning found
-  const validPlannings = planningDetails.filter(planning => planning.success !== false)
-    
-  if (validPlannings.length === 0) {
-    return res.status(404).json({
-      success: false,
-      message: 'No valid internship planning found.',
-    })
-  }
     // If internships are found, return the internships in the response
     return res.status(200).json({
       success: true,
