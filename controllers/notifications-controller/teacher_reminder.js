@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
 
 // Function to schedule the email reminder
 export const scheduleTeacherReminder = () => {
-  cron.schedule('* * * * *', async () => {
+  cron.schedule('0 9 1 * *', async () => {
     console.log('Starting the email reminders for teachers...')
 
     try {
