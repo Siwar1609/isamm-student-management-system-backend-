@@ -264,12 +264,9 @@ export const autoAllocatePFA = async (req, res) => {
     })
 
     if (approvedPFAs.length === 0) {
-      return res
-        .status(400)
-        .json({
-          message:
-            'No PFAs found with affected === true and approval === true.',
-        })
+      return res.status(400).json({
+        message: 'No PFAs found with affected === true and approval === true.',
+      })
     }
 
     // Step 2: Update related ChoicePFA documents
@@ -311,7 +308,6 @@ export const autoAllocatePFA = async (req, res) => {
       projectId: { $in: nonapprovedPFAs.map((pfa) => pfa.id) },
       approval: true,
     })
-
     // Return success response with the list of approvedPFAs
     res.status(200).json({
       message: 'Automatic allocation completed successfully',
@@ -355,11 +351,9 @@ export const manualAssignPFA = async (req, res) => {
 
     // incompatible number of student
     if (students.length !== studentIds.length) {
-      return res
-        .status(404)
-        .json({
-          message: 'One or more students not found. Please verify the IDs.',
-        })
+      return res.status(404).json({
+        message: 'One or more students not found. Please verify the IDs.',
+      })
     }
 
     if (!students || !pfa) {
@@ -408,7 +402,7 @@ export const manualAssignPFA = async (req, res) => {
   }
 }
 
-//_______________________________________done____________________________________________________________________________________
+//_______________________________________done_____________________________________________________
 export const togglePublishPFA = async (req, res) => {
   const { id } = req.params
   const { publish } = req.body // Boolean value to either publish (true) or unpublish (false)
