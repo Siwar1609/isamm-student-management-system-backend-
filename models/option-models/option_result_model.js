@@ -37,7 +37,7 @@ const optionResultsSchema = mongoose.Schema({
   },
   published: {
     type: Boolean,
-    required: true,
+    required: false,
   },
   academic_year: {
     type: mongoose.Schema.Types.ObjectId,

@@ -74,9 +74,9 @@ router.get(
 router.patch('/:type/:id', accessByRole(['teacher']), updatePlanningSoutenance)
 router.get('/:type/me', accessByRole(['student']), GetPlanningInfoForStudent)
 
-
 router.get('/students/all', accessByRole(['admin']), getAllStudents)
-router.get('/student/me', accessByRole(['student']), getStudentDetails)
+router.get('/me/student', accessByRole(['student']), getStudentDetails)
+
 router.get(
   '/student/:studentId',
   accessByRole(['admin']),
