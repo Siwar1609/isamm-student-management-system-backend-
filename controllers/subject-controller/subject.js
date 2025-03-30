@@ -10,133 +10,107 @@ import dotenv from 'dotenv'
 dotenv.config() // This loads environment variables from the .env file
 export const addSubject = async (req, res) => {
   try {
-    const { error } = subjectValidator.validate(req.body)
-
+    const { error } = subjectValidator.validate(req.body);
     if (error) {
-      return res.status(400).json({
-        error: error.message,
-        message: 'Invalid data!',
-      })
+      return res.status(400).json({ message: error.details[0].message });
     }
 
-    const subject = new Subject(req.body)
-    await subject.save()
+    const subject = new Subject(req.body);
+    await subject.save();
 
-    // Récupérer l'ID du professeur (assurez-vous que `teacherId` est une chaîne)
-    const teacherId = req.body.teacherId
-
-    if (teacherId) {
-      // Vérifier si le professeur existe
-      const teacher = await Teacher.findById(teacherId)
+    // Gestion de l'association avec l'enseignant
+    if (req.body.teacherId) {
+      const teacher = await Teacher.findById(req.body.teacherId);
       if (!teacher) {
         return res.status(404).json({
-          message: `Teacher with ID ${teacherId} not found`,
-        })
+          message: `Enseignant avec ID ${req.body.teacherId} non trouvé`,
+        });
       }
-      // Ajouter le sujet à la liste des sujets du professeur
-      teacher.subjects.push(subject._id)
-      await teacher.save()
+
+      // Ajouter la matière à la liste des matières de l'enseignant
+      teacher.subjects.push(subject._id);
+      await teacher.save();
     }
 
     res.status(201).json({
       subject,
-      message: 'Subject added successfully',
-    })
+      message: 'Matière ajoutée avec succès',
+    });
   } catch (error) {
-    console.error(error) // Ajout d'un log pour faciliter le débogage
+    console.error(error);
     res.status(400).json({
       error: error.message,
-      message: 'Failed to add subject',
-    })
+      message: 'Échec de l\'ajout de la matière',
+    });
   }
-}
+};
 
 export const updateSubject = async (req, res) => {
   try {
-    // Validate the request body using subjectValidator
-    const { error } = subjectValidator.validate(req.body)
+    const { error } = subjectValidator.validate(req.body);
     if (error) {
-      return res.status(400).json({
-        error: error.message,
-        message: 'Invalid data!',
-      })
+      return res.status(400).json({ message: error.details[0].message });
     }
 
-    // Fetch the existing subject from the database
-    const existingSubject = await Subject.findById(req.params.id).exec()
+    const existingSubject = await Subject.findById(req.params.id);
     if (!existingSubject) {
-      return res.status(404).json({ message: 'Subject not found' })
+      return res.status(404).json({ message: 'Matière non trouvée' });
     }
 
-    // Store the previous state in the history
+    // Historique des modifications
     const historyEntry = {
       modifiedAt: new Date(),
       previousState: {
-        title: existingSubject.title,
-        description: existingSubject.description,
-        level: existingSubject.level,
-        semester: existingSubject.semester,
-        chapId: existingSubject.chapId,
-        teacherId: existingSubject.teacherId,
-        skillId: existingSubject.skillId,
-        curriculumId: existingSubject.curriculumId,
-        academicYearId: existingSubject.academicYearId,
+        ...existingSubject.toObject(),
       },
-    }
+    };
 
-    // Add the history entry to the subject's history array
-    existingSubject.history = [...(existingSubject.history || []), historyEntry]
+    // Nouvel ID enseignant venant de la requête
+    const newTeacherId = req.body.teacherId;
+    const oldTeacherId = existingSubject.teacherId;
 
-    // Apply the updates from the request body to the existing subject
-    const updatedFields = req.body
-    for (const key in updatedFields) {
-      if (key in existingSubject) {
-        existingSubject[key] = updatedFields[key]
-      }
-    }
+    // Mise à jour des champs de la matière
+    Object.assign(existingSubject, req.body);
+    existingSubject.history = [...(existingSubject.history || []), historyEntry];
 
-    // Handle updating teacher association (teacherId)
-    const newTeacherId = req.body.teacherId // New teacher ID from the request
-    if (newTeacherId) {
-      const oldTeacher = await Teacher.findOne({
-        subjects: existingSubject._id,
-      })
-
-      // Remove the subject from the old teacher if it's not the same as the new one
-      if (oldTeacher && oldTeacher._id.toString() !== newTeacherId) {
-        oldTeacher.subjects.pull(existingSubject._id) // Remove subject from old teacher
-        await oldTeacher.save()
+    // Gestion du changement d'enseignant
+    if (newTeacherId !== oldTeacherId) {
+      // Retirer la matière de l'ancien enseignant
+      if (oldTeacherId) {
+        const oldTeacher = await Teacher.findById(oldTeacherId);
+        if (oldTeacher) {
+          oldTeacher.subjects.pull(existingSubject._id);
+          await oldTeacher.save();
+        }
       }
 
-      // Add the subject to the new teacher
+      // Ajouter la matière au nouvel enseignant
       if (newTeacherId) {
-        const newTeacher = await Teacher.findById(newTeacherId)
+        const newTeacher = await Teacher.findById(newTeacherId);
         if (!newTeacher) {
-          return res
-            .status(404)
-            .json({ message: `Teacher with ID ${newTeacherId} not found` })
+          return res.status(404).json({
+            message: `Enseignant avec ID ${newTeacherId} non trouvé`,
+          });
         }
 
         if (!newTeacher.subjects.includes(existingSubject._id)) {
-          newTeacher.subjects.push(existingSubject._id)
-          await newTeacher.save()
+          newTeacher.subjects.push(existingSubject._id);
+          await newTeacher.save();
         }
       }
     }
 
-    // Save the updated subject document
-    await existingSubject.save()
+    await existingSubject.save();
 
-    // Return the updated subject and its history
     res.status(200).json({
       subject: existingSubject,
-      message: 'Subject updated successfully with history recorded',
-    })
+      message: 'Matière mise à jour avec succès',
+    });
   } catch (error) {
-    console.error(error) // Log error for debugging
-    res.status(400).json({ error: error.message })
+    console.error(error);
+    res.status(400).json({ error: error.message });
   }
-}
+};
 export const deleteSubject = async (req, res) => {
   try {
     const subject = await Subject.findByIdAndDelete(req.params.id)

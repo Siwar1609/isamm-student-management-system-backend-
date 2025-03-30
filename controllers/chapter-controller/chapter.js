@@ -45,23 +45,28 @@ export const addChapter = async (req, res) => {
     }
 
     const { subjectId } = req.body
+    let subjectExists = null
 
-    // Check if the subjectId exists in the database
-    const subjectExists = await Subject.findById(subjectId)
-    if (!subjectExists) {
-      return res.status(400).json({
-        error: 'Invalid subjectId',
-        message: 'The specified subject does not exist.',
-      })
+    // Vérifier seulement si subjectId est fourni
+    if (subjectId) {
+      subjectExists = await Subject.findById(subjectId)
+      if (!subjectExists) {
+        return res.status(400).json({
+          error: 'Invalid subjectId',
+          message: 'The specified subject does not exist.',
+        })
+      }
     }
 
     // Create and save the new chapter
     const chapter = new Chapter(req.body)
     await chapter.save()
 
-    // Now push the chapter's ID to the subject's chapId array
-    subjectExists.chapId.push(chapter._id)
-    await subjectExists.save()
+    // Ajouter le chapitre au sujet seulement si subjectId est valide
+    if (subjectExists) {
+      subjectExists.chapId.push(chapter._id)
+      await subjectExists.save()
+    }
 
     res.status(201).json({
       model: chapter,
@@ -69,7 +74,7 @@ export const addChapter = async (req, res) => {
     })
   } catch (error) {
     console.error('Error:', error.message)
-    res.status(400).json({
+    res.status(500).json({
       error: error.message,
       message: 'Failed to add chapter',
     })
