@@ -264,3 +264,49 @@ export const deleteChapter = async (req, res) => {
     res.status(400).json({ error: error.message })
   }
 }
+/**
+ * Récupère les chapitres d'une matière spécifique
+ */
+export const getChaptersBySubject = async (req, res) => {
+  try {
+    const chapters = await Chapter.find({ subjectId: req.params.subjectId });
+    
+    res.status(200).json({ 
+      model: chapters, 
+      message: 'Chapters fetched successfully for subject' 
+    });
+  } catch (error) {
+    res.status(400).json({ 
+      error: error.message, 
+      message: 'Failed to fetch chapters for subject' 
+    });
+  }
+};
+
+/**
+ * Ajoute un chapitre à une matière spécifique
+ */
+export const addChapterToSubject = async (req, res) => {
+  try {
+    const { error } = chapterValidator.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const subject = await Subject.findById(req.params.subjectId);
+    if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+    const chapter = new Chapter({
+      ...req.body,
+      subjectId: req.params.subjectId
+    });
+
+    await chapter.save();
+    
+    subject.chapId.push(chapter._id);
+    await subject.save();
+
+    res.status(201).json(chapter);
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

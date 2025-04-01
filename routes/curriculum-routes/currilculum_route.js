@@ -4,6 +4,8 @@ import {
   addCurriculum,
   updateCurriculum,
   deleteCurriculum,
+  getCurriculumBySubject,
+  addCurrToSubject,
 } from '../../controllers/curriculum-controller/curriculum_controller.js'
 import {
   accessByRole,
@@ -29,4 +31,17 @@ router.delete(
   accessByRole(['admin']),
   deleteCurriculum,
 )
+router.get(
+  '/subject/:subjectId',
+  loggedMiddleware,
+  accessByRole(['admin', 'teacher']),
+  getCurriculumBySubject,
+)
+router.post(
+  '/subject/:subjectId',
+  loggedMiddleware,
+  accessByRole(['admin', 'teacher']),
+  addCurrToSubject,
+)
+
 export default router

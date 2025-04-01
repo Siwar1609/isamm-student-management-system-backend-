@@ -17,7 +17,7 @@ const ChapterSchema = new mongoose.Schema({
   subjectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject',
-    required: false, // SubjectId is now optional
+    required: true // Maintenant obligatoire
   },
   completed: {
     type: Boolean,
