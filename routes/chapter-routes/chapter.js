@@ -30,7 +30,7 @@ router.delete('/:id', loggedMiddleware, accessByRole(['admin']), deleteChapter)
 router.get(
   '/subject/:subjectId',
   loggedMiddleware,
-  accessByRole(['admin', 'teacher']),
+  accessByRole(['admin', 'teacher','student']),
   getChaptersBySubject,
 )
 router.post(
