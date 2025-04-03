@@ -34,7 +34,7 @@ router.delete(
 router.get(
   '/subject/:subjectId',
   loggedMiddleware,
-  accessByRole(['admin', 'teacher']),
+  accessByRole(['admin', 'teacher','student']),
   getCurriculumBySubject,
 )
 router.post(
