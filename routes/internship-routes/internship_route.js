@@ -15,7 +15,10 @@ import {
   getAssignedInternshipTeacher,
   updatePlanningSoutenance,
   GetPlanningInfoForStudent,
+  getInternshipsByStudentId,
 } from '../../controllers/internship-controller/internship_controller.js'
+
+import { scheduleStudentReminder } from '../../controllers/notifications-controller/student_reminder.js'
 import express from 'express'
 import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
 import {
@@ -34,9 +37,15 @@ router.patch(
   upload1,
   updateInternship,
 )
-router.get('/:id', accessByRole(['admin']), getInternshipById)
-router.get('/', accessByRole(['admin']), getAllInternships)
-router.delete('/:id', accessByRole(['admin']), deleteInternship)
+router.get('/:id', accessByRole(['student']), getInternshipById)
+router.get('/', accessByRole(['admin', 'teacher']), getAllInternships)
+router.delete('/:id', accessByRole(['student', 'admin']), deleteInternship)
+router.get(
+  '/student/:studentId',
+  accessByRole(['student']),
+  getInternshipsByStudentId,
+)
+
 router.post(
   '/:type/planning/assign',
   accessByRole(['admin']),
@@ -71,12 +80,20 @@ router.get(
   getAssignedInternshipTeacher,
 )
 
-router.patch('/:type/:id', accessByRole(['teacher']), updatePlanningSoutenance)
-router.get('/:type/me', accessByRole(['student']), GetPlanningInfoForStudent)
-
+router.patch(
+  '/:type/:id',
+   accessByRole(['teacher']),
+  updatePlanningSoutenance,
+)
+  
 
 router.get('/students/all', accessByRole(['admin']), getAllStudents)
-router.get('/student/me', accessByRole(['student']), getStudentDetails)
+router.get('/me/student', accessByRole(['student']), getStudentDetails)
+router.get('/:type/me', accessByRole(['student']), GetPlanningInfoForStudent)
+router.get('/students/all', accessByRole(['admin']), getAllStudents)
+router.get('/me/student', accessByRole(['student']), getStudentDetails)
+
+
 router.get(
   '/student/:studentId',
   accessByRole(['admin']),
@@ -85,5 +102,18 @@ router.get(
 
 router.get('/type/:type', accessByRole(['admin']), fetchInternshipsByType)
 router.get('/nb/subject', accessByRole(['admin']), teachernbsubject)
+
+router.post('/send-reminders', async (req, res) => {
+  try {
+    console.log('Admin triggered sending emails manually.')
+    await scheduleStudentReminder() // Call the function here
+    res.status(200).json({
+      message: 'Emails sent successfully to students without internships.',
+    })
+  } catch (error) {
+    console.error('Error sending reminders:', error)
+    res.status(500).json({ message: 'Failed to send reminder emails.' })
+  }
+})
 
 export default router

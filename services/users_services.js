@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
 dotenv.config()
 
-export const addUser = async function (value) {
+export const addUser = async function (value,res) {
   // validating the args
   console.log('cin : ', value.cin)
 
@@ -79,12 +79,15 @@ export const sendEmail = async function ({ to, subject, html }) {
     port: 465,
     secure: true,
     auth: {
+      // eslint-disable-next-line no-undef
       user: process.env.EMAIL_USER,
+      // eslint-disable-next-line no-undef
       pass: process.env.EMAIL_PASSWORD,
     },
   })
 
   await transporter.sendMail({
+    // eslint-disable-next-line no-undef
     from: process.env.EMAIL_USER,
     to,
     subject,
@@ -288,6 +291,93 @@ export function generateEmailTemplateResetPassword(fullName, password) {
           <p class="highlight"> ${password}</p>
           <span lass='black' >Use your CIN and this password to log in to the system.</span>
           <p class='black'>Cordialement,</p>
+          <hr>
+          <p class='black'>L'équipe du système de gestion des stages de l'ISAMM - <span style="font-size: 0.7rem; color: #666;">${new Date().toLocaleDateString()}</span></p> 
+      </div>
+      <div class="footer">
+          <img src="https://isa2m.rnu.tn/assets/img/logo-dark.png" alt="ISAMM Logo">
+          <p>&copy; ISAMM Internship Management System</p>
+      </div>
+  </div>
+</body>
+</html>`
+}
+
+export function emailTemplate(to, text) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+      body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f9;
+          color: #333;
+      }
+      .email-container {
+          max-width: 600px;
+          margin: 20px auto;
+          background: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+          background-color: #0078d7;
+          color: #fff;
+          text-align: center;
+          padding: 20px;
+      }
+      .header h1 {
+          margin: 0;
+          font-size: 1.8rem;
+      }
+      .content {
+          padding: 20px;
+          text-align: left;
+      }
+      .content p {
+          margin: 0 0 15px;
+          line-height: 1.6;
+      }
+      .content .highlight {
+          color: #0078d7;
+          font-weight: bold;
+      }
+      .footer {
+          background-color: #f4f4f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 0.9rem;
+          color: #666;
+      }
+      .footer img {
+          display: block;
+          margin: 10px auto;
+          width: 65px;
+          height: 50px;
+      }
+      .footer p {
+          margin: 5px 0;
+      }
+
+    .black {
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+      <div class="header">
+          <h1>Welcome to ISAMM Internship Management System</h1>
+      </div>
+      <div class="content">
+          <p lass='black' >Hello Mr/Mrs, ${to}</p>
+          <p class="highlight"> ${text}</p>
           <hr>
           <p class='black'>L'équipe du système de gestion des stages de l'ISAMM - <span style="font-size: 0.7rem; color: #666;">${new Date().toLocaleDateString()}</span></p> 
       </div>

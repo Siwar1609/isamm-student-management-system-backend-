@@ -1,40 +1,58 @@
-import Joi from 'joi'
+import Joi from 'joi';
 
-const curriculumValidator = Joi.object({
-  title: Joi.string().min(3).max(100).required().messages({
-    'any.required': '"title" is required.',
-    'string.min': '"title" length must be between 3 and 100.',
-    'string.max': '"title" length must be between 3 and 100.',
-  }),
+const baseSchema = {
+  title: Joi.string()
+    .min(3)
+    .max(100)
+    .messages({
+      'string.base': 'Title should be a string',
+      'string.empty': 'Title is required',
+      'string.min': 'Title should have at least {#limit} characters',
+      'string.max': 'Title should not exceed {#limit} characters'
+    }),
 
-  description: Joi.string().min(10).max(500).required().messages({
-    'any.required': '"description" is required.',
-    'string.min': '"description" length must be between 10 and 500.',
-    'string.max': '"description" length must be between 10 and 500.',
-  }),
+  description: Joi.string()
+    .min(10)
+    .max(500)
+    .messages({
+      'string.base': 'Description should be a string',
+      'string.empty': 'Description is required',
+      'string.min': 'Description should have at least {#limit} characters',
+      'string.max': 'Description should not exceed {#limit} characters'
+    }),
 
-  // subjectId should be a single ObjectId, not an array
+  academicYearId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .allow(null)
+    .messages({
+      'string.pattern.base': 'Academic year ID must be a valid ObjectId'
+    }),
+
+  chapId: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+    .messages({
+      'array.base': 'Chapters should be an array of ObjectIds'
+    })
+};
+
+// Validateur pour la création
+export const createCurriculumValidator = Joi.object({
+  ...baseSchema,
+  title: baseSchema.title.required(),
+  description: baseSchema.description.required(),
   subjectId: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/)
     .required()
     .messages({
-      'string.pattern.base': '"subjectId" must be a valid ObjectId.',
-      'any.required': '"subjectId" is required.',
-    }),
-  academicYearId: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
-    .required()
-    .messages({
-      'array.items': '"academicYearId" must contain valid ObjectIds.',
-      'any.required': '"academicYearId" is required.',
-    }),
-  // chapId should be an array of ObjectIds
-  chapId: Joi.array()
-    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
-    .optional()
-    .messages({
-      'array.items': '"chapId" must contain valid ObjectIds.',
-    }),
-})
+      'string.pattern.base': 'Subject ID must be a valid ObjectId',
+      'any.required': 'Subject ID is required'
+    })
+}).options({ abortEarly: false });
 
-export default curriculumValidator
+// Validateur pour les mises à jour
+export const updateCurriculumValidator = Joi.object(baseSchema)
+  .options({ 
+    abortEarly: false,
+    allowUnknown: false,
+    stripUnknown: true
+  });

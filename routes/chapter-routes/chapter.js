@@ -4,6 +4,8 @@ import {
   addChapter,
   updateProgressChapter,
   deleteChapter,
+  getChaptersBySubject,
+  addChapterToSubject,
 } from '../../controllers/chapter-controller/chapter.js'
 import Chapter from '../../models/subject-models/chapter_model.js'
 import express from 'express'
@@ -25,4 +27,16 @@ router.patch(
 )
 
 router.delete('/:id', loggedMiddleware, accessByRole(['admin']), deleteChapter)
+router.get(
+  '/subject/:subjectId',
+  loggedMiddleware,
+  accessByRole(['admin', 'teacher','student']),
+  getChaptersBySubject,
+)
+router.post(
+  '/subject/:subjectId',
+  loggedMiddleware,
+  accessByRole(['admin', 'teacher']),
+  addChapterToSubject,
+)
 export default router

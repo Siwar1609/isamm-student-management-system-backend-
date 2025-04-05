@@ -1,13 +1,74 @@
 import Period from '../../models/period-model/period_model.js'
 import PFE from '../../models/project_models/project_pfe.js'
-import  {pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
+import { pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
 import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
 import mongoose from 'mongoose'
 import nodemailer from 'nodemailer';
 import Student from '../../models/users-models/student_model.js';
 import SoutenancePfe from '../../models/soutenances-models/soutenance_pfe.js';
 import Teacher from '../../models/users-models/teacher_model.js';
-import {updateSoutenanceValidation} from '../../validators/updatePfeSoutenance_Validator.js';
+import { updateSoutenanceValidation } from '../../validators/updatePfeSoutenance_Validator.js';
+import multer from 'multer';
+import Document from '../../models/document-models/document_model.js';
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage }).single('file');
+
+
+export const checkPfe = async (req, res) => {
+  try {
+    const pfe = await PFE.findOne({ studentId: req.params.userId }).populate("documentId")
+    console.log(pfe)
+    if (!pfe) {
+      return res.json({ hasPFE: false });
+    }
+    res.json({ hasPFE: true, documents: pfe.documentId, pfe: pfe });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching PFE data" });
+  }
+}
+export const getAllDocumentsPfe = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Find all documents matching criteria
+    const documents = await Document.find({
+      type: "rapport de pfe",
+      uploadedBy: studentId,
+    }).select("_id");
+    // Extract just the IDs from the documents
+    const documentIds = documents.map((doc) => doc._id);
+
+    res.status(200).json({ documentIds });
+  } catch (error) {
+    console.error("Error fetching documents:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+export const deleteDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const document = await Document.findByIdAndDelete(id);
+
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    res.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
 
 // Méthode pour ouvrir une période de dépôt PFE
 export const addPFE = async (req, res) => {
@@ -19,7 +80,7 @@ export const addPFE = async (req, res) => {
       description,
       type,
       teacherId,
-      studentId,  
+      studentId,
       WorkMode,
       affected,
       documentId,
@@ -31,7 +92,7 @@ export const addPFE = async (req, res) => {
       return res.status(400).json({ message: error.details[0].message });
     }
 
-    
+
     // Vérification si le délai est dépassé
     const period = await Period.findOne({
       name: 'Dépot PFE',
@@ -41,20 +102,20 @@ export const addPFE = async (req, res) => {
     if (!period) {
       return res.status(404).json({ message: '❌ Période non trouvée❌' })
     }
-       // Validate if documents exist
-       for (let docId of documentId) {
-        if (!mongoose.Types.ObjectId.isValid(docId)) {
-          return res.status(400).json({
-            message: `❌ L'ID du document '${docId}' est invalide.`,
-          });
-        }
-        const documentExists = await mongoose.model('Document').findById(docId);
-        if (!documentExists) {
-          return res.status(404).json({
-            message: `❌ Le document avec l'ID '${docId}' n'existe pas.`,
-          });
-        }
+    // Validate if documents exist
+    for (let docId of documentId) {
+      if (!mongoose.Types.ObjectId.isValid(docId)) {
+        return res.status(400).json({
+          message: `❌ L'ID du document '${docId}' est invalide.`,
+        });
       }
+      const documentExists = await mongoose.model('Document').findById(docId);
+      if (!documentExists) {
+        return res.status(404).json({
+          message: `❌ Le document avec l'ID '${docId}' n'existe pas.`,
+        });
+      }
+    }
 
     // Validation du nombre d'étudiants en fonction du type
     if (WorkMode === "Monome" && studentId.length !== 1) {
@@ -82,7 +143,7 @@ export const addPFE = async (req, res) => {
       WorkMode,
       affected,
       documentId,
-      
+
     });
 
     // Sauvegarder le PFE dans la base de données
@@ -107,7 +168,7 @@ export const addPFE = async (req, res) => {
   }
 };
 
-   
+
 // Méthode pour mettre à jour un PFE
 export const updatePFE = async (req, res) => {
   try {
@@ -197,7 +258,7 @@ export const getPFEDetailsForStudent = async (req, res) => {
       .populate('academicyear')
 
     if (availablePFEs.length === 0) {
-      return res.status(404).json({ message: 'Aucun PFE disponible.' })
+      return res.status(200).json({ message: 'Aucun PFE disponible.' })
     }
 
     res.status(200).json(availablePFEs)
@@ -209,11 +270,72 @@ export const getPFEDetailsForStudent = async (req, res) => {
     })
   }
 }
+//recuper les details des Pfe pour les etudiants assignés
+
+export const getPFEDetailsForStudent2 = async (req, res) => {
+  try {
+    // Recherche des PFEs non affectés avec les étudiants associés
+    const availablePFEs = await PFE.find({ affected: true })
+      .populate('studentId')
+      .populate('teacherId')
+      .populate('documentId')
+      .populate('academicyear')
+
+    if (availablePFEs.length === 0) {
+      return res.status(200).json({ message: 'Aucun PFE disponible.' })
+    }
+
+    res.status(200).json(availablePFEs)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'Erreur lors de la récupération des PFEs disponibles.',
+      error,
+    })
+  }
+}
+// Route pour récupérer les PFEs affectés à un enseignant spécifique
+export const getAssignedPFEs = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    if (!teacherId) {
+      return res.status(400).json({ message: "L'ID de l'enseignant est requis." });
+    }
+
+    const assignedPFEs = await PFE.find({ affected: true, teacherId })
+      .populate('studentId', 'firstName lastName')
+      .populate('company_name title description');
+
+    res.status(200).json(assignedPFEs);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la récupération des PFEs affectés.", error });
+  }
+};
+export const getPFEById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pfe = await PFE.findById(id)
+      .populate('studentId')
+      .populate('teacherId')
+      .populate('documentId')
+      .populate('academicyear')
+    if (!pfe) {
+      return res.status(404).json({ message: 'PFE non trouvé' });
+    }
+    return res.status(200).json(pfe);
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Erreur du serveur' });
+
+  }
+}
 
 // Fonction pour qu'un enseignant choisisse un PFE
 export const choosePFE = async (req, res) => {
   const { id } = req.params;
-  const teacherId = req.auth.userId; 
+  const teacherId = req.auth.userId;
 
   try {
     // Vérifier si le PFE existe
@@ -280,7 +402,7 @@ export const assignTeachersToPFE = async (req, res) => {
     // Mettre à jour les PFEs pour marquer qu'ils sont affectés
     await PFE.updateMany(
       { _id: { $in: pfeIds } },
-      { $set: { affected: true ,isApproved: true} } // Marquer comme affecté
+      { $set: { affected: true, isApproved: true } } // Marquer comme affecté
     );
 
     res.status(200).json({
@@ -300,12 +422,12 @@ export const assignTeacherToPFEManually = async (req, res) => {
     const { id } = req.params; // ID du PFE
     const { teacherId, force } = req.body; // ID du nouvel enseignant et option "force"
 
-      // Vérification que teacherId est un ObjectId valide
-      if (!mongoose.Types.ObjectId.isValid(teacherId)) {
-        return res.status(400).json({
-          message: "L'ID de l'enseignant est invalide. Assurez-vous qu'il s'agit d'un ObjectId valide.",
-        });
-      }
+    // Vérification que teacherId est un ObjectId valide
+    if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+      return res.status(400).json({
+        message: "L'ID de l'enseignant est invalide. Assurez-vous qu'il s'agit d'un ObjectId valide.",
+      });
+    }
 
     // Recherche du PFE par ID
     const pfe = await PFE.findById(id).populate('teacherId');
@@ -330,7 +452,7 @@ export const assignTeacherToPFEManually = async (req, res) => {
     // Mise à jour du PFE avec le nouvel enseignant
     pfe.teacherId = teacherId;
     pfe.affected = true;
-    pfe.isApproved=true;
+    pfe.isApproved = true;
     await pfe.save();
 
     res.status(200).json({
@@ -385,7 +507,7 @@ export const assignTeacherToPFEManually2 = async (req, res) => {
     // Mise à jour du PFE avec le nouvel enseignant
     pfe.teacherId = teacherId;
     pfe.affected = true;
-    pfe.isApproved=true;
+    pfe.isApproved = true;
     await pfe.save();
 
     res.status(200).json({
@@ -416,7 +538,7 @@ export const publishOrHidePFEAssignments = async (req, res) => {
     const published = response === "publish";
 
     // Mise à jour de tous les PFEs
-    const result = await PFE.updateMany({}, { $set: { published } });
+    const result = await PFE.updateMany({}, { $set: { send: published } });
 
     if (result.matchedCount === 0) {
       return res.status(404).json({
@@ -462,7 +584,7 @@ export const publishOrHidePFEAssignments2 = async (req, res) => {
     // Mise à jour des PFEs spécifiés
     const result = await PFE.updateMany(
       { _id: { $in: pfeIds } },
-      { $set: { published } }   
+      { $set: { send: published } }
     );
 
     if (result.matchedCount === 0) {
@@ -495,7 +617,7 @@ export const send_pfe_planning = async (req, res) => {
 
     // Vérifier s'il existe au moins un PFE avec `send=true`
     const pfeSendStatus = await PFE.findOne({ send: true }).select("send");
-    const isFirstSend = !pfeSendStatus; 
+    const isFirstSend = !pfeSendStatus;
 
     // Vérifier si au moins un PFE existe
     const pfeCount = await PFE.countDocuments();
@@ -517,7 +639,7 @@ export const send_pfe_planning = async (req, res) => {
       ? "Planning des PFEs"
       : "Mise à jour : Planning des PFEs";
 
-      const htmlContent = `
+    const htmlContent = `
       <table style="width: 100%; font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
         <tr>
           <td align="center">
@@ -534,8 +656,8 @@ export const send_pfe_planning = async (req, res) => {
                   </p>
                   <p style="font-size: 16px; color: #333333; line-height: 1.5;">
                     ${isFirstSend
-                      ? "Le planning des PFEs est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
-                      : "Le planning des PFEs a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"}
+        ? "Le planning des PFEs est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
+        : "Le planning des PFEs a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"}
                   </p>
                   <div style="text-align: center; margin: 20px 0;">
                     <a href="http://wwww.isamm.com" style="background-color: #007bff; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-size: 16px;">
@@ -568,7 +690,7 @@ export const send_pfe_planning = async (req, res) => {
       return transporter.sendMail({
         from: `" Équipe PFE 👻" <${process.env.EMAIL_USER}>`,
         to: student.email,
-        subject, 
+        subject,
         html: htmlContent,
       });
     });
@@ -636,15 +758,15 @@ export const assignTeacherToSoutenance = async (req, res) => {
           message: `❌ L'enseignant avec l'ID ${teacherId} n'existe pas.`,
         });
       }
-        // Vérifier si un rôle unique (président de jury ou rapporteur) est déjà attribué
-        if (
-          ["président de jury", "rapporteur"].includes(role) &&
-          soutenance.teachers.some((existingTeacher) => existingTeacher.role === role)
-        ) {
-          return res.status(400).json({
-            message: `❌ Un ${role} est déjà assigné à cette soutenance.`,
-          });
-        }
+      // Vérifier si un rôle unique (président de jury ou rapporteur) est déjà attribué
+      if (
+        ["président de jury", "rapporteur"].includes(role) &&
+        soutenance.teachers.some((existingTeacher) => existingTeacher.role === role)
+      ) {
+        return res.status(400).json({
+          message: `❌ Un ${role} est déjà assigné à cette soutenance.`,
+        });
+      }
 
       // Vérifier si l'enseignant est déjà assigné avec le même rôle
       const alreadyAssigned = soutenance.teachers.some(
@@ -659,16 +781,16 @@ export const assignTeacherToSoutenance = async (req, res) => {
         });
       }
       // Vérifier si l'enseignant est déjà assigné à une autre soutenance avec la même date
-  const conflictSoutenance = await SoutenancePfe.findOne({
-    "teachers.teacherId": teacherId,
-    date: date, 
-  });
+      const conflictSoutenance = await SoutenancePfe.findOne({
+        "teachers.teacherId": teacherId,
+        date: date,
+      });
 
-  if (conflictSoutenance) {
-    return res.status(400).json({
-      message: `❌ L'enseignant ${teacherId} est déjà assigné à une autre soutenance le ${date}.`,
-    });
-  }
+      if (conflictSoutenance) {
+        return res.status(400).json({
+          message: `❌ L'enseignant ${teacherId} est déjà assigné à une autre soutenance le ${date}.`,
+        });
+      }
 
       // Ajouter l'enseignant avec son rôle à la soutenance
       soutenance.teachers.push({ teacherId, role });
@@ -768,11 +890,10 @@ export const send_soutenance_planning = async (req, res) => {
                     Bonjour,
                   </p>
                   <p style="font-size: 16px; color: #333333; line-height: 1.5;">
-                    ${
-                      isFirstSend
-                        ? "Le planning des soutenances est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
-                        : "Le planning des soutenances a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"
-                    }
+                    ${isFirstSend
+        ? "Le planning des soutenances est désormais disponible. Cliquez sur le bouton ci-dessous pour le consulter :"
+        : "Le planning des soutenances a été mis à jour. Cliquez sur le bouton ci-dessous pour consulter la version la plus récente :"
+      }
                   </p>
                   <div style="text-align: center; margin: 20px 0;">
                     <a href="http://wwww.isamm.com" style="background-color: #007bff; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-size: 16px;">
@@ -871,7 +992,7 @@ export const updateSoutenance = async (req, res) => {
     // Validation des données de la requête
     const { id } = req.params;
     const { salleSoutenance, dateSoutenance, teachers = [] } = req.body;
-    
+
     // Récupérer la soutenance existante
     const soutenance = await SoutenancePfe.findById(id).populate('projectId');
     if (!soutenance) {
@@ -909,7 +1030,7 @@ export const updateSoutenance = async (req, res) => {
           existingTeacher.teacherId.toString() === teacherId.toString() &&
           existingTeacher.role === role
       );
-      
+
       if (alreadyAssigned) {
         return res.status(400).json({
           message: `❌ L'enseignant ${teacherId} est déjà assigné à cette soutenance avec le rôle ${role}.`,
@@ -929,53 +1050,56 @@ export const updateSoutenance = async (req, res) => {
         });
       }
     }
-     // Gestion des rôles "rapporteur" et "président de jury" : Remplacer les anciens par les nouveaux
-    const updatedTeachers = teachers.map(({ teacherId, role }) => {
-
-      // Si le rôle est rapporteur, vérifier si un rapporteur existe déjà
+    // Gestion des enseignants à rôles spécifiques
+    // On met à jour ou ajoute les enseignants avec des rôles spécifiques comme rapporteur ou président de jury
+    teachers.forEach(({ teacherId, role }) => {
       if (role === 'rapporteur') {
-        // Trouver l'enseignant actuel avec le rôle rapporteur et le remplacer
         const existingRapporteurIndex = soutenance.teachers.findIndex(
           (teacher) => teacher.role === 'rapporteur'
         );
-        
         if (existingRapporteurIndex !== -1) {
           soutenance.teachers[existingRapporteurIndex] = { teacherId, role };
         } else {
-          // Si pas de rapporteur actuel, ajouter le nouveau
-          return { teacherId, role };
+          soutenance.teachers.push({ teacherId, role });
         }
-      }
-      
-      // Si le rôle est président de jury, vérifier si un président de jury existe déjà
-      if (role === 'président de jury' ) {
-        // Trouver l'enseignant actuel avec le rôle président de jury et le remplacer
+      } else if (role === 'président de jury') {
         const existingPresidentIndex = soutenance.teachers.findIndex(
           (teacher) => teacher.role === 'président de jury'
         );
-        
         if (existingPresidentIndex !== -1) {
           soutenance.teachers[existingPresidentIndex] = { teacherId, role };
         } else {
-          // Si pas de président de jury actuel, ajouter le nouveau
-          return { teacherId, role };
+          soutenance.teachers.push({ teacherId, role });
+        }
+      } else {
+        // Ajouter les autres enseignants sans changement
+        const existingTeacherIndex = soutenance.teachers.findIndex(
+          (teacher) => teacher.teacherId.toString() === teacherId.toString()
+        );
+        if (existingTeacherIndex === -1) {
+          soutenance.teachers.push({ teacherId, role });
         }
       }
-      // Retourner tous les autres enseignants sans modification
-      return { teacherId, role };
     });
+
+    // Ajout ou maintien de l'encadrant
+    const existingEncadrant = soutenance.teachers.find(
+      (teacher) => teacher.role === 'encadrant'
+    );
+
+    if (existingEncadrant) {
+      // Si l'encadrant existe déjà, ne pas l'ajouter à nouveau
+      soutenance.teachers = soutenance.teachers.filter(
+        (teacher) => teacher.role !== 'encadrant'
+      );
+      soutenance.teachers.push(existingEncadrant);
+    }
+
 
     // Mise à jour des données
     soutenance.salleSoutenance = salleSoutenance || soutenance.salleSoutenance;
     soutenance.dateSoutenance = new Date(dateSoutenance || soutenance.dateSoutenance);
-    const existingEncadrant = soutenance.teachers.find(
-      (teacher) => teacher.role === 'encadrant'
-    );
-        if(updatedTeachers.length>0){
-          // Remplacer la liste des enseignants avec la nouvelle liste
-      soutenance.teachers = [...updatedTeachers,existingEncadrant];
-        }
-      
+
 
     // Sauvegarder les modifications
     await soutenance.save();
@@ -1007,9 +1131,9 @@ export const getTeacherSoutenances = async (req, res) => {
     const teacherSoutenances = await SoutenancePfe.find({
       "teachers.teacherId": teacherId,
     }).populate("projectId", "title description")
-    .populate("students", "firstName lastName email")
-    .select("-academicYear")
-    
+      .populate("students", "firstName lastName email")
+      .select("-academicYear")
+
 
 
     // Liste pour stocker les enseignants avec leurs détails
@@ -1021,57 +1145,57 @@ export const getTeacherSoutenances = async (req, res) => {
       soutenance.teachers = await Promise.all(
         soutenance.teachers.map(async (teacher) => {
           // Si le teacherId correspond, récupérer les informations de l'enseignant
-         
-            const teacherDetails = await Teacher.findById(teacher.teacherId).select("firstName lastName email");
-            
-            // Créer un objet avec les détails combinés
-            const populatedTeacher = {
-              teacherId: teacher.teacherId,
-              role: teacher.role,
-              firstName: teacherDetails.firstName,
-              lastName: teacherDetails.lastName,
-              email: teacherDetails.email,
-            };
-            
-            populatedTeachers.push(populatedTeacher); // Ajout de l'enseignant peuplé à la liste
-            return populatedTeacher; // Retourner l'enseignant avec les détails ajoutés
-          
+
+          const teacherDetails = await Teacher.findById(teacher.teacherId).select("firstName lastName email");
+
+          // Créer un objet avec les détails combinés
+          const populatedTeacher = {
+            teacherId: teacher.teacherId,
+            role: teacher.role,
+            firstName: teacherDetails.firstName,
+            lastName: teacherDetails.lastName,
+            email: teacherDetails.email,
+          };
+
+          populatedTeachers.push(populatedTeacher); // Ajout de l'enseignant peuplé à la liste
+          return populatedTeacher; // Retourner l'enseignant avec les détails ajoutés
+
         })
       );
     }
 
 
 
-      // Ajouter les enseignants peuplés à chaque soutenance
-      const teacherSoutenancesObj = teacherSoutenances.map((soutenance) => {
-        return {
+    // Ajouter les enseignants peuplés à chaque soutenance
+    const teacherSoutenancesObj = teacherSoutenances.map((soutenance) => {
+      return {
         ...soutenance.toObject(),
         teachers: soutenance.teachers.map((teacher) => {
           return populatedTeachers.find(
-          (populatedTeacher) =>
-            populatedTeacher.teacherId.toString() === teacher.teacherId.toString()
+            (populatedTeacher) =>
+              populatedTeacher.teacherId.toString() === teacher.teacherId.toString()
           );
         }),
-        };
-      });
+      };
+    });
 
-      
 
-        const soutenancesAsRapporteur = teacherSoutenancesObj.filter((soutenance) =>
-          soutenance.teachers.some(
-          (teacher) =>
-            teacher.teacherId.toString() === teacherId.toString() &&
-            teacher.role === "rapporteur"
-          )
-        );
 
-        const soutenancesAsPresident = teacherSoutenancesObj.filter((soutenance) =>
-          soutenance.teachers.some(
-          (teacher) =>
-            teacher.teacherId.toString() === teacherId.toString() &&
-            teacher.role === "président de jury"
-          )
-        );
+    const soutenancesAsRapporteur = teacherSoutenancesObj.filter((soutenance) =>
+      soutenance.teachers.some(
+        (teacher) =>
+          teacher.teacherId.toString() === teacherId.toString() &&
+          teacher.role === "rapporteur"
+      )
+    );
+
+    const soutenancesAsPresident = teacherSoutenancesObj.filter((soutenance) =>
+      soutenance.teachers.some(
+        (teacher) =>
+          teacher.teacherId.toString() === teacherId.toString() &&
+          teacher.role === "président de jury"
+      )
+    );
     // Séparer les soutenances par rôle
     const soutenancesAsEncadrant = teacherSoutenancesObj.filter((soutenance) =>
       soutenance.teachers.some(
@@ -1087,8 +1211,8 @@ export const getTeacherSoutenances = async (req, res) => {
         asEncadrant: soutenancesAsEncadrant,
         asRapporteur: soutenancesAsRapporteur,
         asPresident: soutenancesAsPresident,
-      
-        
+
+
       },
     });
   } catch (error) {
@@ -1099,35 +1223,35 @@ export const getTeacherSoutenances = async (req, res) => {
     });
   }
 };
-export const getStudentSoutenances=async(req,res)=>{  
+export const getStudentSoutenances = async (req, res) => {
 
-try {
-  const studentId = req.auth.userId; // ID de l'étudiant connecté
+  try {
+    const studentId = req.auth.userId; // ID de l'étudiant connecté
 
-  // Récupérer toutes les soutenances où l'étudiant est impliqué
-  const studentSoutenances = await SoutenancePfe.find({
-    students: studentId,
-  }).populate("projectId", "title description")
-  .populate("teachers.teacherId", "firstName lastName email")
-  .select("-academicYear")
-
-
-  // Construire la réponse
-  return res.status(200).json({
-    message: "✅ Soutenances récupérées avec succès.",
-    data: studentSoutenances,
-
-  });
+    // Récupérer toutes les soutenances où l'étudiant est impliqué
+    const studentSoutenances = await SoutenancePfe.find({
+      students: studentId,
+    }).populate("projectId", "title description")
+      .populate("teachers.teacherId", "firstName lastName email")
+      .select("-academicYear")
 
 
+    // Construire la réponse
+    return res.status(200).json({
+      message: "✅ Soutenances récupérées avec succès.",
+      data: studentSoutenances,
+
+    });
 
 
-} catch (error) { 
-  console.error(error);
-  return res.status(500).json({
-    message: "❌ Erreur lors de la récupération des soutenances.",
-    error: error.message,
-  });
-} 
+
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "❌ Erreur lors de la récupération des soutenances.",
+      error: error.message,
+    });
+  }
 };
 

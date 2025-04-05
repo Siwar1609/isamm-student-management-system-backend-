@@ -1,0 +1,67 @@
+_____________
+Admin
+_____________
+
+{
+    "cin" : "12345678",
+    "password" : "superAdmin"
+}
+
+_____________
+student
+_____________
+{ 
+    "cin":"78787878", 
+    "password":"yosra123"
+}
+_____________
+teacher
+_____________
+{
+    "cin" : "22222222",
+    "password" : "ahmed123"
+} 
+
+--------- Admiiiin : ------------------
+{ 
+    "cin":"14141414", 
+    "password":"00000000"
+}
+
+----------- Student : ------------------------
+{'cin':'11526339',
+'password':'y!xrm^&A%GTo'}
+
+{'cin':'11526399' ,
+'password':'Rk^aJh46sZ7x'}
+
+{ 
+    "cin":"78787878", 
+    "password":"yosra123"
+}
+
+{ 
+    "cin":"11526369", 
+    "password":"%z5k$FagL+v5"
+}
+
+{ 
+    "cin":"11526379
+", 
+    "password":"%JLUC%iuRBHz"
+}
+------------- teacher :  -------------------
+{ 
+"cin":"22222222", 
+"password":"ahmed123"
+}
+
+{ 
+    "cin":"22222223", 
+    "password":"ali123"
+}
+Siwar
+{ 
+    "cin":"22222224", 
+    "password":"IalKQtpbWVFE"
+}

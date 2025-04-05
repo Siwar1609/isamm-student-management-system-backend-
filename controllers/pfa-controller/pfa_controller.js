@@ -4,6 +4,8 @@ import period_model from '../../models/period-model/period_model.js'
 import { sendApprovalEmails } from '../../utils/Send_Pfa_Email.js'
 import nodemailer from 'nodemailer'
 import Student from '../../models/users-models/student_model.js'
+import choicePFA from '../../models/project_models/choice_pfa.js'
+
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -103,6 +105,7 @@ export const add_my_pfa = async (req, res) => {
     if (studentIds.length > 0) {
       const students = await Student.find({ _id: { $in: studentIds } });
       await sendApprovalEmails(students, savedPFA);
+
     }
 
     return res.status(201).json({
@@ -145,7 +148,6 @@ export const update_my_pfa = async (req, res) => {
         message: "Vous n'êtes pas autorisé à modifier ce sujet PFA.",
       });
     }
-
     // 4. Validation du type de projet
     if (!['Monome', 'Binome'].includes(req.body.numberOfStudents)) {
       return res.status(400).json({
@@ -171,6 +173,7 @@ export const update_my_pfa = async (req, res) => {
           }
         });
       }
+
     }
 
     // 6. Traitement des étudiants
@@ -483,7 +486,7 @@ export const publish_pfa = async (req, res) => {
     })
   }
 }
-
+//###################################################################################################
 export const send_pfa_list_email = async (req, res) => {
   try {
     // Rechercher les étudiants ayant role="student" et level=2
@@ -679,3 +682,315 @@ export const get_published_pfa_by_id = async (req, res) => {
     })
   }
 }
+
+//______________________________________________________________________________________________________________________________________________________
+
+export const fetchStudentChoices = async (req, res) => {
+  try {
+    // Fetch all student choices with their project and student details
+    const studentChoices = await choicePFA
+      .find({})
+      .populate('projectId', 'title') // Populate project details
+      .populate('studentList', 'firstName lastName') // Populate student details
+
+    if (!studentChoices || studentChoices.length === 0) {
+      return res.status(404).json({ message: 'No student choices found.' })
+    }
+
+    // Format the response
+    const formattedChoices = studentChoices.map((choice) => ({
+      projectTitle: choice.projectId.title, // Project title
+      priority: choice.priority, // Priority of the choice
+      numberOfStudents: choice.numberOfStudents, // Monome/Binome
+      students: choice.studentList.map((student) => ({
+        name: `${student.firstName} ${student.lastName}`, // Full name of student
+      })),
+      approvalStatus: choice.approval
+        ? 'Approved by Student'
+        : 'Not Approved by Student',
+      validationStatus: choice.validate
+        ? 'Validated by Admin'
+        : 'Not Validated by Admin',
+    }))
+
+    res.status(200).json({ choices: formattedChoices })
+  } catch (error) {
+    console.error('Error fetching student choices:', error) // Log full error details
+    res.status(500).json({
+      message: 'Error fetching student choices',
+      error: error.message || 'Unknown error',
+    })
+  }
+}
+
+// ---------------------------
+// check chiraz for algorithme
+// affected :true |false
+// approved : true |false
+export const autoAllocatePFA = async (req, res) => {
+  try {
+    // Step 1: Fetch all PFAs and their associated students
+    const pfAs = await PFA.find({}).populate(
+      'list_of_student',
+      'name validated',
+    )
+    // const assignedPFAs = []; pfa.affected true type : id , choicePFA.approval == true &&  pfa.affected == false  : affectted = true
+    const unassignedPFAs = []
+    const unassignedStudents = []
+
+    // Step 2: Process each PFA
+    for (const pfa of pfAs) {
+      if (!pfa.affected && pfa.list_of_student.length > 0) {
+        const approvedStudents = pfa.list_of_student.filter(
+          (student) => student.validated,
+        )
+
+        if (approvedStudents.length === 1) {
+          // If only one approved student, assign the PFA
+          pfa.affected = true
+          pfa.list_of_student = [approvedStudents[0]._id]
+          await pfa.save()
+        } else if (approvedStudents.length > 1) {
+          // Conflict: Add to unassigned list
+          unassignedPFAs.push({
+            title: pfa.title,
+            conflictingStudents: approvedStudents.map(
+              (student) => student.name,
+            ),
+          })
+        } else {
+          // No approved students
+          unassignedStudents.push(
+            ...pfa.list_of_student.map((student) => student.name),
+          )
+        }
+      }
+    }
+
+    // Step 3: Save any remaining unassigned PFAs and students
+    const response = {
+      message: 'Automatic allocation completed.',
+      unassignedPFAs,
+      unassignedStudents,
+    }
+
+    res.status(200).json(response)
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: 'Error during automatic allocation', error })
+  }
+}
+//--------------
+// check pfa if assigned | check student if has pfa
+export const manualAssignPFA = async (req, res) => {
+  const { studentId, pfaId } = req.body
+
+  try {
+    // Step 1: Find the student and PFA
+    const student = await Student.findById(studentId)
+    const pfa = await PFA.findById(pfaId)
+
+    if (!student || !pfa) {
+      return res.status(404).json({
+        message: 'Student or PFA not found. Please verify the IDs provided.',
+      })
+    }
+
+    // Step 2: Check if the PFA is already assigned
+    if (pfa.affected) {
+      return res.status(400).json({
+        message: 'This PFA has already been assigned to another student.',
+      })
+    }
+
+    // Step 3: Assign the PFA to the student
+    pfa.affected = true
+    pfa.list_of_student = [student._id] // Assuming only one student per PFA for manual assignment
+    await pfa.save()
+
+    res.status(200).json({
+      message: 'PFA successfully assigned to the student.',
+      pfa: {
+        title: pfa.title,
+        student: student.firstName,
+      },
+    })
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error during manual assignment',
+      error,
+    })
+  }
+}
+//---------------------------
+// deleting database column pfa.published
+export const togglePublishPFA = async (req, res) => {
+  const { id } = req.params
+  const { publish } = req.body // Boolean value to either publish (true) or unpublish (false)
+
+  try {
+    // Step 1: Find the PFA by ID
+    const pfa = await PFA.findById(id)
+
+    if (!pfa) {
+      return res.status(404).json({ message: 'PFA not found.' })
+    }
+
+    // Step 2: Update the `published` status
+    pfa.published = publish
+    await pfa.save()
+
+    res.status(200).json({
+      message: `PFA ${publish ? 'published' : 'unpublished'} successfully.`,
+      pfa: {
+        title: pfa.title,
+        published: pfa.published,
+      },
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error toggling publish status', error })
+  }
+}
+
+//------------------------
+
+export const sendEmailToRecipients = async (req, res) => {
+  const { type, subject, body, includeStudents, includeTeachers } = req.body
+
+  try {
+    // Step 1: Collect recipients
+    let recipients = []
+
+    if (includeStudents) {
+      const students = await Student.find({}, 'email')
+      recipients.push(...students.map((student) => student.email))
+    }
+
+    if (includeTeachers) {
+      const teachers = await Teacher.find({}, 'email')
+      recipients.push(...teachers.map((teacher) => teacher.email))
+    }
+
+    if (recipients.length === 0) {
+      return res.status(400).json({ message: 'No recipients selected.' })
+    }
+
+    // Step 2: Configure Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail', // Replace with your email provider (e.g., SendGrid, Outlook, etc.)
+      auth: {
+        user: process.env.EMAIL_USER, // Your email
+        pass: process.env.EMAIL_PASSWORD, // Your email password or app-specific password
+      },
+    })
+
+    // Step 3: Define the email content
+    let emailBody
+    if (type === 'first') {
+      emailBody = `Bonjour,\n\nCeci est la première version de l'assignation.\n\n${body}\n\nMerci.`
+    } else if (type === 'modified') {
+      emailBody = `Bonjour,\n\nCeci est une version modifiée de l'assignation.\n\n${body}\n\nMerci.`
+    } else {
+      return res
+        .status(400)
+        .json({ message: 'Invalid email type. Use "first" or "modified".' })
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: recipients,
+      subject: subject || 'Assignation de PFA',
+      text: emailBody,
+    }
+
+    // Step 4: Send the email
+    await transporter.sendMail(mailOptions)
+
+    res.status(200).json({
+      message: 'Email sent successfully!',
+      recipients,
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error sending email', error })
+  }
+}
+
+// //###################################################################################################
+// export const send_pfa_list_email = async (req, res) => {
+//   try {
+//     // Rechercher les étudiants ayant role="student" et level=2
+//     const students = await Student.find({ role: 'student', level: '2' })
+//     console.log(students)
+//     if (!students || students.length === 0) {
+//       return res.status(404).json({ message: 'Aucun étudiant trouvé.' })
+//     }
+
+//     // Vérifier s'il existe au moins un PFA avec send=true
+//     const pfaSendStatus = await PFA.findOne({ send: true }).select('send')
+//     const isFirstSend = !pfaSendStatus // Si aucun PFA avec send=true, c'est le premier envoi
+
+//     if (!pfaSendStatus) {
+//       return res.status(404).json({ message: 'Aucun PFA trouvé.' })
+//     }
+
+//     // Configurer le transporteur d'email
+//     const transporter = nodemailer.createTransport({
+//       service: 'gmail',
+//       auth: {
+//         user: process.env.EMAIL_USER,
+//         pass: process.env.EMAIL_PASS,
+//         // user: 'benboubakerchiraz054@gmail.com',
+//         // pass: 'brqd tlgs naoy rkwe',
+//       },
+//     })
+
+//     // Contenu du mail selon le type d'envoi
+//     const subject = isFirstSend
+//       ? 'Choix du sujet PFA'
+//       : 'Mise à jour : Liste des sujets PFA'
+
+//     const htmlContent = isFirstSend
+//       ? `
+//         <p>Bonjour,</p>
+//         <p>Une liste complète de sujets PFA vous attend. Veuillez consulter et choisir votre sujet en cliquant sur le lien ci-dessous :</p>
+//         <a href="http://v1/pfa/list">Voir la liste des sujets PFA</a>
+//         <p>Cordialement,</p>
+//         <p>L'équipe PFA</p>
+//       `
+//       : `
+//         <p>Bonjour,</p>
+//         <p>La liste des sujets PFA a été mise à jour. Veuillez consulter les nouvelles informations en cliquant sur le lien ci-dessous :</p>
+//         <a href="http://v1/pfa/list">Voir la liste mise à jour des sujets PFA</a>
+//         <p>Cordialement,</p>
+//         <p>L'équipe PFA</p>
+//       `
+
+//     // Envoyer l'email à chaque étudiant
+//     const emailPromises = students.map((student) => {
+//       return transporter.sendMail({
+//         from: '"Équipe PFA" <votre_email@gmail.com>',
+//         to: student.email, // Adresse email de l'étudiant
+//         subject, // Sujet de l'email
+//         html: htmlContent, // Contenu HTML de l'email
+//       })
+//     })
+
+//     // Attendre que tous les emails soient envoyés
+//     await Promise.all(emailPromises)
+
+//     // Si c'est le premier envoi, mettre à jour "send" à true pour tous les PFA
+//     if (isFirstSend) {
+//       await PFA.updateMany({}, { send: true })
+//     }
+
+//     return res.status(200).json({
+//       message: `Emails envoyés avec succès (${isFirstSend ? 'premier envoi' : 'mise à jour'}).`,
+//     })
+//   } catch (error) {
+//     return res.status(500).json({
+//       message: "Erreur lors de l'envoi des emails.",
+//       error: error.message,
+//     })
+//   }
+// }

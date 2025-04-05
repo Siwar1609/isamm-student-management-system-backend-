@@ -269,6 +269,7 @@ export const autoAllocatePFA = async (req, res) => {
           message:
             'No PFAs found with affected === true and approval === true.',
         })
+
     }
 
     // Step 2: Update related ChoicePFA documents
@@ -310,7 +311,6 @@ export const autoAllocatePFA = async (req, res) => {
       projectId: { $in: nonapprovedPFAs.map((pfa) => pfa.id) },
       approval: true,
     })
-
     // Return success response with the list of approvedPFAs
     res.status(200).json({
       message: 'Automatic allocation completed successfully',
@@ -324,8 +324,6 @@ export const autoAllocatePFA = async (req, res) => {
 }
 
 //___________________________________________done_____________________________________________________________________________________
-
-
 export const manualAssignPFA = async (req, res) => {
   const { studentEmails = [], removedStudents = [] } = req.body;
   const { pfaId } = req.params;
@@ -451,6 +449,89 @@ export const manualAssignPFA = async (req, res) => {
 };
 
 //_______________________________________done____________________________________________________________________________________
+
+export const manualAssignPFA = async (req, res) => {
+  //{array,id }
+  const { studentIds, pfaId } = req.body
+
+  try {
+    // Step 1: body input check :
+    // empty array input
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({
+        message: 'Please provide at least one student ID.',
+      })
+    }
+    // more than 2 students list :
+    if (studentIds.length > 2) {
+      return res.status(400).json({
+        message: 'A PFA can only be assigned to a maximum of two students.',
+      })
+    }
+
+    const students = await Student.find({ _id: { $in: studentIds } })
+    const pfa = await PFA.findById(pfaId)
+    // invalid pfa id :
+    if (!pfa) {
+      return res
+        .status(404)
+        .json({ message: 'PFA not found. Please verify the PFA ID.' })
+    }
+
+    // incompatible number of student
+    if (students.length !== studentIds.length) {
+      return res.status(404).json({
+        message: 'One or more students not found. Please verify the IDs.',
+      })
+    }
+
+    if (!students || !pfa) {
+      return res.status(404).json({
+        message: 'Student or PFA not found. Please verify the IDs provided.',
+      })
+    }
+
+    // Step 2: Check if the PFA is already assigned
+    if (pfa.affected) {
+      return res.status(400).json({
+        message: 'This PFA has already been assigned to another student.',
+      })
+    }
+    // compatible number of students check :
+    if (pfa.numberOfStudents === 'Monome' && studentIds.length !== 1) {
+      return res.status(400).json({
+        message: 'This PFA requiressingle student (Monome).',
+      })
+    }
+
+    if (pfa.numberOfStudents === 'Binome' && studentIds.length !== 2) {
+      return res.status(400).json({
+        message: 'This PFA requires two students (Binome).',
+      })
+    }
+
+    // Step 3: Assign the PFA to the student
+    pfa.affected = true
+    pfa.approval = true
+    pfa.list_of_student = studentIds
+    await pfa.save()
+
+    res.status(200).json({
+      message: 'PFA successfully assigned to the student.',
+      pfa: {
+        title: pfa.title,
+        student: studentIds,
+      },
+    })
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error during manual assignment',
+      error,
+    })
+  }
+}
+
+//_______________________________________done_____________________________________________________
 export const togglePublishPFA = async (req, res) => {
   const { id } = req.params
   const { publish } = req.body // Boolean value to either publish (true) or unpublish (false)

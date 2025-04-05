@@ -36,7 +36,7 @@ const userValidator = Joi.object({
   }),
   // we will add the missing student fileds as not required
   cv: Joi.string().allow(''),
-  fieldOfStudy: Joi.string().allow(''),
+  academicYearlevel: Joi.string().allow(''),
   level: Joi.string().allow(''),
   status: Joi.string().allow(''),
   // we will add the missing teacher fileds as not required

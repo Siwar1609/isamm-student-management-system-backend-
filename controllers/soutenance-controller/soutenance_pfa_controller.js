@@ -371,7 +371,7 @@ export const send_soutenancePfa_list_email = async (req, res) => {
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASSWORD,
       },
     })
 
@@ -572,7 +572,7 @@ export const fetch_my_soutenance_byId = async (req, res) => {
       })
       .populate({
         path: 'list_of_student',
-        select: 'firstName lastName email phone fieldOfStudy',
+        select: 'firstName lastName email phone academicYearlevel',
       })
       .exec()
     // Vérification si le projet existe

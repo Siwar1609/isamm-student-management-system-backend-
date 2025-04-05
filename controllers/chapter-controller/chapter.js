@@ -7,9 +7,6 @@ import Student from '../../models/users-models/student_model.js'
 
 dotenv.config()
 
-const EMAIL_USER = process.env.EMAIL_USER
-const EMAIL_PASS = process.env.EMAIL_PASSWORD
-
 export const fetchChapter = async (req, res) => {
   try {
     const chapters = await Chapter.find()
@@ -48,23 +45,28 @@ export const addChapter = async (req, res) => {
     }
 
     const { subjectId } = req.body
+    let subjectExists = null
 
-    // Check if the subjectId exists in the database
-    const subjectExists = await Subject.findById(subjectId)
-    if (!subjectExists) {
-      return res.status(400).json({
-        error: 'Invalid subjectId',
-        message: 'The specified subject does not exist.',
-      })
+    // Vérifier seulement si subjectId est fourni
+    if (subjectId) {
+      subjectExists = await Subject.findById(subjectId)
+      if (!subjectExists) {
+        return res.status(400).json({
+          error: 'Invalid subjectId',
+          message: 'The specified subject does not exist.',
+        })
+      }
     }
 
     // Create and save the new chapter
     const chapter = new Chapter(req.body)
     await chapter.save()
 
-    // Now push the chapter's ID to the subject's chapId array
-    subjectExists.chapId.push(chapter._id)
-    await subjectExists.save()
+    // Ajouter le chapitre au sujet seulement si subjectId est valide
+    if (subjectExists) {
+      subjectExists.chapId.push(chapter._id)
+      await subjectExists.save()
+    }
 
     res.status(201).json({
       model: chapter,
@@ -72,7 +74,7 @@ export const addChapter = async (req, res) => {
     })
   } catch (error) {
     console.error('Error:', error.message)
-    res.status(400).json({
+    res.status(500).json({
       error: error.message,
       message: 'Failed to add chapter',
     })
@@ -174,7 +176,10 @@ export const updateProgressChapter = async (req, res) => {
 
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
       })
 
       const mailOptions = {
@@ -212,7 +217,10 @@ export const updateProgressChapter = async (req, res) => {
 
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
       })
 
       const mailOptions = {
@@ -256,3 +264,49 @@ export const deleteChapter = async (req, res) => {
     res.status(400).json({ error: error.message })
   }
 }
+/**
+ * Récupère les chapitres d'une matière spécifique
+ */
+export const getChaptersBySubject = async (req, res) => {
+  try {
+    const chapters = await Chapter.find({ subjectId: req.params.subjectId });
+    
+    res.status(200).json({ 
+      model: chapters, 
+      message: 'Chapters fetched successfully for subject' 
+    });
+  } catch (error) {
+    res.status(400).json({ 
+      error: error.message, 
+      message: 'Failed to fetch chapters for subject' 
+    });
+  }
+};
+
+/**
+ * Ajoute un chapitre à une matière spécifique
+ */
+export const addChapterToSubject = async (req, res) => {
+  try {
+    const { error } = chapterValidator.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const subject = await Subject.findById(req.params.subjectId);
+    if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+    const chapter = new Chapter({
+      ...req.body,
+      subjectId: req.params.subjectId
+    });
+
+    await chapter.save();
+    
+    subject.chapId.push(chapter._id);
+    await subject.save();
+
+    res.status(201).json(chapter);
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

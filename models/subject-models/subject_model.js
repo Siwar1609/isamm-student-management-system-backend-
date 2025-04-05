@@ -11,7 +11,7 @@ const SubjectSchema = new mongoose.Schema({
   level: { type: Number, required: true },
   semester: { type: Number, required: true },
   chapId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Chapter' }],
-  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+  teacherId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
   skillId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Skill' }],
   Assesment_Id: [
     { type: mongoose.Schema.Types.ObjectId, ref: 'SubjectAssessment' },
@@ -21,7 +21,7 @@ const SubjectSchema = new mongoose.Schema({
   academicYearId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AcademicYear',
-    required: true,
+    
   },
   curriculumId: { type: mongoose.Schema.Types.ObjectId, ref: 'Curriculum' },
   studentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],

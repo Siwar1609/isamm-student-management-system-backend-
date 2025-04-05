@@ -31,7 +31,7 @@ const PFA_Schema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',
   },
-  affected: {
+  affected: { //teacher admin if == true : assigned list 
     type: Boolean,
     default: false,
   },

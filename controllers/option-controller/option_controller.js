@@ -41,7 +41,7 @@ export const addOption = async (req, res) => {
     }
 
     // Fetch the logged-in student's ID from the session or authentication middleware
-    const studentId = req.auth.userId // Assuming `req.user` is populated by your authentication middleware
+    const studentId = req.auth.userId //  `req.user` is populated by your authentication middleware
     if (!studentId) {
       return res.status(403).json({ message: 'User not authenticated.' })
     }
@@ -156,12 +156,6 @@ export const getOptionsByStudentId = async (req, res) => {
       .populate('academic_year', 'start_year end_year')
       .populate('period', 'name start_date end_date') // Populate academic year details (e.g., year, name)
 
-    if (!options || options.length === 0) {
-      return res
-        .status(404)
-        .json({ message: `No options found for student with ID ${studentId}.` })
-    }
-
     // Respond with the populated options
     res.status(200).json({ options })
   } catch (error) {
@@ -183,40 +177,37 @@ export const publishOrMaskOption = async (req, res) => {
           'The value of "response" is invalid. It must be "true" or "false".',
       })
     }
-    
-    
+
     const isPublished = response === 'true'
-    const optionBefore = await OptionResults.find({published : { $ne: isPublished }})
+    const optionBefore = await OptionResults.find({
+      published: { $ne: isPublished },
+    })
 
     if (optionBefore.length === 0) {
       return res.status(400).json({
         success: false,
         message: `All options are already ${isPublished ? 'published' : 'hidden'}. No update needed.`,
-        model: optionBefore,  
-      });
+        model: optionBefore,
+      })
     }
-
 
     // Mise à jour de toutes les options dont l'état est différent
     const result = await OptionResults.updateMany(
       { published: { $ne: isPublished } }, // Condition
-      { $set: { published: isPublished } }
-    );
-    
-    const optionAfter = await OptionResults.find({ published: isPublished });
+      { $set: { published: isPublished } },
+    )
+
+    const optionAfter = await OptionResults.find({ published: isPublished })
     return res.status(200).json({
       success: true,
       message: `The options have been successfully ${isPublished ? 'published' : 'hidden'}.`,
-      modelBefore: optionBefore,  
-      modelAfter: optionAfter, 
-    });
-
-
+      modelBefore: optionBefore,
+      modelAfter: optionAfter,
+    })
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message:
-        'Error while publishing or hiding the options.',
+      message: 'Error while publishing or hiding the options.',
       error: error.message,
     })
   }
@@ -225,7 +216,9 @@ export const publishOrMaskOption = async (req, res) => {
 export const calculateOptionResults = async (req, res) => {
   try {
     // Fetch all option submissions with students populated
-    const options = await Option.find().populate('student')
+    const options = await Option.find()
+      .populate('student')
+      .populate('academic_year')
 
     if (!options || options.length === 0) {
       return res.status(404).json({ message: 'No options found.' })
@@ -263,7 +256,7 @@ export const calculateOptionResults = async (req, res) => {
         webDevGrade,
         algorithmsGrade,
         oopGrade,
-        integrationYear,
+        academic_year, // Add academic_year here
       } = option
 
       // Calculate the score
@@ -273,6 +266,7 @@ export const calculateOptionResults = async (req, res) => {
         student,
         optionName: name,
         score,
+        academic_year: academic_year._id, // Set academic year from option
       }
     })
 
@@ -297,7 +291,8 @@ export const calculateOptionResults = async (req, res) => {
 
     // Assign students to options
     results.forEach((result) => {
-      const { student, score, optionName, integrationYear } = result
+      const { student, score, optionName, integrationYear, academic_year } =
+        result
 
       console.log('Assigning student:', student._id, 'with score:', score)
 
@@ -314,6 +309,7 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INLOG',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INLOG' // Assign to INLOG
         } else if (
@@ -324,24 +320,27 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INREV',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INREV' // Assign to INREV
         } else {
           // If preferred option is full, assign to the other option
-          if (inlogResults.length < inlogCapacity1ing) {
+          if (inlogResults.length >= inlogCapacity1ing) {
             inlogResults.push({
-              student: student._id,
-              optionName: 'INLOG',
-              score,
-            })
-            studentAssignments[student._id] = 'INLOG'
-          } else if (inrevResults.length < inrevCapacity1ing) {
-            inrevResults.push({
               student: student._id,
               optionName: 'INREV',
               score,
+              academic_year,
             })
             studentAssignments[student._id] = 'INREV'
+          } else if (inrevResults.length >= inrevCapacity1ing) {
+            inrevResults.push({
+              student: student._id,
+              optionName: 'INLOG',
+              score,
+              academic_year,
+            })
+            studentAssignments[student._id] = 'INLOG'
           }
         }
       } else {
@@ -354,6 +353,7 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INLOG',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INLOG' // Assign to INLOG
         } else if (
@@ -364,70 +364,61 @@ export const calculateOptionResults = async (req, res) => {
             student: student._id,
             optionName: 'INREV',
             score,
+            academic_year,
           })
           studentAssignments[student._id] = 'INREV' // Assign to INREV
         } else {
           // If preferred option is full, assign to the other option
-          if (inlogResults.length < inlogCapacityConcours) {
+          if (inlogResults.length >= inlogCapacityConcours) {
             inlogResults.push({
-              student: student._id,
-              optionName: 'INLOG',
-              score,
-            })
-            studentAssignments[student._id] = 'INLOG'
-          } else if (inrevResults.length < inrevCapacityConcours) {
-            inrevResults.push({
               student: student._id,
               optionName: 'INREV',
               score,
+              academic_year,
             })
             studentAssignments[student._id] = 'INREV'
+          } else if (inrevResults.length > +inrevCapacityConcours) {
+            inrevResults.push({
+              student: student._id,
+              optionName: 'INLOG',
+              score,
+              academic_year,
+            })
+            studentAssignments[student._id] = 'INLOG'
           }
         }
       }
     })
 
-    // Log the final assigned results
-    console.log('Final INREV Results:', inrevResults)
-    console.log('Final INLOG Results:', inlogResults)
+    // Assign ranks within INLOG and INREV independently
+    inlogResults.sort((a, b) => b.score - a.score)
+    inrevResults.sort((a, b) => b.score - a.score)
 
-    // Log the combined final results
-    console.log('Final Results:', [...inlogResults, ...inrevResults])
+    inlogResults.forEach((result, index) => {
+      result.rank = index + 1 // Rank starts at 1
+    })
 
-    // If no results, respond with an error
-    if (inlogResults.length === 0 && inrevResults.length === 0) {
-      return res
-        .status(400)
-        .json({ message: 'No results to save in the database.' })
-    }
-
-    // Now, re-sort the results by score to assign ranks dynamically
-    const allResults = [...inlogResults, ...inrevResults]
-    allResults.sort((a, b) => b.score - a.score) // Sort by score in descending order
-
-    // Log the sorted final results
-    console.log('Sorted Final Results:', allResults)
-
-    // Reassign ranks based on sorted order
-    allResults.forEach((result, index) => {
+    inrevResults.forEach((result, index) => {
       result.rank = index + 1 // Rank starts at 1
     })
 
     // Store results in the OptionResults collection
     await OptionResults.deleteMany() // Clear previous results
     await OptionResults.insertMany(
-      allResults.map((result) => ({
+      [...inlogResults, ...inrevResults].map((result) => ({
         student: result.student,
         optionName: result.optionName,
         score: result.score,
         rank: result.rank,
+        academic_year: result.academic_year, // Store academic year in the result
       })),
     )
 
     // Respond with the final results
     res.status(201).json({
       message: 'Option results calculated and stored successfully.',
-      results: allResults,
+      inlogResults,
+      inrevResults,
     })
   } catch (error) {
     console.error('Error calculating option results:', error)
@@ -437,7 +428,6 @@ export const calculateOptionResults = async (req, res) => {
     })
   }
 }
-
 export const updateOptionResults = async (req, res) => {
   try {
     // Get the ID of the OptionResult to update
@@ -459,11 +449,15 @@ export const updateOptionResults = async (req, res) => {
         message: 'If you change the optionName, you must specify a reason.',
       })
     }
+
     // Find the OptionResult by ID
     const optionResult = await OptionResults.findById(optionResultId)
     if (!optionResult) {
       return res.status(404).json({ message: 'OptionResult not found.' })
     }
+
+    // Track the old optionName for comparison
+    const oldOptionName = optionResult.optionName
 
     // Update the OptionResult fields (only if provided in the request body)
     if (optionName) {
@@ -482,10 +476,58 @@ export const updateOptionResults = async (req, res) => {
     // Save the updated OptionResult
     await optionResult.save()
 
-    // Respond with the updated OptionResult
+    // Handle the dynamic re-ranking and array movement logic
+    const allResults = await OptionResults.find() // Fetch all OptionResults
+    const inlogResults = []
+    const inrevResults = []
+
+    // Reassign results to their respective arrays based on optionName
+    allResults.forEach((result) => {
+      if (result.optionName === 'INLOG') {
+        inlogResults.push(result)
+      } else if (result.optionName === 'INREV') {
+        inrevResults.push(result)
+      }
+    })
+
+    // Sort both arrays by score in descending order
+    inlogResults.sort((a, b) => b.score - a.score)
+    inrevResults.sort((a, b) => b.score - a.score)
+
+    // Reassign ranks within each array
+    inlogResults.forEach((result, index) => {
+      result.rank = index + 1 // Rank starts at 1
+    })
+    inrevResults.forEach((result, index) => {
+      result.rank = index + 1 // Rank starts at 1
+    })
+
+    // Save the updated ranks
+    await Promise.all(
+      [...inlogResults, ...inrevResults].map((result) => result.save()),
+    )
+
+    // Find the updated rank for the specific OptionResult
+    let updatedRank
+    if (optionResult.optionName === 'INLOG') {
+      updatedRank = inlogResults.find((res) =>
+        res._id.equals(optionResult._id),
+      ).rank
+    } else if (optionResult.optionName === 'INREV') {
+      updatedRank = inrevResults.find((res) =>
+        res._id.equals(optionResult._id),
+      ).rank
+    }
+
+    // Update the rank in the updatedOptionResult response
+    optionResult.rank = updatedRank
+
+    // Respond with the updated OptionResult and the new arrays
     res.status(200).json({
-      message: 'OptionResult updated successfully.',
-      optionResult,
+      message: 'OptionResult updated successfully, and ranks recalculated.',
+      updatedOptionResult: optionResult,
+      inlogResults,
+      inrevResults,
     })
   } catch (error) {
     console.error('Error updating option result:', error)
@@ -544,85 +586,89 @@ export const getClassementByOption = async (req, res) => {
     })
   }
 }
-export const SentEmailFinalOption =  async(req,res)=>{
-
-  try{
-    const optionResult = await OptionResults.find({ published: true }).populate('student').exec()
+export const SentEmailFinalOption = async (req, res) => {
+  try {
+    const optionResult = await OptionResults.find({ published: true })
+      .populate('student')
+      .exec()
     if (!optionResult || optionResult.length === 0) {
-      return res.status(404).json({ message: 'All options are hidden' });
+      return res.status(404).json({ message: 'All options are hidden' })
     }
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'oumaymaamzoughi@gmail.com', 
+        user: 'oumaymaamzoughi@gmail.com',
         pass: 'znvw qfty lltn sajs',
       },
     })
-    const listOptionLink = `http://Options/Finallist`; 
+    const listOptionLink = `http://Options/Finallist`
 
-    
     for (const result of optionResult) {
-      const studentEmail = result.student.email;
-      const studentFullName = `${result.student.firstName || ''} ${result.student.lastName || ''}`; 
+      const studentEmail = result.student.email
+      const studentFullName = `${result.student.firstName || ''} ${result.student.lastName || ''}`
 
-      const emailHtml = generateEmailTemplateOptionInfo(studentFullName, result.reason, listOptionLink);
-      
+      const emailHtml = generateEmailTemplateOptionInfo(
+        studentFullName,
+        result.reason,
+        listOptionLink,
+      )
+
       const studentMailOptions = {
         from: 'oumaymaamzoughi@gmail.com',
         to: studentEmail,
-        subject: result.reason ? 'Option Affectation Updated' : 'Option Affectation',
+        subject: result.reason
+          ? 'Option Affectation Updated'
+          : 'Option Affectation',
         html: emailHtml,
-      };
+      }
 
-      
-      await transporter.sendMail(studentMailOptions);
+      await transporter.sendMail(studentMailOptions)
 
-      
       await OptionResults.findByIdAndUpdate(result._id, {
         $set: { sentEmail: true },
-      });
+      })
     }
 
-    console.log(optionResult);
+    console.log(optionResult)
     res.status(200).json({
       message: 'List of Final Option Results sent successfully.',
       model: optionResult,
-    });
-    
+    })
   } catch (error) {
-    console.error('Error fetching Result Option:', error);
+    console.error('Error fetching Result Option:', error)
     res.status(500).json({
       message: 'An error occurred while fetching the option result.',
       error: error.message,
-    });
+    })
   }
-};
-export const getFinalList = async (req,res)=>{
+}
+export const getFinalList = async (req, res) => {
   try {
-    const studentId = req.auth.userId 
+    const studentId = req.auth.userId
 
-    const optionResults = await OptionResults.find()
-      .populate('student')  
-      .exec();
+    const optionResults = await OptionResults.find().populate('student').exec()
 
     if (optionResults.length === 0) {
-      return res.status(404).json({ message: 'Aucun résultat trouvé pour les options.' });
+      return res
+        .status(404)
+        .json({ message: 'Aucun résultat trouvé pour les options.' })
     }
-    const finalList = optionResults.map(result => {
+    const finalList = optionResults.map((result) => {
       return {
         studentId: result.student._id,
         studentName: `${result.student.firstName} ${result.student.lastName}`,
         studentEmail: result.student.email,
-        selectedOption: result.optionName,  
+        selectedOption: result.optionName,
         score: result.score,
         rank: result.rank,
-       
-      };
-    });  
+      }
+    })
 
-    const studentChoice = optionResults.find(optionResult => optionResult.student._id.toString() === studentId);
-    let studentChoiceDetails = null;
+    const studentChoice = optionResults.find(
+      (optionResult) => optionResult.student._id.toString() === studentId,
+    )
+    let studentChoiceDetails = null
     if (studentChoice) {
       studentChoiceDetails = {
         studentId: studentChoice.student._id,
@@ -630,34 +676,40 @@ export const getFinalList = async (req,res)=>{
         selectedOption: studentChoice.optionName,
         score: studentChoice.score,
         rank: studentChoice.rank,
-        
-      };
+      }
     }
-    
+
     res.status(200).json({
       message: 'Liste finale des options et des choix des étudiants.',
       FinalList: finalList,
       studentChoice: studentChoiceDetails,
-    });
+    })
   } catch (error) {
-    console.error('Erreur lors de la récupération des résultats d\'option:', error);
+    console.error(
+      "Erreur lors de la récupération des résultats d'option:",
+      error,
+    )
     res.status(500).json({
       message: 'Une erreur est survenue lors de la récupération des résultats.',
       error: error.message,
-    });
+    })
   }
 }
 
-export function generateEmailTemplateOptionInfo(studentFullName, reason, listOptionLink) {
-  let emailSubject = '';
-  let studentEmailText = '';
+export function generateEmailTemplateOptionInfo(
+  studentFullName,
+  reason,
+  listOptionLink,
+) {
+  let emailSubject = ''
+  let studentEmailText = ''
 
   if (!reason) {
-    studentEmailText = `Hello ${studentFullName.trim()},\n\nHere is your Option Affectation. Click on the link: ${listOptionLink}\n.`;
-    emailSubject = 'Option Affectation';
+    studentEmailText = `Hello ${studentFullName.trim()},\n\nHere is your Option Affectation. Click on the link: ${listOptionLink}\n.`
+    emailSubject = 'Option Affectation'
   } else {
-    studentEmailText = `Hello ${studentFullName.trim()},\n\nYour option result has been modified for a reason. Click on the link: ${listOptionLink}\n.`;
-    emailSubject = 'Option Affectation Updated';
+    studentEmailText = `Hello ${studentFullName.trim()},\n\nYour option result has been modified for a reason. Click on the link: ${listOptionLink}\n.`
+    emailSubject = 'Option Affectation Updated'
   }
 
   return `
@@ -743,5 +795,5 @@ export function generateEmailTemplateOptionInfo(studentFullName, reason, listOpt
       </div>
   </div>
 </body>
-</html>`;
+</html>`
 }

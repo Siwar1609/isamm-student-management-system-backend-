@@ -39,7 +39,26 @@ const userSchema = mongoose.Schema(
     phone: {
       type: String,
       required: true,
+      match: [/^\+?[1-9]\d{1,14}$/, 'Please use a valid phone number.'],
     },
+    address: {
+      type: String,
+      required: false,
+    },
+
+    secondEmail: {
+      match: [
+        /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
+        'Please use a valid email-address , like name@something.com',
+      ],
+      type: String,
+      required: false,
+    },
+    photoURL: {
+      type: String,
+      required: false,
+    },
+
     role: {
       type: String,
       enum: ['admin', 'teacher', 'student', 'user', 'proffesional_supervisor'],

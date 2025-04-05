@@ -63,7 +63,7 @@ export const getEvaluations = async (req, res) => {
     const userRole = req.auth.role // Extract the user's role (e.g., "admin" or "teacher")
 
     if (userRole === 'admin') {
-      // Admin: Retrieve all evaluations
+      // Admin: Retrieve all evaluations with subject titles
       const evaluations = await Evaluation.find().populate('subjectID', 'title')
       return res.status(200).json({ evaluations })
     } else if (userRole === 'teacher') {
@@ -77,17 +77,22 @@ export const getEvaluations = async (req, res) => {
           .json({ message: 'No subjects found for this teacher' })
       }
 
+      // Retrieve evaluations for subjects assigned to this teacher
       const evaluations = await Evaluation.find({
         subjectID: { $in: subjectIDs },
-      }).populate('subjectID')
+      })
+        .select('-chapters') // Exclude the 'chapters' field
+        .populate('subjectID', 'title') // Only include the subject title
+
       return res.status(200).json({ evaluations })
     } else {
-      return res
-        .status(403)
-        .json({ message: 'You are not authorized to access evaluations' })
+      // Unauthorized role
+      return res.status(403).json({ message: 'Access denied' })
     }
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Internal server error' })
+    console.error('Error fetching evaluations:', error)
+    return res
+      .status(500)
+      .json({ message: 'An error occurred while fetching evaluations' })
   }
 }

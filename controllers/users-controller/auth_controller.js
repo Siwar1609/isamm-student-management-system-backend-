@@ -17,7 +17,11 @@ export const login = async (req, res) => {
       return res.status(404).json({ message: 'cin or password is wrong' })
     }
 
+    console.log('*********** 1', user)
+
     const match = await bcrypt.compare(req.body.password, user.password)
+    
+    console.log('*********** 2', match)
 
     if (!match) {
       return res.status(404).json({ message: 'password is incorrect' })
@@ -30,6 +34,9 @@ export const login = async (req, res) => {
         expiresIn: '24h', // Set token expiration (e.g., 24 hours)
       },
     )
+
+    console.log('*********** 3', token)
+
     res.status(200).json({ token })
   } catch (error) {
     res.status(400).json({ message: error.message })

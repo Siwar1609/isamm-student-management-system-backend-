@@ -3,6 +3,13 @@ import Period from '../../models/period-model/period_model.js'
 export const openInternshipPeriod = async (req, res) => {
   const { start_date, end_date, type } = req.body
 
+  // Ensure 'type' is a number
+  const parsedType = Number(type)
+
+  // Log the received data for debugging
+  console.log('Received request body:', req.body)
+  console.log('Parsed Type:', parsedType)
+
   // Vérifier si la date de fin est après la date de début
   if (new Date(start_date) >= new Date(end_date)) {
     return res.status(400).json({
@@ -11,19 +18,26 @@ export const openInternshipPeriod = async (req, res) => {
   }
 
   // Vérifier si le type est valide
-  if (![1, 2, 3].includes(type)) {
+  if (![1, 2].includes(parsedType)) {
     return res.status(400).json({
-      message: 'Le type de la période doit être 1, 2, ou 3.',
+      message: 'Le type de la période doit être 1 ou 2.',
     })
   }
 
   try {
+    // Log the actual dates and type
+    console.log('Checking existing period with start_date:', start_date)
+    console.log('Checking existing period with end_date:', end_date)
+
     // Vérifier si une période de type "Dépôt de stage" est déjà ouverte
     const existingPeriod = await Period.findOne({
       name: 'Dépôt de stage',
-      start_date: new Date(start_date),
-      end_date: new Date(end_date),
+      start_date: new Date(start_date), // Ensure these are parsed as Date objects
+      end_date: new Date(end_date), // Ensure these are parsed as Date objects
+      type: parsedType,
     })
+
+    console.log('Existing Period:', existingPeriod) // Log the result of the query
 
     if (existingPeriod) {
       return res.status(400).json({
@@ -37,7 +51,7 @@ export const openInternshipPeriod = async (req, res) => {
       name: 'Dépôt de stage',
       start_date: new Date(start_date),
       end_date: new Date(end_date),
-      type: type, // Add the type field
+      type: parsedType,
     })
 
     await newPeriod.save()
@@ -46,6 +60,7 @@ export const openInternshipPeriod = async (req, res) => {
       period: newPeriod,
     })
   } catch (error) {
+    console.error('Error occurred:', error) // More detailed error logging
     return res.status(500).json({
       message: "Erreur lors de l'ouverture de la période.",
       error: error.message,
@@ -56,7 +71,7 @@ export const openInternshipPeriod = async (req, res) => {
 export const getInternshipPeriod = async (req, res) => {
   try {
     // Rechercher une période active de type "Dépôt de stage"
-    const depotStagePeriod = await Period.findOne({ name: 'Dépôt de stage' })
+    const depotStagePeriod = await Period.find({ name: 'Dépôt de stage' })
 
     if (!depotStagePeriod) {
       return res.status(404).json({

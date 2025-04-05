@@ -3,8 +3,6 @@ import Teacher from '../../models/users-models/teacher_model.js'
 import {
   addTeacher,
   deleteTeacher,
-  getTeacher,
-  getTeachers,
   updateTeacher,
 } from '../../services/teachers_services.js'
 import { updatePassword } from '../../services/users_services.js'
@@ -16,7 +14,12 @@ let filePath = 'data\\teachers.xlsx'
 // *********************************************
 const getAllTeachers = async function (req, res) {
   try {
-    const teachers = await getTeachers()
+    const teachers = await Teacher.find()
+      .populate({
+        path: 'subjects',
+        select: 'title code level description' // Select the fields you want to populate
+      })
+      .exec()
     res.status(200).json(teachers)
   } catch (err) {
     res.status(500).json({ message: err.message })
@@ -28,7 +31,16 @@ const getAllTeachers = async function (req, res) {
 const getOneTeacher = async function (req, res) {
   const teacherId = req.params.id
   try {
-    const teacher = await getTeacher(teacherId)
+    const teacher = await Teacher.findById(teacherId)
+      .populate({
+        path: 'subjects',
+        select: 'title code level description'
+      })
+      .exec()
+
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found' })
+    }
 
     res.status(200).json(teacher)
   } catch (err) {

@@ -1,32 +1,23 @@
-import mongoose from 'mongoose'
+// validators/academic_year_validator.js
+import Joi from 'joi';
 
-const academicYearSchema = new mongoose.Schema({
-  start_year: {
-    type: Date,
-    required: [true, 'L’année de début est obligatoire.'],
-  },
-  end_year: {
-    type: Date,
-    required: [true, 'L’année de fin est obligatoire.'],
-    validate: {
-      validator: function (value) {
-        return value > this.start_year
-      },
-      message: 'L’année de fin doit être postérieure à l’année de début.',
-    },
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'off'],
-    required: [true, 'Le statut est obligatoire.'],
-    default: 'pending',
-  },
-  current: {
-    type: Boolean,
-    required: true,
-    default: true,
-  },
-})
+const academicYearValidator = Joi.object({
+  start_year: Joi.date().required().messages({
+    "any.required": '"start_year" is required.',
+    "date.base": '"start_year" must be a valid date.',
+  }),
+  end_year: Joi.date().required().greater(Joi.ref('start_year')).messages({
+    "any.required": '"end_year" is required.',
+    "date.base": '"end_year" must be a valid date.',
+    "date.greater": '"end_year" must be after "start_year".',
+  }),
+  status: Joi.string().valid('pending', 'off').default('pending').messages({
+    "any.only": '"status" must be either "pending" or "off".',
+  }),
+  current: Joi.boolean().required().messages({
+    "any.required": '"current" is required.',
+    "boolean.base": '"current" must be a boolean value.',
+  }),
+});
 
-// Export du modèle
-export default mongoose.model('AcademicYear', academicYearSchema)
+export default academicYearValidator;
