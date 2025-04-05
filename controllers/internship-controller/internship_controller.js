@@ -9,6 +9,92 @@ import nodemailer from 'nodemailer'
 import { getTeacher } from '../../services/teachers_services.js'
 import { internshipPlanningValidator } from '../../validators/internshipPlanning_validator.js'
 
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Function to generate full file URL
+const getFileUrl = (req, filePath) => {
+  return `${req.protocol}://${req.get('host')}/uploads/${path.basename(filePath)}`
+}
+
+// Get all internships with documents
+export const getAllInternships = async (req, res) => {
+  try {
+    const internships = await Internship.find()
+      .populate('studentId', 'firstName lastName email cin')
+      .lean()
+
+    // Modify document paths to return full URLs
+    const internshipsWithDocuments = internships.map((internship) => {
+      if (internship.documents && internship.documents.length > 0) {
+        return {
+          ...internship,
+          documents: internship.documents.map((doc) => ({
+            name: path.basename(doc), // Extract document name
+            url: getFileUrl(req, doc), // Generate full URL for file
+          })),
+        }
+      }
+      return internship
+    })
+
+    res.status(200).json({
+      models: internshipsWithDocuments,
+      message: 'Internship periods retrieved successfully!',
+    })
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+      message: 'Error retrieving internship periods',
+    })
+  }
+}
+
+// Get internships by student ID with documents
+export const getInternshipsByStudentId = async (req, res) => {
+  try {
+    const studentId = req.params.studentId
+    const internships = await Internship.find({ studentId })
+      .populate('academicYear')
+      .populate('periodeId')
+      .lean()
+
+    if (!internships.length) {
+      return res
+        .status(404)
+        .json({ message: 'No internships found for this student' })
+    }
+
+    // Modify document paths to return full URLs
+    const internshipsWithDocuments = internships.map((internship) => {
+      if (internship.documents && internship.documents.length > 0) {
+        return {
+          ...internship,
+          documents: internship.documents.map((doc) => ({
+            name: path.basename(doc),
+            url: getFileUrl(req, doc), // Generate full URL for file
+          })),
+        }
+      }
+      return internship
+    })
+
+    res.status(200).json({
+      model: internshipsWithDocuments,
+      message: 'Internships retrieved successfully!',
+    })
+  } catch (error) {
+    console.error('Error retrieving internships:', error)
+    res.status(400).json({
+      error: error.message,
+      message: 'Error retrieving internships',
+    })
+  }
+}
+
 export const addInternship = async (req, res) => {
   try {
     const { startDate, endDate, academicYear, title, level, description } =
@@ -32,7 +118,6 @@ export const addInternship = async (req, res) => {
         message: `Different types cannot be submitted. Level: ${level}, Type: ${type}`,
       })
     }
-
     // Check if student exists
     const student = await Student.findById(studentId)
     if (!student) {
@@ -268,36 +353,25 @@ export const updateInternship = async (req, res) => {
   }
 }
 
-export const getAllInternships = async (req, res) => {
-  try {
-    const internships = await Internship.find().populate(
-      'studentId',
-      'firstName lastName email cin',
-    ) // Populate with specific student info
-
-    res.status(200).json({
-      models: internships,
-      message: 'Internship periods retrieved successfully!',
-    })
-  } catch (error) {
-    res.status(400).json({
-      error: error.message,
-      message: 'Error retrieving internship periods',
-    })
-  }
-}
-
 export const getInternshipById = async (req, res) => {
   try {
     const internshipId = req.params.id
-
     const singleInternship = await Internship.findById(internshipId)
       .populate('academicYear')
-      .populate('studentId', 'firstName lastName email cin') // Populate student details
+      .populate('studentId', 'firstName lastName email cin')
       .populate('periodeId')
+      .lean()
 
     if (!singleInternship) {
       return res.status(404).json({ message: 'Internship period not found' })
+    }
+
+    // Modify document paths if they exist
+    if (singleInternship.documents && singleInternship.documents.length > 0) {
+      singleInternship.documents = singleInternship.documents.map((doc) => ({
+        name: path.basename(doc),
+        path: `/uploads/${path.basename(doc)}`,
+      }))
     }
 
     res.status(200).json({

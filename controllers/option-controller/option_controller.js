@@ -41,7 +41,7 @@ export const addOption = async (req, res) => {
     }
 
     // Fetch the logged-in student's ID from the session or authentication middleware
-    const studentId = req.auth.userId // Assuming `req.user` is populated by your authentication middleware
+    const studentId = req.auth.userId //  `req.user` is populated by your authentication middleware
     if (!studentId) {
       return res.status(403).json({ message: 'User not authenticated.' })
     }
@@ -155,12 +155,6 @@ export const getOptionsByStudentId = async (req, res) => {
       .populate('student', 'firstName lastName cin email') // Populate student details (name, email for example)
       .populate('academic_year', 'start_year end_year')
       .populate('period', 'name start_date end_date') // Populate academic year details (e.g., year, name)
-
-    if (!options || options.length === 0) {
-      return res
-        .status(404)
-        .json({ message: `No options found for student with ID ${studentId}.` })
-    }
 
     // Respond with the populated options
     res.status(200).json({ options })

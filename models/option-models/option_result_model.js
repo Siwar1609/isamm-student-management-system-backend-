@@ -37,7 +37,7 @@ const optionResultsSchema = mongoose.Schema({
   },
   published: {
     type: Boolean,
-    required: false, // Indicates if the result has been published or not
+    required: false,
   },
   academic_year: {
     type: mongoose.Schema.Types.ObjectId,

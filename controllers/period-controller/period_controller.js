@@ -4,10 +4,7 @@ import periodValidator from '../../validators/period_validator.js'
 export const fetch_pfa_period = async (req, res) => {
   try {
     const periods = await period_model.find({
-      $and: [
-        { name: 'Dépôt des Sujet des PFA' },
-        { end_date: { $lt: new Date() } }, // end_date < date actuelle
-      ],
+      $and: [{ name: 'Dépôt des Sujet des PFA' }],
     })
 
     if (periods.length === 0) {
