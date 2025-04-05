@@ -1,7 +1,5 @@
 import Joi from 'joi'
 
-// Schéma Joi pour valider un utilisateur
-
 const userValidator = Joi.object({
   email: Joi.string().email().required().min(6).max(50).messages({
     'string.min': "L'email doit comporter au moins 6 caractères.",
@@ -15,7 +13,6 @@ const userValidator = Joi.object({
     'string.min': 'Le prénom doit comporter au moins 2 caractères.',
     'string.empty': 'Le prénom est obligatoire.',
   }),
-
   lastName: Joi.string().min(2).required().messages({
     'string.min': 'Le nom doit comporter au moins 2 caractères.',
     'string.empty': 'Le nom est obligatoire.',
@@ -34,12 +31,11 @@ const userValidator = Joi.object({
   phone: Joi.string().required().messages({
     'string.empty': 'Le numéro de téléphone est obligatoire.',
   }),
-  // we will add the missing student fileds as not required
+  status: Joi.string().valid('active', 'inactive').default('active'),
+  // Optional fields
   cv: Joi.string().allow(''),
   academicYearlevel: Joi.string().allow(''),
-  level: Joi.string().allow(''),
-  status: Joi.string().allow(''),
-  // we will add the missing teacher fileds as not required
+  level: Joi.string().allow('')
 })
 
 export default userValidator

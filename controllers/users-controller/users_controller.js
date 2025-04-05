@@ -35,53 +35,115 @@ const getUser = async (req, res) => {
 
 // create a new user ✅
 const createUser = async (req, res) => {
-  const { error, value } = userValidator.validate(req.body)
-
-  if (error) {
-    return res.status(400).json({ message: error.message })
-  }
   try {
-    const newUser = await addUser(value)
-    res.status(201).json(newUser)
+    // Validate request body
+    const { error, value } = userValidator.validate(req.body)
+    if (error) {
+      console.log('Validation error:', {
+        details: error.details,
+        data: req.body
+      })
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: error.details.map(detail => detail.message)
+      })
+    }
+
+    // Add default status if not provided
+    const userData = {
+      ...value,
+      status: value.status || 'active'
+    }
+
+    console.log('Creating user with data:', userData)
+    const newUser = await addUser(userData)
+    
+    res.status(201).json({
+      message: 'User created successfully',
+      user: newUser
+    })
   } catch (err) {
-    console.error('something went wrong')
-    res.status(500).json({ message: err.message })
+    console.error('User creation error:', {
+      error: err,
+      stack: err.stack,
+      data: req.body
+    })
+
+    // Handle specific errors
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message: 'User already exists',
+        field: Object.keys(err.keyPattern)[0]
+      })
+    }
+
+    res.status(500).json({
+      message: 'Failed to create user',
+      error: err.message
+    })
   }
 }
 
-//**************************************** */
 // update a user 🚀
 const updateUser = async (req, res) => {
-  // check if the user exists
-  const user = await user_model.findById(req.params.id).exec()
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' })
-  }
-  // takes user info and only update the fields that are provided
-
-  let user_old_data = user.toObject()
-  // eliminate the _id field
-  delete user_old_data._id,
-    delete user_old_data.__v,
-    delete user_old_data.createdAt,
-    delete user_old_data.updatedAt
-  let args = req.body
-  let user_new_data = {
-    ...user_old_data,
-    ...args,
-  }
-
-  console.log('user_new_data', user_new_data)
-
-  const { error, value } = userValidator.validate(user_new_data)
-  if (error) {
-    return res.status(400).json({ message: error.message })
-  }
   try {
+    // Check if user exists
+    const user = await user_model.findById(req.params.id).exec()
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+        userId: req.params.id
+      })
+    }
+
+    // Prepare update data
+    const user_old_data = user.toObject()
+    const updateData = {
+      ...user_old_data,
+      ...req.body,
+      _id: undefined,
+      __v: undefined,
+      createdAt: undefined,
+      updatedAt: undefined
+    }
+
+    // Validate update data
+    const { error, value } = userValidator.validate(updateData)
+    if (error) {
+      console.log('Update validation error:', {
+        details: error.details,
+        data: updateData
+      })
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: error.details.map(detail => detail.message)
+      })
+    }
+
     const updatedUser = await updateUserById(req.params.id, value)
-    res.status(200).json(updatedUser)
+    res.status(200).json({
+      message: 'User updated successfully',
+      user: updatedUser
+    })
   } catch (err) {
-    res.status(500).json({ message: err.message })
+    console.error('User update error:', {
+      error: err,
+      stack: err.stack,
+      userId: req.params.id,
+      data: req.body
+    })
+
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message: 'Update failed: duplicate field',
+        field: Object.keys(err.keyPattern)[0]
+      })
+    }
+
+    res.status(500).json({
+      message: 'Failed to update user',
+      error: err.message
+    })
   }
 }
 //**************************************** */

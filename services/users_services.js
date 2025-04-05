@@ -4,34 +4,51 @@ import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
 dotenv.config()
 
-export const addUser = async function (value,res) {
-  // validating the args
-  console.log('cin : ', value.cin)
+export const addUser = async function (value) {
+  // Validate required fields
+  if (!value.email || !value.role) {
+    throw new Error('Email and role are required')
+  }
 
-  if (!value.email || !value.password || !value.role) {
-    return res.status(400).json({ message: 'All fields are required' })
+  // Check if user exists
+  const existingUser = await User.findOne({ cin: value.cin }).exec()
+  if (existingUser) {
+    throw new Error('User with this CIN already exists')
   }
-  // checking if the user already exists
-  const user = await User.findOne({ email: value.email }).exec()
-  if (user) {
-    return res.status(400).json({ message: 'User already exists' })
-  }
-  // hashing the password
-  const hashedPassword = await bcrypt.hash(value.password, 10)
-  // creating the user
+
+  // Generate random password if not provided
+  const password = value.password || generateRandomPassword()
+  
+  // Hash password
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  // Create new user
   const newUser = new User({
     ...value,
     password: hashedPassword,
+    status: value.status || 'active'
   })
-
-  console.log(newUser)
 
   await newUser.save()
 
-  console.log('sending email')
+  // Send welcome email with password
+  try {
+    const htmlEmailContent = generateEmailTemplatLoginInfo(
+      `${newUser.firstName} ${newUser.lastName}`,
+      password
+    )
+    await sendEmail({
+      to: newUser.email,
+      subject: 'Welcome to ISAMM - Account Created',
+      html: htmlEmailContent
+    })
+  } catch (error) {
+    console.error('Failed to send welcome email:', error)
+    // Don't throw error for email failure
+  }
+
   return newUser
 }
-
 // This is a function that will be used to get the user by id from the database
 export const getUserById = async (userID) => {
   return await User.findById(userID).exec()

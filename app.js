@@ -4,15 +4,17 @@ import morgan from 'morgan'
 
 import cors from 'cors'
 import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
 import path from 'path'
+import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 
+import fs from 'fs'
 import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_middleware.js'
 import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
+import routerYears from './routes/academic-year-routes/years_route.js'
 import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill_route.js'
 import routerChapter from './routes/chapter-routes/chapter.js'
 import routerCurriculum from './routes/curriculum-routes/currilculum_route.js'
@@ -33,8 +35,6 @@ import routerAuth from './routes/users-routes/auth_route.js'
 import studentsRouter from './routes/users-routes/students_route.js'
 import teachersRouter from './routes/users-routes/teachers_route.js'
 import usersRouter from './routes/users-routes/users_route.js'
-import routerYears from './routes/academic-year-routes/years_route.js'
-import fs from 'fs';
 
 dotenv.config()
 
@@ -72,7 +72,7 @@ app.get('/', (req, res) => {
 scheduleTeacherReminder()
 
 app.use('/api/auth', routerAuth)
-app.use('/api/accounts', usersRouter)
+app.use('/api/accounts', usersRouter)  // Keep only this instance
 app.use('/api/students', studentsRouter)
 app.use('/api/teachers', teachersRouter)
 app.use('/api/internship', loggedMiddleware, routerInternship)
@@ -89,9 +89,6 @@ app.use('/api/chapter', routerChapter)
 app.use('/api/curriculum', routerCurriculum)
 app.use('/api/assesmentskill', routerAssesmentSkill)
 app.use('/api/assesmentsubject', routerAssesmentSubject)
-app.use('/api/accounts', usersRouter)
-app.use('/api/students', studentsRouter)
-app.use('/api/teachers', teachersRouter)
 app.use('/api/subject/publish/:response', RouterPublishSubject)
 app.use('/api/option', loggedMiddleware, option_period_route)
 app.use('/api/options', loggedMiddleware, routerOption)
