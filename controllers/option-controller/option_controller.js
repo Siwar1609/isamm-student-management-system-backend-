@@ -428,7 +428,6 @@ export const calculateOptionResults = async (req, res) => {
     })
   }
 }
-
 export const updateOptionResults = async (req, res) => {
   try {
     // Get the ID of the OptionResult to update

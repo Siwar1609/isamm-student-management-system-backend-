@@ -307,7 +307,6 @@ export const autoAllocatePFA = async (req, res) => {
       projectId: { $in: nonapprovedPFAs.map((pfa) => pfa.id) },
       approval: true,
     })
-
     // Return success response with the list of approvedPFAs
     res.status(200).json({
       message: 'Automatic allocation completed successfully',
@@ -402,7 +401,7 @@ export const manualAssignPFA = async (req, res) => {
   }
 }
 
-//_______________________________________done____________________________________________________________________________________
+//_______________________________________done_____________________________________________________
 export const togglePublishPFA = async (req, res) => {
   const { id } = req.params
   const { publish } = req.body // Boolean value to either publish (true) or unpublish (false)

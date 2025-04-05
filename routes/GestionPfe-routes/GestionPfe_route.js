@@ -20,14 +20,39 @@ import {
   send_soutenance_planning,
   updateSoutenance,
   getTeacherSoutenances,
-  getStudentSoutenances
+  getStudentSoutenances,
+  getPFEById,
+  getAssignedPFEs,
+  getPFEDetailsForStudent2,
+  checkPfe,
+  getAllDocumentsPfe,
+  deleteDocument
 } from '../../controllers/pfe-controller/pfe_controller.js'
 import {
   accessByLevel,
   accessByRole,
   loggedMiddleware,
 } from '../../middlewares/users-middlewares/auth_middleware.js'
+import multer from 'multer';
+import { uploadFiles } from "../../controllers/document-controller/document_controller.js";
+
+
 const router = express.Router()
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+});
+const upload = multer({ storage });
+router.get('/affected', getPFEDetailsForStudent2);
+// GET all documents of type 'rapport de pfe' uploaded by a specific student
+router.get("/documents/:studentId", getAllDocumentsPfe);
+// Route for uploading files 
+router.post("/upload", upload.array("files", 5), uploadFiles);
+//route to delete document 
+router.delete("/documents/:id", deleteDocument);
+//check if the user has an exisiting pfe 
+router.get("/:userId", loggedMiddleware, accessByRole(['student']), checkPfe);
 
 // route pour ouvrir une période de dépôt PFE:
 router.post('/open', loggedMiddleware, accessByRole(['admin']), openPFEPeriod)
@@ -42,16 +67,16 @@ router.patch(
 router.get('/open', loggedMiddleware, accessByRole(['admin']), getPFEPeriod)
 
 //Route pour sauvegarder un nouveau pfe
-router.post('/post', loggedMiddleware,accessByRole(['student']), addPFE)
+router.post('/post', loggedMiddleware, accessByRole(['student']), addPFE)
 // Route pour mettre à jour un PFE
-router.patch('/:id',loggedMiddleware, accessByRole(['student']), updatePFE)
-//route pour recuperer tous les pfe
-router.get(
-  '/',
-  loggedMiddleware,
-  accessByRole(['teacher']),
-  getPFEDetailsForStudent,
-)
+router.patch('/:id', loggedMiddleware, accessByRole(['student']), updatePFE)
+//route pour recuperer tous les pfe non affected
+router.get('/', getPFEDetailsForStudent);
+//route pour recuperer tous les pfe assignés
+
+router.get('/get/:id', loggedMiddleware, getPFEById);
+//route pour recuperer les pfe assignés pour un teacher 
+router.get('/assigned/:teacherId', getAssignedPFEs);
 
 // Endpoint pour qu'un enseignant choisisse un PFE
 router.patch(
@@ -83,7 +108,7 @@ router.patch(
 )
 //route pour publier ou masquer les pfes
 router.post(
-  '/planning/publish/:response',
+  '/planning2/publish/:response',
   loggedMiddleware,
   accessByRole(['admin']),
   publishOrHidePFEAssignments,
@@ -102,19 +127,20 @@ router.post(
   accessByRole(['admin']),
   send_pfe_planning,
 )
+//
 
 // route pour créer planning soutenances PFE
-router.post('/soutenances',loggedMiddleware, accessByRole(['admin']), assignTeacherToSoutenance)
+router.post('/soutenances', loggedMiddleware, accessByRole(['admin']), assignTeacherToSoutenance)
 //router pour publier oum masquer planning pfe
-router.post('/soutenances/publish/:response',loggedMiddleware, accessByRole(['admin']), publishOrHideSoutenances)
+router.post('/soutenances/publish/:response', loggedMiddleware, accessByRole(['admin']), publishOrHideSoutenances)
 //route pour envoi le planning par l'email
-router.post('/soutenances/send',loggedMiddleware, accessByRole(['admin']), send_soutenance_planning)
+router.post('/soutenances/send', loggedMiddleware, accessByRole(['admin']), send_soutenance_planning)
 //route pour mettre a jour le planning pfe
-router.patch('/:id/soutenances/',loggedMiddleware, accessByRole(['admin']), updateSoutenance)   
+router.patch('/:id/soutenances/', loggedMiddleware, accessByRole(['admin']), updateSoutenance)
 //rote pour reuperer les soutenances de teacher
-router.get('/me',loggedMiddleware, accessByRole(['teacher']), getTeacherSoutenances)
+router.get('/me', loggedMiddleware, accessByRole(['teacher']), getTeacherSoutenances)
 //route pour recuperer les soutenances d'un etudiant
-router.get('/student/me',loggedMiddleware, accessByRole(['student']), getStudentSoutenances)
+router.get('/student/me', loggedMiddleware, accessByRole(['student']), getStudentSoutenances)
 
 
 export default router

@@ -34,7 +34,7 @@ import routerOption from './routes/options-routes/option_routes.js'
 import soutenance_pfa_route from './routes/soutenance-routes/soutenanance_pfa.js'
 import routerEvaluation from './routes/subject-routes/evaluation_routes.js'
 import routerYears from './routes/academic-year-routes/years_route.js'
-
+import fs from 'fs';
 dotenv.config()
 
 const DATABASE_URL = process.env.DATABASE_URL
@@ -53,8 +53,14 @@ mongoose
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 app.use(cors())
+
 app.use(express.json())
 app.use(morgan('dev'))
+const uploadDir = './uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+app.use("/uploads", express.static("uploads"));
 
 app.get('/', (req, res) => {
   res.send(' <h1> Server is Running correctly ✅ </h1> ')
@@ -68,7 +74,6 @@ app.use('/api/students', studentsRouter)
 app.use('/api/teachers', teachersRouter)
 app.use('/api/internship', loggedMiddleware, routerInternship)
 app.use('/api/v1/PFE', gestionPFERoutes)
-
 app.use('/api/v1/pfa', pfa_route)
 app.use('/api/v1/pfaperiod', pfa_period_route)
 app.use('/api/v1/pfachoice', choice_pfa_route)
