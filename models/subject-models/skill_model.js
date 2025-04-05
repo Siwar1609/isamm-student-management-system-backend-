@@ -1,6 +1,5 @@
 import mongoose from 'mongoose'
-import Subject from './subject_model.js';
-import skillAssesment from './skill_assesment_model.js'
+
 
 const SkillSchema = new mongoose.Schema({
   name: { type: String, required: true },

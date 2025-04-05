@@ -12,7 +12,6 @@ import {
   getStudentCV,
   updateStudentCV,
   updateStudentProfile,
-  evaluteStudentStatus,
   getStudentCVInfo,
 } from '../../controllers/users-controller/students_controller.js'
 import {

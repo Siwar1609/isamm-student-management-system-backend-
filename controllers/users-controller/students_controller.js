@@ -147,6 +147,8 @@ const createStudentsAccountsExcelFile = async (req, res) => {
     // Skip the first row (headers)
     rows.shift()
 
+    console.log(rows)
+
     for (const row of rows) {
       const student = {
         cin: row[0].toString(),
@@ -155,10 +157,14 @@ const createStudentsAccountsExcelFile = async (req, res) => {
         lastName: row[3].toString(),
         email: row[4].toString(),
         phone: row[5].toString(),
-        academicYearlevel: row[7].toString(),
-        level: row[8].toString(),
-        status: row[9].toString(),
+        academicYearlevel: row[6].toString(),
+        level: row[7].toString(),
+        status: row[8].toString(),
       }
+
+      console.log('================================')
+      console.log(student,"student number : > ")
+
 
       // Check if the student already exists
       const studentExist = await Student.findOne({ cin: student.cin }).exec()

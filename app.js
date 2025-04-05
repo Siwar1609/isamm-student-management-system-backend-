@@ -1,37 +1,37 @@
+import cors from 'cors'
+import dotenv from 'dotenv'
 import express from 'express'
 import mongoose from 'mongoose'
 import morgan from 'morgan'
-import cors from 'cors'
-import dotenv from 'dotenv'
-import routerAuth from './routes/users-routes/auth_route.js'
-import routerSubject from './routes/subject-routes/subject.js'
-import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
-import routerInternship from './routes/internship-routes/internship_route.js'
-import usersRouter from './routes/users-routes/users_route.js'
-import studentsRouter from './routes/users-routes/students_route.js'
-import teachersRouter from './routes/users-routes/teachers_route.js'
-import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
 import { scheduleStudentReminder } from './controllers/notifications-controller/student_reminder.js'
 import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_middleware.js'
-import pfa_route from './routes/pfa-routes/pfa_routes.js'
-import choice_pfa_route from './routes/pfa-routes/pfa_choice_routes.js'
-import pfa_period_route from './routes/period-routes/period_routes.js'
-import internship_period_route from './routes/period-routes/internship_period_routes.js'
-import routerSkill from './routes/skill-routes/skill.js'
+import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
+import routerYears from './routes/academic-year-routes/years_route.js'
+import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill_route.js'
 import routerChapter from './routes/chapter-routes/chapter.js'
 import routerCurriculum from './routes/curriculum-routes/currilculum_route.js'
-import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill_route.js'
-import routerAssesmentSubject from './routes/subject-assesment-route/subjectAssesment_route.js'
-import RouterPublishSubject from './routes/subject-routes/subject.js'
+import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
+import routerInternship from './routes/internship-routes/internship_route.js'
 import option_period_route from './routes/options-routes/option_period_routes.js'
 import routerOption from './routes/options-routes/option_routes.js'
+import internship_period_route from './routes/period-routes/internship_period_routes.js'
+import pfa_period_route from './routes/period-routes/period_routes.js'
+import choice_pfa_route from './routes/pfa-routes/pfa_choice_routes.js'
+import pfa_route from './routes/pfa-routes/pfa_routes.js'
+import routerSkill from './routes/skill-routes/skill.js'
 import soutenance_pfa_route from './routes/soutenance-routes/soutenanance_pfa.js'
+import routerAssesmentSubject from './routes/subject-assesment-route/subjectAssesment_route.js'
 import routerEvaluation from './routes/subject-routes/evaluation_routes.js'
-import routerYears from './routes/academic-year-routes/years_route.js'
+import { default as RouterPublishSubject, default as routerSubject } from './routes/subject-routes/subject.js'
+import routerAuth from './routes/users-routes/auth_route.js'
+import studentsRouter from './routes/users-routes/students_route.js'
+import teachersRouter from './routes/users-routes/teachers_route.js'
+import usersRouter from './routes/users-routes/users_route.js'
 
 dotenv.config()
 
+// eslint-disable-next-line no-undef
 const DATABASE_URL = process.env.DATABASE_URL
 
 const app = express()
@@ -45,7 +45,8 @@ mongoose
     console.log('Correction Error ⛔' + e)
   })
 
-app.use(cors())
+app.use(cors(
+))
 app.use(express.json())
 app.use(morgan('dev'))
 

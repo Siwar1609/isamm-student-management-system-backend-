@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
 dotenv.config()
 
-export const addUser = async function (value) {
+export const addUser = async function (value,res) {
   // validating the args
   console.log('cin : ', value.cin)
 
@@ -79,12 +79,15 @@ export const sendEmail = async function ({ to, subject, html }) {
     port: 465,
     secure: true,
     auth: {
+      // eslint-disable-next-line no-undef
       user: process.env.EMAIL_USER,
+      // eslint-disable-next-line no-undef
       pass: process.env.EMAIL_PASSWORD,
     },
   })
 
   await transporter.sendMail({
+    // eslint-disable-next-line no-undef
     from: process.env.EMAIL_USER,
     to,
     subject,
