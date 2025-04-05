@@ -9,6 +9,7 @@ const periodValidator = Joi.object({
       'Dépôt de stage',
       'Dépot PFE',
       'Choix d’option',
+      "Choix d'option",
     )
     .required()
     .messages({
@@ -30,7 +31,6 @@ const periodValidator = Joi.object({
       'date.greater':
         'La date de fin doit être postérieure à la date de début.',
     }),
-  
 })
 
 export default periodValidator

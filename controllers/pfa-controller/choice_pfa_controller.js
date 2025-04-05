@@ -230,7 +230,6 @@ export const approveChoicePFA = async (req, res) => {
       .json({ message: "Erreur lors de l'approbation.", error: error.message })
   }
 }
-
 //___________________________________________________done_________________________________________________________________
 export const fetchStudentChoices = async (req, res) => {
   try {

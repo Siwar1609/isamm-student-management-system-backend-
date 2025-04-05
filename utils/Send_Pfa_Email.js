@@ -7,27 +7,31 @@ export const sendApprovalEmails = async (students, pfa) => {
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASSWORD,
       },
-    });
-    
+    })
+
     // Envoyer un email à chaque étudiant avec son nom et projet
     for (const student of students) {
       const mailOptions = {
         from: process.env.EMAIL_USER,
         to: student.email,
         subject: `Votre choix PFA a été approuvé`,
-        html: generateApprovalEmailTemplate(student.firstName, student.lastName, pfa.title),
-      };
+        html: generateApprovalEmailTemplate(
+          student.firstName,
+          student.lastName,
+          pfa.title,
+        ),
+      }
 
       // Envoi de l'email
-      await transporter.sendMail(mailOptions);
-      console.log(`Email envoyé avec succès à ${student.email}`);
+      await transporter.sendMail(mailOptions)
+      console.log(`Email envoyé avec succès à ${student.email}`)
     }
   } catch (error) {
-    console.error("Erreur lors de l'envoi des emails : ", error.message);
+    console.error("Erreur lors de l'envoi des emails : ", error.message)
   }
-};
+}
 
 // Fonction pour générer le contenu HTML de l'email
 const generateApprovalEmailTemplate = (firstName, lastName, projectTitle) => `
@@ -115,4 +119,4 @@ const generateApprovalEmailTemplate = (firstName, lastName, projectTitle) => `
       </div>
   </div>
 </body>
-</html>`;
+</html>`
