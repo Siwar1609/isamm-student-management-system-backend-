@@ -15,7 +15,7 @@ import upload from '../../middlewares/file_upload_middleware.js'
 const router = express.Router()
 
 // teachers accounts management routes 📚
-router.get('/', accessByRole(['admin']), getAllTeachers)
+router.get('/', accessByRole(['admin','student','teacher']), getAllTeachers)
 // get a teacher by id  🆔
 router.get('/:id', accessByRole(['admin']), getOneTeacher)
 // create a new teacher 📝

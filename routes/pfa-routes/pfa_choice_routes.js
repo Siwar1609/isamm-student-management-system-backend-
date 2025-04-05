@@ -12,18 +12,13 @@ import {
   fetchStudentChoices,
   autoAllocatePFA,
   manualAssignPFA,
-  togglePublishPFA,
   sendEmailToRecipients,
   togglePublishPFA,
-  sendEmailToRecipients,
-  manualAssignPFA,
-  autoAllocatePFA,
-<<<<<<< HEAD
   list_pfa_by_teacher,
   sorted_pfa  // Added the sorted_pfa import
-=======
 
->>>>>>> 4be9e38e527fb85ea613e37402122d1ba2e8397d
+
+
 } from '../../controllers/pfa-controller/choice_pfa_controller.js'
 
 const choice_pfa_route = express.Router()
