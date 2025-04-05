@@ -28,6 +28,8 @@ import routerAuth from './routes/users-routes/auth_route.js'
 import studentsRouter from './routes/users-routes/students_route.js'
 import teachersRouter from './routes/users-routes/teachers_route.js'
 import usersRouter from './routes/users-routes/users_route.js'
+import routerYears from './routes/academic-year-routes/years_route.js'
+import fs from 'fs';
 
 dotenv.config()
 
@@ -45,10 +47,21 @@ mongoose
     console.log('Correction Error ⛔' + e)
   })
 
-app.use(cors(
-))
+
+  app.use(cors({
+    origin: "http://localhost:3000",  
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    allowedHeaders: "Content-Type, Authorization"
+  }));
+
 app.use(express.json())
 app.use(morgan('dev'))
+const uploadDir = './uploads';
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+app.use("/uploads", express.static("uploads"));
 
 app.get('/', (req, res) => {
   res.send(' <h1> Server is Running correctly ✅ </h1> ')

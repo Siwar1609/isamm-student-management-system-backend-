@@ -16,17 +16,17 @@ const document_Schema = mongoose.Schema({
     type: String,
     required: true,
   },
-
-  internship: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Internship', // References the internship
-    required: true,
+  pfeId:{
+    type:mongoose.Schema.Types.ObjectId,
+    ref:"PFE",
+    
   },
+  
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student', // References the student
     required: true,
   },
-})
+},)
 
 export default mongoose.model('Document', document_Schema)

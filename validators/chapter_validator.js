@@ -11,6 +11,10 @@ const chapterValidator = Joi.object({
     'string.min': '"title" must have at least 3 characters.',
     'string.max': '"title" must have at most 100 characters.',
   }),
+  subjectId: Joi.string().hex().length(24).optional().messages({
+    'string.hex': '"subjectId" must be a valid ObjectId.',
+    'string.length': '"subjectId" must be a 24-character hexadecimal string.',
+  }),
   section: Joi.array()
     .items(
       Joi.object({
@@ -30,10 +34,6 @@ const chapterValidator = Joi.object({
     .messages({
       'array.base': '"section" must be an array.',
     }),
-  subjectId: Joi.string().required().messages({
-    'any.required': '"subjectId" is required.',
-    'string.base': '"subjectId" must be a valid string.',
-  }),
 })
 
 export default chapterValidator

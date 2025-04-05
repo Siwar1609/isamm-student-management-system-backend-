@@ -40,45 +40,35 @@ export const getSkillbyID = async (req, res) => {
 // Delete a skill by ID
 export const deleteSkill = async (req, res) => {
   try {
-    // Fetch the skill by ID
     const skill = await Skill.findById(req.params.id);
     
-    // Check if the skill exists
     if (!skill) {
-      return res.status(404).json({ message: 'Skill not found' });
+      return res.status(404).json({ message: 'Compétence non trouvée' });
     }
 
-    // Check if the skill is assigned to a subject
     const subjectWithSkill = await Subject.findOne({ skillId: req.params.id });
 
-    // Extract the 'force' query parameter from the request
-    const { force } = req.query;
+    // Convertir le paramètre force en booléen
+    const force = req.query.force === 'true';
 
-    if (subjectWithSkill) {
-      // If 'force' is not provided or set to false, archive instead of delete
-      if (!force || force === 'false') {
-        // Archive the skill instead of deleting
-        skill.archived = true;
-        await skill.save();
+    if (subjectWithSkill && !force) {
+      return res.status(400).json({
+        message: `Cette compétence est liée à la matière "${subjectWithSkill.title}".`,
+        subject: subjectWithSkill.title,
+        warning: true
+      });
+    }
 
-        return res.status(200).json({
-          model: skill,
-          message: `Skill has been archived. Use 'force=true' to permanently delete it.`,
-          warning: "Pay attention! The skill is assigned to a subject.",
-        });
-      }
-      console.log(`Skill assigned to subject "${subjectWithSkill.title}". Deletion is forced.`);
-        }
     await Skill.findByIdAndDelete(req.params.id);
-
-    res.status(200).json({
-      message: 'Skill Deleted',
-    });
+    res.status(200).json({ message: 'Compétence supprimée avec succès' });
+    
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ 
+      error: error.message,
+      message: 'Erreur lors de la suppression' 
+    });
   }
 };
-
 
 
 export const updateSkill = async (req, res) => {
