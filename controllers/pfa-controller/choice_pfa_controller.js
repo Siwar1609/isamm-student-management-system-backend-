@@ -263,9 +263,13 @@ export const autoAllocatePFA = async (req, res) => {
     })
 
     if (approvedPFAs.length === 0) {
-      return res.status(400).json({
-        message: 'No PFAs found with affected === true and approval === true.',
-      })
+      return res
+        .status(400)
+        .json({
+          message:
+            'No PFAs found with affected === true and approval === true.',
+        })
+
     }
 
     // Step 2: Update related ChoicePFA documents
@@ -320,6 +324,132 @@ export const autoAllocatePFA = async (req, res) => {
 }
 
 //___________________________________________done_____________________________________________________________________________________
+export const manualAssignPFA = async (req, res) => {
+  const { studentEmails = [], removedStudents = [] } = req.body;
+  const { pfaId } = req.params;
+
+  if (!Array.isArray(studentEmails)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Les emails doivent être fournis dans un tableau'
+    });
+  }
+
+  try {
+    // 1. Vérification du PFA existant avec populate teacherId
+    const pfa = await PFA.findById(pfaId)
+      .select('title description technologies_list numberOfStudents list_of_student affected teacherId')
+      .populate('list_of_student', 'email firstName lastName')
+      .populate('teacherId', 'firstName lastName email'); // Ajout du populate teacherId
+
+    if (!pfa) {
+      return res.status(404).json({
+        success: false,
+        message: 'PFA introuvable'
+      });
+    }
+
+    // 2. Traitement des étudiants à supprimer
+    if (removedStudents.length > 0) {
+      const studentsToRemove = await Student.find({
+        email: { $in: removedStudents }
+      }).select('_id');
+
+      await PFA.findByIdAndUpdate(
+        pfaId,
+        { $pull: { list_of_student: { $in: studentsToRemove.map(s => s._id) } } },
+        { runValidators: true }
+      );
+    }
+
+    // 3. Traitement des étudiants à ajouter
+    if (studentEmails.length > 0) {
+      // Validation du nombre d'étudiants
+      if (studentEmails.length > 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum 2 étudiants par PFA'
+        });
+      }
+
+      // Vérification type PFA
+      if (pfa.numberOfStudents === 'Monome' && studentEmails.length !== 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ce PFA Monôme nécessite exactement 1 étudiant'
+        });
+      }
+
+      if (pfa.numberOfStudents === 'Binome' && studentEmails.length !== 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ce PFA Binôme nécessite exactement 2 étudiants'
+        });
+      }
+
+      // Recherche des étudiants
+      const students = await Student.find({
+        email: { $in: studentEmails }
+      }).select('_id email firstName lastName');
+
+      // Vérification existence étudiants
+      if (students.length !== studentEmails.length) {
+        const foundEmails = students.map(s => s.email);
+        const missingEmails = studentEmails.filter(email => !foundEmails.includes(email));
+        
+        return res.status(404).json({
+          success: false,
+          message: 'Étudiants non trouvés',
+          missingEmails
+        });
+      }
+
+      // Ajout des nouveaux étudiants
+      await PFA.findByIdAndUpdate(
+        pfaId,
+        {
+          $addToSet: { list_of_student: { $each: students.map(s => s._id) } },
+          affected: true,
+          approval: true
+        },
+        { runValidators: true }
+      );
+    }
+
+    // 4. Récupération finale du PFA mis à jour avec populate complet
+    const updatedPfa = await PFA.findById(pfaId)
+      .populate('list_of_student', 'email firstName lastName')
+      .populate('teacherId', 'firstName lastName email'); // Populate teacherId
+
+    // 5. Désaffectation si plus d'étudiants
+    if (updatedPfa.list_of_student.length === 0) {
+      await PFA.findByIdAndUpdate(
+        pfaId,
+        { affected: false, approval: false },
+        { runValidators: true }
+      );
+      updatedPfa.affected = false;
+      updatedPfa.approval = false;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'PFA mis à jour avec succès',
+      pfa: updatedPfa
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du PFA:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+//_______________________________________done____________________________________________________________________________________
+
 export const manualAssignPFA = async (req, res) => {
   //{array,id }
   const { studentIds, pfaId } = req.body

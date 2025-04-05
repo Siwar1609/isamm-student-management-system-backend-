@@ -34,13 +34,10 @@ export const pfaValidationSchema = Joi.object({
   numberOfStudents: Joi.string().valid('Binome', 'Monome').default('Monome'),
 
   list_of_student: Joi.array().items(
-    Joi.string()
-      .pattern(/^[0-9a-fA-F]{24}$/)
-      .allow(null, '')
-      .messages({
-        'string.pattern.base':
-          "Chaque ID d'étudiant doit être un ObjectId valide.",
-      }),
+    Joi.alternatives().try(
+      Joi.string().email(),
+      Joi.string().pattern(/^[0-9a-fA-F]{24}$/) // Pour les IDs existants
+    )
   ),
 
   affected: Joi.boolean().default(false).messages({
