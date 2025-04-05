@@ -1,5 +1,3 @@
-import cors from 'cors'
-import dotenv from 'dotenv'
 import express from 'express'
 import mongoose from 'mongoose'
 import morgan from 'morgan'
@@ -10,20 +8,11 @@ import { fileURLToPath } from 'url'
 import path from 'path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-import routerAuth from './routes/users-routes/auth_route.js'
-import routerSubject from './routes/subject-routes/subject.js'
-import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
-import routerInternship from './routes/internship-routes/internship_route.js'
-import usersRouter from './routes/users-routes/users_route.js'
-import studentsRouter from './routes/users-routes/students_route.js'
-import teachersRouter from './routes/users-routes/teachers_route.js'
-import gestionPFERoutes from './routes/GestionPfe-routes/GestionPfe_route.js'
 
-import { scheduleStudentReminder } from './controllers/notifications-controller/student_reminder.js'
+
 import { scheduleTeacherReminder } from './controllers/notifications-controller/teacher_reminder.js'
 import { loggedMiddleware } from './middlewares/users-middlewares/auth_middleware.js'
 import routerAcademicYear from './routes/academic-year-routes/academicYear_route.js'
-import routerYears from './routes/academic-year-routes/years_route.js'
 import routerAssesmentSkill from './routes/assesment-skill-routes/assesmentskill_route.js'
 import routerChapter from './routes/chapter-routes/chapter.js'
 import routerCurriculum from './routes/curriculum-routes/currilculum_route.js'
@@ -64,13 +53,8 @@ mongoose
   })
 
 
-
-app.use(cors());
-
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-
 app.use(cors())
->>>>>>> c72523cc0c68236793d8edd8f89668bdac95248f
 
 app.use(express.json())
 app.use(morgan('dev'))
@@ -99,7 +83,6 @@ app.use('/api/v1/pfachoice', choice_pfa_route)
 app.use('/api/v1/pfasoutenance', soutenance_pfa_route)
 app.use('/api/period/', internship_period_route)
 app.use('/api/subject', routerSubject)
-app.use('/api/academicyear', routerAcademicYear)
 app.use('/api/years', routerYears)
 app.use('/api/skill', routerSkill)
 app.use('/api/chapter', routerChapter)
@@ -113,5 +96,6 @@ app.use('/api/subject/publish/:response', RouterPublishSubject)
 app.use('/api/option', loggedMiddleware, option_period_route)
 app.use('/api/options', loggedMiddleware, routerOption)
 app.use('/api/evaluation', routerEvaluation)
+app.use('/api/academicyear', routerAcademicYear)
 
 export default app

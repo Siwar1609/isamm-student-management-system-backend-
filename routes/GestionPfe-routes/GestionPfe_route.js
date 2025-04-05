@@ -44,6 +44,9 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
 const upload = multer({ storage });
+//route pour voir recuperer les données d'une periode
+router.get('/open', loggedMiddleware, accessByRole(['admin']), getPFEPeriod)
+
 router.get('/affected', getPFEDetailsForStudent2);
 // GET all documents of type 'rapport de pfe' uploaded by a specific student
 router.get("/documents/:studentId", getAllDocumentsPfe);
@@ -63,8 +66,7 @@ router.patch(
   accessByRole(['admin']),
   updatePFEPeriod,
 )
-//route pour voir recuperer les données d'une periode
-router.get('/open', loggedMiddleware, accessByRole(['admin']), getPFEPeriod)
+
 
 //Route pour sauvegarder un nouveau pfe
 router.post('/post', loggedMiddleware, accessByRole(['student']), addPFE)
