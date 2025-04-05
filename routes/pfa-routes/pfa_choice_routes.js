@@ -10,16 +10,29 @@ import {
   getChoicesForProject,
   InformApproval,
   fetchStudentChoices,
+  autoAllocatePFA,
+  manualAssignPFA,
+  togglePublishPFA,
+  sendEmailToRecipients,
   togglePublishPFA,
   sendEmailToRecipients,
   manualAssignPFA,
   autoAllocatePFA,
+<<<<<<< HEAD
   list_pfa_by_teacher,
   sorted_pfa  // Added the sorted_pfa import
+=======
+
+>>>>>>> 4be9e38e527fb85ea613e37402122d1ba2e8397d
 } from '../../controllers/pfa-controller/choice_pfa_controller.js'
 
 const choice_pfa_route = express.Router()
 
+choice_pfa_route.post(
+  '/:pfaId/assign',
+  accessByRole(['admin']),
+  manualAssignPFA,
+)
 // ----------------------- Student Routes --------------------------------------------------------
 choice_pfa_route.patch(
   '/:choiceId',
@@ -77,6 +90,25 @@ choice_pfa_route.get(
 )
 choice_pfa_route.post('/allocate', accessByRole(['admin']), autoAllocatePFA)
 choice_pfa_route.post('/assign', accessByRole(['admin']), manualAssignPFA)
+choice_pfa_route.patch(
+  '/:id/publish',
+  accessByRole(['admin']),
+  togglePublishPFA,
+)
+choice_pfa_route.post(
+  '/sendemail',
+  accessByRole(['admin']),
+  sendEmailToRecipients,
+)
+
+//_____________________________________________admin ___________________________________________________________
+choice_pfa_route.get(
+  '/:id/pfachoices',
+  accessByRole(['admin']),
+  fetchStudentChoices,
+)
+choice_pfa_route.post('/allocate', accessByRole(['admin']), autoAllocatePFA)
+
 choice_pfa_route.patch(
   '/:id/publish',
   accessByRole(['admin']),

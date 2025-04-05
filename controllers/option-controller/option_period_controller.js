@@ -50,12 +50,6 @@ export const getOptionPeriod = async (req, res) => {
     // Rechercher la période "Choix d’option"
     const optionPeriod = await Period.findOne({ name: 'Choix d’option' })
 
-    if (!optionPeriod) {
-      return res.status(404).json({
-        message: "Aucune période de choix d'option n'est actuellement ouverte.",
-      })
-    }
-
     // Retourner les informations de la période "Choix d’option"
     return res.status(200).json({
       message:

@@ -12,7 +12,6 @@ import {
   getStudentCV,
   updateStudentCV,
   updateStudentProfile,
-  evaluteStudentStatus,
   getStudentCVInfo,
 } from '../../controllers/users-controller/students_controller.js'
 import {
@@ -27,7 +26,7 @@ const router = express.Router()
 // students accounts management routes
 //**************************
 // get all students
-router.get('/', loggedMiddleware, accessByRole(['admin']), getStudents)
+router.get('/', loggedMiddleware, accessByRole(['admin','teacher']), getStudents)
 //**************************
 // get a student by id
 router.get('/:id', loggedMiddleware, accessByRole(['admin']), getStudent)

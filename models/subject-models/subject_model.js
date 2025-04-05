@@ -21,7 +21,7 @@ const SubjectSchema = new mongoose.Schema({
   academicYearId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AcademicYear',
-    required: true,
+    
   },
   curriculumId: { type: mongoose.Schema.Types.ObjectId, ref: 'Curriculum' },
   studentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
