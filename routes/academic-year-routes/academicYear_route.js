@@ -3,6 +3,7 @@ import {
   createAcademicYear,
   deleteAcademicYear,
   fetchAcademicYear,
+  fetchPendingAcademicYear,
 } from '../../controllers/academic-year-controller/academic_year.js'
 import {
   loggedMiddleware,
@@ -18,6 +19,7 @@ router.delete(
   accessByRole(['admin']),
   deleteAcademicYear,
 )
-router.get('/', loggedMiddleware, accessByRole(['admin']), fetchAcademicYear)
+router.get('/', fetchAcademicYear)
+router.get('/pending', fetchPendingAcademicYear)
 
 export default router

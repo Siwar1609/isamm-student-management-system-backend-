@@ -3,6 +3,10 @@ import mongoose from 'mongoose'
 import morgan from 'morgan'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import { fileURLToPath } from 'url'
+import path from 'path'
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 import routerAuth from './routes/users-routes/auth_route.js'
 import routerSubject from './routes/subject-routes/subject.js'
@@ -46,6 +50,8 @@ mongoose
     console.log('Correction Error ⛔' + e)
   })
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+
 app.use(cors())
 app.use(express.json())
 app.use(morgan('dev'))
@@ -54,7 +60,6 @@ app.get('/', (req, res) => {
   res.send(' <h1> Server is Running correctly ✅ </h1> ')
 })
 
-scheduleStudentReminder()
 scheduleTeacherReminder()
 
 app.use('/api/auth', routerAuth)
@@ -81,7 +86,7 @@ app.use('/api/accounts', usersRouter)
 app.use('/api/students', studentsRouter)
 app.use('/api/teachers', teachersRouter)
 app.use('/api/subject/publish/:response', RouterPublishSubject)
-app.use('/api/option', option_period_route)
+app.use('/api/option', loggedMiddleware, option_period_route)
 app.use('/api/options', loggedMiddleware, routerOption)
 app.use('/api/evaluation', routerEvaluation)
 
