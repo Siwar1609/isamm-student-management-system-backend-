@@ -12,6 +12,68 @@ import period_model from '../../models/period-model/period_model.js'
 dotenv.config()
 
 // --------------------------- Student Functions -----------------------------------------------------
+export const list_pfa_by_teacher = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const topics = await PFA.find({ teacherId: teacherId })
+      .populate("teacherId", "firstName lastName email").lean(); 
+    
+    if (!topics || topics.length === 0) {
+      return res.status(404).json({ error: "No topics found for this teacher." });
+    }
+    
+    return res.status(200).json({ topics });
+  } catch (err) {
+    console.error("Error fetching topics:", err);
+    return res.status(500).json({
+      error: "An error has occurred while fetching PFA for teacher",
+    });
+  }
+}
+export const sorted_pfa = async (req, res) => {
+  try {
+    // Fetch all PFAs and populate the teacher information
+    const pfas = await PFA.find({ published: true })
+      .populate({
+        path: 'teacherId',
+        select: 'firstName lastName '
+      }).lean();
+      
+    
+    if (!pfas || pfas.length === 0) {
+      if (!pfas){return res.status(404).json({ 
+        message: '1 No PFA projects found.' 
+      });}
+      else{ return res.status(404).json({ 
+        message: ' 2No PFA projects found.' 
+      });}
+     
+    }
+    
+    // Add teacher's full name to each PFA object
+    const pfasWithTeacherName = pfas.map(pfa => {
+      return {
+        ...pfa,
+        teacherName: `${pfa.teacherId.firstName} ${pfa.teacherId.lastName}`
+      };
+    });
+    
+    // Sort the PFAs by teacher name
+    const sortedPfas = pfasWithTeacherName.sort((a, b) => {
+      return a.teacherName.localeCompare(b.teacherName);
+    });
+    
+    return res.status(200).json({ 
+      pfas: sortedPfas 
+    });
+  } catch (error) {
+    console.error('Error sorting PFAs by teacher:', error);
+    return res.status(500).json({
+      message: 'Error sorting PFAs by teacher',
+      error: error.message
+    });
+  }
+}
 export const choose_pfa = async (req, res) => {
   try {
     const { priority, binomeId, approval } = req.body

@@ -14,6 +14,8 @@ import {
   sendEmailToRecipients,
   manualAssignPFA,
   autoAllocatePFA,
+  list_pfa_by_teacher,
+  sorted_pfa  // Added the sorted_pfa import
 } from '../../controllers/pfa-controller/choice_pfa_controller.js'
 
 const choice_pfa_route = express.Router()
@@ -35,6 +37,23 @@ choice_pfa_route.post(
   choose_pfa,
 )
 
+choice_pfa_route.get(
+  '/teacher/:teacherId/pfas',
+  loggedMiddleware,
+  accessByRole(['student']),
+  accessByLevel(['1']),
+  list_pfa_by_teacher
+)
+
+// Add new route for sorted PFAs
+choice_pfa_route.get(
+  '/sorted',
+  loggedMiddleware,
+  accessByRole(['student']),
+  accessByLevel(['1']),
+  sorted_pfa
+)
+
 // -------------------- Teacher Routes ----------------------------------
 choice_pfa_route.get(
   '/choices/:projectId',
@@ -49,6 +68,7 @@ choice_pfa_route.patch(
   accessByRole(['teacher']),
   approveChoicePFA,
 )
+
 //_____________________________________________admin ___________________________________________________________
 choice_pfa_route.get(
   '/:id/pfachoices',
