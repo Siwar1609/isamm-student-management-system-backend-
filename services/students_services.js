@@ -1,75 +1,93 @@
 import bcrypt from 'bcrypt'
 import Student from '../models/users-models/student_model.js'
-import nodemailer from 'nodemailer'
 import {
-  generateEmailTemplateResetPassword,
   generateEmailTemplatLoginInfo,
   generateRandomPassword,
   sendEmail,
 } from './users_services.js'
 
 export const addStudent = async function (studentData) {
+  // Check for existing student
+  const existingStudent = await Student.findOne({ cin: studentData.cin }).exec()
+  if (existingStudent) {
+    throw new Error('Student with this CIN already exists')
+  }
+
+  // Generate and hash password
+  const generatedPassword = generateRandomPassword()
+  const hashedPassword = await bcrypt.hash(generatedPassword, 12)
+
+  // Create new student
+  const newStudent = new Student({
+    ...studentData,
+    password: hashedPassword,
+  })
+
+  await newStudent.save()
+
+  // Send welcome email
   try {
-    const existingStudent = await Student.findOne({
-      cin: studentData.cin,
-    }).exec()
-    if (existingStudent) {
-      const error = new Error('An Account with the same CIN Already Exist')
-      error.statusCode = 400
-      throw error
-    }
-
-    // Generate a secure password
-    const generatedPassword = generateRandomPassword()
-    const hashedPassword = await bcrypt.hash(generatedPassword, 12)
-
-    // create a new Student
-    const newStudent = new Student({
-      ...studentData,
-      password: hashedPassword,
-    })
     const studentFullName = `${studentData.firstName} ${studentData.lastName}`
     const htmlEmailContent = generateEmailTemplatLoginInfo(
       studentFullName,
-      generatedPassword,
+      generatedPassword
     )
-    await newStudent.save()
     await sendEmail({
       to: studentData.email,
-      subject: 'Welcome to isamm internship management system',
+      subject: 'Welcome to ISAMM Internship Management System',
       html: htmlEmailContent,
     })
-
-    const { password, ...studentWithoutPassword } = newStudent.toObject()
-    studentWithoutPassword.generatedPassword = generatedPassword
-    return studentWithoutPassword
   } catch (error) {
-    console.error('Error in addStudent function: ', error)
-    throw error
+    console.error('Failed to send welcome email:', error)
+    // Don't throw error for email failure
   }
+
+  // Return student data without password
+  const { password, ...studentWithoutPassword } = newStudent.toObject()
+  return { ...studentWithoutPassword, generatedPassword }
 }
 
 export const getStudents = async function () {
-  const students = await Student.find()
+  const students = await Student.find().select('-password')
+  if (!students.length) {
+    throw new Error('No students found')
+  }
   return students
 }
 
 export const getStudent = async function (id) {
-  const student = await Student.findById(id)
+  const student = await Student.findById(id).select('-password')
+  if (!student) {
+    throw new Error('Student not found')
+  }
   return student
 }
 
-export const updateStudent = async function (id, student) {
-  const updatedStudent = await Student.findByIdAndUpdate(id, student, {
-    new: true,
-  })
+export const updateStudent = async function (id, studentData) {
+  // Hash password if provided
+  if (studentData.password) {
+    studentData.password = await bcrypt.hash(studentData.password, 12)
+  }
+
+  const updatedStudent = await Student.findByIdAndUpdate(
+    id,
+    studentData,
+    { new: true, runValidators: true }
+  ).select('-password')
+
+  if (!updatedStudent) {
+    throw new Error('Student not found')
+  }
 
   return updatedStudent
 }
 
 export const deleteStudent = async function (id) {
-  await Student.findByIdAndDelete(id)
-  return { message: 'Student deleted successfully' }
+  const deletedStudent = await Student.findByIdAndDelete(id)
+  if (!deletedStudent) {
+    throw new Error('Student not found')
+  }
+  return deletedStudent
 }
 
 
