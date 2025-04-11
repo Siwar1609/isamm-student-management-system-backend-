@@ -8,6 +8,7 @@ import {
 } from '../../services/users_services.js'
 
 import userValidator from '../../validators/user_validator.js'
+import bcrypt from 'bcrypt'
 
 //**************************************** */
 // get all the users from the database
@@ -90,30 +91,44 @@ const updateUser = async (req, res) => {
     // Check if user exists
     const user = await user_model.findById(req.params.id).exec()
     if (!user) {
-      return res.status(404).json({
-        message: 'User not found',
-        userId: req.params.id
-      })
+      return res.status(404).json({ message: 'User not found' })
     }
 
-    // Prepare update data
-    const user_old_data = user.toObject()
-    const updateData = {
-      ...user_old_data,
-      ...req.body,
-      _id: undefined,
-      __v: undefined,
-      createdAt: undefined,
-      updatedAt: undefined
+    // Prepare update data with only the fields that are present
+    const updateData = {}
+    
+    // Only include fields that are actually present in the request
+    if (req.body.cin) updateData.cin = req.body.cin
+    if (req.body.firstName) updateData.firstName = req.body.firstName
+    if (req.body.lastName) updateData.lastName = req.body.lastName
+    if (req.body.email) updateData.email = req.body.email
+    if (req.body.phone) updateData.phone = req.body.phone
+    if (req.body.birthDate) updateData.birthDate = req.body.birthDate
+    if (req.body.address) updateData.address = req.body.address
+    if (req.body.secondEmail) updateData.secondEmail = req.body.secondEmail
+    if (req.body.photoUrl) updateData.photoUrl = req.body.photoUrl
+    if (req.body.status) updateData.status = req.body.status
+    if (req.body.role) updateData.role = req.body.role
+
+    // Handle password separately - only if it exists and is not empty string
+    if (req.body.password && typeof req.body.password === 'string' && req.body.password.trim() !== '') {
+      try {
+        updateData.password = await bcrypt.hash(req.body.password, 12)
+      } catch (hashError) {
+        console.error('Password hashing error:', hashError)
+        return res.status(400).json({
+          message: 'Invalid password format'
+        })
+      }
     }
 
     // Validate update data
-    const { error, value } = userValidator.validate(updateData)
+    const { error, value } = userValidator.validate(updateData, { 
+      allowUnknown: true,
+      stripUnknown: true 
+    })
+    
     if (error) {
-      console.log('Update validation error:', {
-        details: error.details,
-        data: updateData
-      })
       return res.status(400).json({
         message: 'Validation error',
         errors: error.details.map(detail => detail.message)
@@ -126,20 +141,7 @@ const updateUser = async (req, res) => {
       user: updatedUser
     })
   } catch (err) {
-    console.error('User update error:', {
-      error: err,
-      stack: err.stack,
-      userId: req.params.id,
-      data: req.body
-    })
-
-    if (err.code === 11000) {
-      return res.status(409).json({
-        message: 'Update failed: duplicate field',
-        field: Object.keys(err.keyPattern)[0]
-      })
-    }
-
+    console.error('Update error:', err)
     res.status(500).json({
       message: 'Failed to update user',
       error: err.message

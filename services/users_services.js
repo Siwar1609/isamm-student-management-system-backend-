@@ -61,10 +61,10 @@ export const deleteUserById = async (userID) => {
 }
 // the update user service function takes the user id and the updated user object as arguments and updates the user in the database
 export const updateUserById = async (userID, args) => {
-  const hashedPassword = await bcrypt.hash(args.password, 10)
-  args.password = hashedPassword
+  // const hashedPassword = await bcrypt.hash(args.password, 10)
+  // args.password = hashedPassword
 
-  console.log('args', args)
+  // console.log('args', args)
 
   return await User.findByIdAndUpdate(userID, args, {
     new: true,
