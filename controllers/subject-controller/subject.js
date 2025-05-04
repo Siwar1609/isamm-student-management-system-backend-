@@ -6,6 +6,7 @@ import nodemailer from 'nodemailer'
 import Student from '../../models/users-models/student_model.js'
 import Curriculum from '../../models/subject-models/curriculum_model.js' // Adjust the path as necessary
 
+import mongoose from 'mongoose';
 import dotenv from 'dotenv'
 dotenv.config() // This loads environment variables from the .env file
 export const addSubject = async (req, res) => {
@@ -541,3 +542,42 @@ export const sendEvaluationEmail = async (req, res) => {
   }
 };
 
+
+// Assure-toi que le chemin est correct
+
+export const getSubjectsByTeacher = async (req, res) => {
+    try {
+        // Récupérer l'ID du professeur depuis les paramètres de l'URL
+        const teacherId = req.params.teacherId;
+
+        // Vérification si l'ID du professeur est valide
+        if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+            return res.status(400).json({ message: "Invalid teacher ID" });
+        }
+
+        // Recherche des matières pour le professeur donné
+        const subjects = await Subject.find({
+            teacherId: teacherId
+        }).populate('teacherId'); // On popul les informations du professeur
+
+        // Si aucune matière n'est trouvée pour ce professeur
+        if (!subjects || subjects.length === 0) {
+            return res.status(404).json({
+                message: "No subjects found for this teacher",
+                model: []
+            });
+        }
+
+        // Si des matières sont trouvées, on les retourne
+        res.json({
+            model: subjects
+        });
+
+    } catch (error) {
+        console.error("Error in getSubjectsByTeacher:", error);
+        res.status(500).json({
+            message: "Server error",
+            error: error.message
+        });
+    }
+};
