@@ -1,7 +1,7 @@
 import {
   fetchChapter,
   getChapterById,
-  addChapter,
+
   updateProgressChapter,
   deleteChapter,
   getChaptersBySubject,
@@ -18,7 +18,7 @@ const router = express.Router()
 router.get('/', loggedMiddleware, accessByRole(['admin']), fetchChapter)
 router.get('/:id', loggedMiddleware, accessByRole(['admin']), getChapterById)
 
-router.post('/', loggedMiddleware, accessByRole(['admin']), addChapter)
+
 router.patch(
   '/:id',
   loggedMiddleware,
