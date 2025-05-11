@@ -993,63 +993,79 @@ export const sendInternshipPlanningEmail = async (req, res) => {
   }
 }
 
-// Function to retrieve all internships assigned to the teacher
 export const getAssignedInternshipTeacher = async (req, res) => {
   try {
-    // Retrieve the teacher's ID from the token
-    const teacherId = req.auth.userId
-    console.log('Teacher ID:', teacherId)
+    const teacherId = req.auth.userId;
+    const requestedLevel = Number(req.params.type); 
 
-    // Retrieve all internship plannings where the teacher is assigned
+    console.log('Teacher ID:', teacherId);
+    console.log('Requested Level:', requestedLevel);
+
+    // Get all internships where this teacher is evaluator
     const plannings = await InternshipPlanning.find({ EvaluatorId: teacherId })
       .populate({
         path: 'idInternship',
         populate: {
           path: 'studentId',
         },
-      }) // Populate the internship details
-      .exec()
+      })
+      .exec();
+    console.log("planning",plannings)
 
-    // If no plannings are found for the teacher
-    if (plannings.length === 0) {
+    // Filter internships where student.level == requestedLevel
+    const filteredInternships = plannings.filter(
+      (planning) =>
+        planning.idInternship &&
+        planning.idInternship.level === requestedLevel
+    );
+
+    if (filteredInternships.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'No internships assigned to this teacher.',
-      })
+        message: `No internships found for teacher with level ${requestedLevel}.`,
+      });
     }
-
     return res.status(200).json({
       success: true,
-      model: plannings.map((planning) => ({
-        internship: planning.idInternship,
-      })),
-    })
+      model: filteredInternships,
+    });
   } catch (error) {
-    console.error(error)
+    console.error(error);
     return res.status(500).json({
       success: false,
       message: 'Error retrieving assigned internships.',
-    })
+    });
   }
-}
+};
+
 
 export const updatePlanningSoutenance = async (req, res) => {
-  const { type, id } = req.params
-  const { date, horaire, LienGoogleMeet } = req.body
-  const teacherId = req.auth.userId
+  const { type, id } = req.params;
+  const { date, horaire, LienGoogleMeet } = req.body;
+  const teacherId = req.auth.userId;
 
   // Validation des données
-  const { error } = internshipPlanningValidator.validate(req.body)
+  const { error } = internshipPlanningValidator.validate(req.body);
   if (error) {
-    return res.status(400).json({ message: error.details[0].message })
+    return res.status(400).json({ message: error.details[0].message });
   }
-  //test For level matching
+
+  // Vérification du stage correspondant au niveau
   const internship = await Internship.findOne({
+    _id: id,
     level: type,
-  })
+  });
+
   if (!internship) {
-    console.log('the level does not match.')
-    return
+    return res.status(404).json({ message: "Stage non trouvé ou niveau incorrect." });
+  }
+
+  // Vérification de la date : la date de soutenance doit être > date de fin de stage
+  const meetingDate = new Date(date);
+  const endInternshipDate = new Date(internship.endDate);
+
+  if (meetingDate <= endInternshipDate) {
+    return res.status(400).json({ message: "La date de soutenance doit être postérieure à la date de fin de stage." });
   }
 
   try {
@@ -1060,12 +1076,12 @@ export const updatePlanningSoutenance = async (req, res) => {
       },
       {
         $set: {
-          'meeting.date': new Date(date),
+          'meeting.date': meetingDate,
           'meeting.time': horaire,
           'meeting.googleMeetLink': LienGoogleMeet,
         },
       },
-      { new: true, upsert: false }, // Return updated document, do not create a new one
+      { new: true, upsert: false }
     )
       .populate({
         path: 'idInternship',
