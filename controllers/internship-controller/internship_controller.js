@@ -1065,8 +1065,13 @@ export const updatePlanningSoutenance = async (req, res) => {
   const endInternshipDate = new Date(internship.endDate);
 
   if (meetingDate <= endInternshipDate) {
-    return res.status(400).json({ message: "La date de soutenance doit être postérieure à la date de fin de stage." });
-  }
+  const meetingDateStr = meetingDate.toISOString().split('T')[0];
+  const endInternshipDateStr = endInternshipDate.toISOString().split('T')[0];
+
+  return res.status(400).json({
+    message: `La date de soutenance (${meetingDateStr}) doit être postérieure à la date de fin de stage (${endInternshipDateStr}).`
+  });
+}
 
   try {
     const planning = await InternshipPlanning.findOneAndUpdate(
