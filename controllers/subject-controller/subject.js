@@ -439,7 +439,6 @@ export const validateProposition = async (req, res) => {
     });
   }
 };
-
 export const sendEvaluationEmail = async (req, res) => {
   try {
     const { id } = req.body; // Subject ID from the request body
@@ -465,10 +464,14 @@ export const sendEvaluationEmail = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'benboubakerchiraz054@gmail.com',
-        pass: 'brqd tlgs naoy rkwe',
+        user: 'benboubakerchiraz054@gmail.com', // À remplacer par variables d'environnement
+        pass: 'brqd tlgs naoy rkwe' // À remplacer par variables d'environnement
       },
     });
+
+    // Nouveau : URL du frontend avec le chemin d'évaluation
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const evaluationPath = `/student/evaluate/${subject._id}`;
 
     // Iterate through students and send personalized emails
     for (const student of students) {
@@ -551,7 +554,7 @@ export const sendEvaluationEmail = async (req, res) => {
             <p>Bonjour ${studentFullName},</p>
             <p>Nous vous invitons à remplir le formulaire d'évaluation pour le cours <strong>"${subject.title}"</strong>.</p>
             <p>Veuillez cliquer sur le lien ci-dessous pour accéder au formulaire d'évaluation :</p>
-            <a href="http://your-site.com/evaluation?subjectId=${subject._id}">Accédez au formulaire</a>
+            <a href="${frontendBaseUrl}${evaluationPath}">Accédez au formulaire</a>
             <p>Merci pour vos retours !</p>
           </div>
           <div class="footer">
@@ -563,7 +566,7 @@ export const sendEvaluationEmail = async (req, res) => {
       </html>`;
 
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_USER || 'benboubakerchiraz054@gmail.com',
         to: student.email,
         subject: `Évaluation du cours: ${subject.title}`,
         html: emailHtml,
@@ -616,6 +619,42 @@ export const getSubjectsByTeacher = async (req, res) => {
 
     } catch (error) {
         console.error("Error in getSubjectsByTeacher:", error);
+        res.status(500).json({
+            message: "Server error",
+            error: error.message
+        });
+    }
+};
+export const getSubjectsByStudent= async (req, res) => {
+    try {
+        // Récupérer l'ID du professeur depuis les paramètres de l'URL
+        const teacherId = req.params.studentId;
+
+        // Vérification si l'ID du professeur est valide
+        if (!mongoose.Types.ObjectId.isValid(studentId)) {
+            return res.status(400).json({ message: "Invalid student ID" });
+        }
+
+        // Recherche des matières pour le professeur donné
+        const subjects = await Subject.find({
+            studentId: studentId
+        }).populate('teacherId'); // On popul les informations du professeur
+
+        // Si aucune matière n'est trouvée pour ce professeur
+        if (!subjects || subjects.length === 0) {
+            return res.status(404).json({
+                message: "No subjects found for this student",
+                model: []
+            });
+        }
+
+        // Si des matières sont trouvées, on les retourne
+        res.json({
+            model: subjects
+        });
+
+    } catch (error) {
+        console.error("Error in getSubjectsBystudent:", error);
         res.status(500).json({
             message: "Server error",
             error: error.message

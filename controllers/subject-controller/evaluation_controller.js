@@ -2,6 +2,8 @@ import crypto from 'crypto'
 import Subject from '../../models/subject-models/subject_model.js'
 import Evaluation from '../../models/subject-models/evaluation_model.js'
 
+
+
 export const submitEvaluation = async (req, res) => {
   try {
     const { subjectID } = req.params // Extract subjectID from URL parameters
@@ -96,3 +98,34 @@ export const getEvaluations = async (req, res) => {
       .json({ message: 'An error occurred while fetching evaluations' })
   }
 }
+
+// Dans votre contrôleur d'évaluations (ex: evaluationController.js)
+export const checkEvaluationStatus = async (req, res) => {
+  try {
+    const { subjectID } = req.params;
+    const studentID = req.auth.userId; // Récupéré du middleware d'authentification
+
+    // Hasher l'ID de l'étudiant pour correspondre à votre système d'anonymat
+    const hashedStudentID = crypto
+      .createHash('sha256')
+      .update(studentID)
+      .digest('hex');
+
+    // Vérifier si une évaluation existe déjà
+    const existingEvaluation = await Evaluation.findOne({
+      subjectID,
+      hashedStudentID
+    });
+
+    res.status(200).json({ 
+      hasSubmitted: !!existingEvaluation,
+      lastEvaluationDate: existingEvaluation?.createdAt 
+    });
+  } catch (error) {
+    console.error('Error checking evaluation status:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message 
+    });
+  }
+};

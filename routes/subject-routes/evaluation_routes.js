@@ -1,6 +1,6 @@
 import {
   submitEvaluation,
-  getEvaluations,
+  getEvaluations, checkEvaluationStatus
 } from '../../controllers/subject-controller/evaluation_controller.js'
 
 import express from 'express'
@@ -23,4 +23,9 @@ router.get(
   accessByRole(['teacher', 'admin']),
   getEvaluations,
 )
+router.get(
+  '/check/:subjectID',
+  loggedMiddleware, // Middleware qui vérifie que l'utilisateur est connecté
+  checkEvaluationStatus
+);
 export default router
