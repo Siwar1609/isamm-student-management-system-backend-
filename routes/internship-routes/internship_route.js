@@ -80,19 +80,12 @@ router.get(
   getAssignedInternshipTeacher,
 )
 
-router.patch(
-  '/:type/:id',
-   accessByRole(['teacher']),
-  updatePlanningSoutenance,
-)
-  
+router.patch('/:type/:id', accessByRole(['teacher']), updatePlanningSoutenance)
 
 router.get('/students/all', accessByRole(['admin']), getAllStudents)
 router.get('/me/student', accessByRole(['student']), getStudentDetails)
 router.get('/:type/me', accessByRole(['student']), GetPlanningInfoForStudent)
 router.get('/students/all', accessByRole(['admin']), getAllStudents)
-router.get('/me/student', accessByRole(['student']), getStudentDetails)
-
 
 router.get(
   '/student/:studentId',
