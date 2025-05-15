@@ -1043,7 +1043,7 @@ export const updatePlanningSoutenance = async (req, res) => {
   const { type, id } = req.params;
   const { date, horaire, LienGoogleMeet } = req.body;
   const teacherId = req.auth.userId;
-
+  //console.log(teacherId)
   // Validation des données
   const { error } = internshipPlanningValidator.validate(req.body);
   if (error) {
@@ -1329,3 +1329,69 @@ const isInternshipAssigned = async (internshipId) => {
     throw new Error('Error checking internship assignment.')
   }
 }
+
+export const validateInternship = async (req, res) => {
+  try {
+    const { id } = req.params; 
+    const { valid, reason } = req.body; 
+    const teacherId = req.auth.userId;
+    //console.log(teacherId)
+    
+    // Vérifie que le stage existe
+    const internship = await Internship.findById(id);
+    if (!internship) {
+      return res.status(404).json({
+        error: 'Stage non trouvé.',
+        message: 'Le stage avec cet ID n\'existe pas.',
+      });
+    }
+    console.log(internship._id)
+
+    // Vérification que le stage est terminé (status = 'ended')
+    if (internship.status !== 'ended') {
+      return res.status(400).json({
+        error: 'Validation impossible',
+        message: 'Le stage doit être terminé (status: ended) pour pouvoir être validé.',
+      });
+    }
+
+    // Vérifie que le stage appartient bien à l'enseignant qui effectue la demande
+    const internshipPlanning = await InternshipPlanning.findOne({ idInternship: id }).populate('EvaluatorId');
+    console.log(internshipPlanning)
+    if (!internshipPlanning) {
+      return res.status(404).json({
+        error: 'Planification de stage non trouvée.',
+        message: 'La planification de ce stage est introuvable.',
+      });
+    }
+     
+    if (String(internshipPlanning.EvaluatorId._id) !== String(teacherId)) {
+      return res.status(403).json({
+        error: 'Accès non autorisé.',
+        message: 'Vous n\'êtes pas l\'enseignant responsable de ce stage.',
+      });
+    }
+
+    // Mise à jour du statut de validation et de la raison
+    internship.Validate.value = valid;
+    if (!valid) {
+      internship.Validate.reason = reason; 
+    } else {
+      internship.Validate.reason = undefined; 
+    }
+
+    // Sauvegarde les modifications
+    await internship.save();
+
+    res.status(200).json({
+      message: 'Stage mis à jour avec succès!',
+      internship,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: error.message,
+      message: 'Erreur lors de la validation du stage.',
+    });
+  }
+};

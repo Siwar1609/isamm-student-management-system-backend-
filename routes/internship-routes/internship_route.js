@@ -16,6 +16,7 @@ import {
   updatePlanningSoutenance,
   GetPlanningInfoForStudent,
   getInternshipsByStudentId,
+  validateInternship,
 } from '../../controllers/internship-controller/internship_controller.js'
 
 import { scheduleStudentReminder } from '../../controllers/notifications-controller/student_reminder.js'
@@ -79,6 +80,7 @@ router.get(
   accessByRole(['teacher']),
   getAssignedInternshipTeacher,
 )
+router.patch('/:type/:id/valider',  accessByRole(['teacher']), validateInternship)
 
 router.patch(
   '/:type/:id',
@@ -115,5 +117,6 @@ router.post('/send-reminders', async (req, res) => {
     res.status(500).json({ message: 'Failed to send reminder emails.' })
   }
 })
+
 
 export default router
