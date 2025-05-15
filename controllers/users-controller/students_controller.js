@@ -68,6 +68,27 @@ const getStudent = async (req, res) => {
   }
 }
 
+
+const getProfileInfo =  async (req,res) => {
+  const studentId = req.auth.userId
+
+  try {
+    // Fetch student from the database
+    const student = await Student.findById(studentId)
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+    student.password = undefined
+    student.cv = undefined
+
+    console.log(student)
+
+    res.status(200).json(student)
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
 //**************************************************************
 
 // update a student
@@ -460,4 +481,5 @@ export {
   evaluteStudentStatus,
   notifyOldStudents,
   getStudentCVInfo,
+  getProfileInfo
 }
