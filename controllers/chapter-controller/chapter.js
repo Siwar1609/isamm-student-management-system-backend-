@@ -106,45 +106,62 @@ export const updateProgressChapter = async (req, res) => {
 
     // Send email if the status was updated
     if (emailNeeded || chapterCompletedEmailNeeded) {
-      console.log('Preparing to send email notification...');
+  console.log('Preparing to send email notification...');
 
-      const subject = await Subject.findById(chapter.subjectId).populate('studentId');
-      if (!subject || !subject.studentId || subject.studentId.length === 0) {
-        return res.status(404).json({ message: 'Related student not found' });
+  const subject = await Subject.findById(chapter.subjectId).populate('studentId');
+  if (!subject || !subject.studentId || subject.studentId.length === 0) {
+    return res.status(404).json({ message: 'Related student not found' });
+  }
+
+  const student = await Student.findById(subject.studentId[0]);
+  console.log('Found student:', student);
+
+  if (!student || !student.email) {
+    return res.status(404).json({ message: 'Student email not found' });
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
+  // Formatage de la date
+  const formattedDate = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(chapter.statusUpdatedAt);
+
+  let emailSubject, emailText;
+
+  if (chapterCompletedEmailNeeded) {
+    emailSubject = `Chapitre complété : ${chapter.title}`;
+    emailText = `Bonjour ${student.firstName} ${student.lastName},\n\nFélicitations ! Le chapitre "${chapter.title}" a été complété avec succès le ${formattedDate}.\n\nCordialement,\nVotre équipe pédagogique`;
+  } else {
+    emailSubject = `Mise à jour du statut : ${chapter.title}`;
+    emailText = `Bonjour ${student.firstName} ${student.lastName},\n\nLe statut du chapitre "${chapter.title}" a été mis à jour à "${translateStatus(chapter.status)}" le ${formattedDate}.\n\nCordialement,\nVotre équipe pédagogique`;
+  }
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: student.email,
+    subject: emailSubject,
+    text: emailText,
+    // Optionnel : ajoutez une version HTML
+    html: `
+      <p>Bonjour ${student.firstName} ${student.lastName},</p>
+      ${chapterCompletedEmailNeeded ? 
+        `<p>Félicitations ! Le chapitre <strong>${chapter.title}</strong> a été complété avec succès le ${formattedDate}.</p>` :
+        `<p>Le statut du chapitre <strong>${chapter.title}</strong> a été mis à jour à <strong>${translateStatus(chapter.status)}</strong> le ${formattedDate}.</p>`
       }
-
-      const student = await Student.findById(subject.studentId[0]);
-      console.log('Found student:', student);
-
-      if (!student || !student.email) {
-        return res.status(404).json({ message: 'Student email not found' });
-      }
-
-      const transporter = nodemailer.createTransport({
-        service: 'Gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-      });
-
-      let emailSubject, emailText;
-
-      if (chapterCompletedEmailNeeded) {
-        emailSubject = 'Chapter Completed';
-        emailText = `Dear ${student.firstName} ${student.lastName},\n\nCongratulations! The chapter "${chapter.title}" has been fully completed on ${chapter.statusUpdatedAt}.\n\nBest regards,\nYour Team`;
-      } else {
-        emailSubject = 'Chapter Progress Update';
-        emailText = `Dear ${student.firstName} ${student.lastName},\n\nThe status of chapter "${chapter.title}" has been updated to "${chapter.status}" on ${chapter.statusUpdatedAt}.\n\nBest regards,\nYour Team`;
-      }
-
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: student.email,
-        subject: emailSubject,
-        text: emailText,
-      };
-
+      <p>Cordialement,<br>Votre équipe pédagogique</p>
+    `
+  };
       try {
         await transporter.sendMail(mailOptions);
         console.log('Email sent successfully to:', student.email);
