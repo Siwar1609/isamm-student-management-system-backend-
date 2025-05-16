@@ -10,10 +10,11 @@ import { getTeacher } from '../../services/teachers_services.js'
 import { internshipPlanningValidator } from '../../validators/internshipPlanning_validator.js'
 
 import path from 'path'
-import { fileURLToPath } from 'url'
+// import { fileURLToPath } from 'url'
+import {  getCurrentAcademicYearId } from '../../utils/academicYearFilter.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+// const __filename = fileURLToPath(import.meta.url)
+// const __dirname = path.dirname(__filename)
 
 // Function to generate full file URL
 const getFileUrl = (req, filePath) => {
@@ -21,11 +22,60 @@ const getFileUrl = (req, filePath) => {
 }
 
 // Get all internships with documents
+// export const getAllInternships = async (req, res) => {
+//   try {
+//     // const internships = await Internship.find()
+//     //   .populate('studentId', 'firstName lastName email cin')
+//     //   .lean()
+
+//     const internships = await filterByCurrentAcademicYear(Internship,'academicyear')
+//     .populate('studentId', 'firstName lastName email cin')
+//     .lean()
+
+
+//     // Modify document paths to return full URLs
+//     const internshipsWithDocuments = internships.map((internship) => {
+//       if (internship.documents && internship.documents.length > 0) {
+//         return {
+//           ...internship,
+//           documents: internship.documents.map((doc) => ({
+//             name: path.basename(doc), // Extract document name
+//             url: getFileUrl(req, doc), // Generate full URL for file
+//           })),
+//         }
+//       }
+//       return internship
+//     })
+
+//     res.status(200).json({
+//       models: internshipsWithDocuments,
+//       message: 'Internship periods retrieved successfully!',
+//     })
+//   } catch (error) {
+//     res.status(400).json({
+//       error: error.message,
+//       message: 'Error retrieving internship periods',
+//     })
+//   }
+// }
 export const getAllInternships = async (req, res) => {
   try {
-    const internships = await Internship.find()
+    // Get the current academic year ID
+    const currentYearId = await getCurrentAcademicYearId();
+
+    console.log(currentYearId,"current year --------")
+    // Create the query with the academic year filter
+    let query = Internship.find();
+    
+    // Apply the academic year filter if we have a current year
+    if (currentYearId) {
+      query = query.where('academicYear', currentYearId);
+    }
+    
+    // Now chain the populate and execute the query
+    const internships = await query
       .populate('studentId', 'firstName lastName email cin')
-      .lean()
+      .lean();
 
     // Modify document paths to return full URLs
     const internshipsWithDocuments = internships.map((internship) => {
@@ -46,13 +96,13 @@ export const getAllInternships = async (req, res) => {
       message: 'Internship periods retrieved successfully!',
     })
   } catch (error) {
+    console.error('Error retrieving internships:', error);
     res.status(400).json({
       error: error.message,
       message: 'Error retrieving internship periods',
     })
   }
 }
-
 // Get internships by student ID with documents
 export const getInternshipsByStudentId = async (req, res) => {
   try {
@@ -558,8 +608,19 @@ export const assignTeachersToInternship = async (req, res) => {
 
 export const fetchAllPlanning = async (req, res) => {
   try {
-    // Retrieve all planning entries and populate the relationships (internship and teacher)
-    const planning = await InternshipPlanning.find()
+    // Get the current academic year ID
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Find internships with the current academic year
+    const internships = await Internship.find({ academicYear: currentYearId }).select('_id');
+    
+    // Get the internship IDs
+    const internshipIds = internships.map(internship => internship._id);
+    
+    // Retrieve planning entries for the current academic year's internships
+    const planning = await InternshipPlanning.find({
+      idInternship: { $in: internshipIds }
+    })
       .populate({
         path: 'idInternship',
         populate: {
@@ -572,11 +633,12 @@ export const fetchAllPlanning = async (req, res) => {
     if (!planning || planning.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'No planning found.',
+        message: 'No planning found for the current academic year.',
       })
     }
+    
     res.status(200).json({
-      message: 'Planning retrieved successfully.',
+      message: 'Planning retrieved successfully for the current academic year.',
       data: planning,
     })
   } catch (error) {
