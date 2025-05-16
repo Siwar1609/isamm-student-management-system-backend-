@@ -8,6 +8,9 @@ import {
   addProposition,
   validateProposition,
   sendEvaluationEmail,
+  getSubjectsByTeacher,
+  getSubjectsByStudent
+
 } from '../../controllers/subject-controller/subject.js'
 import express from 'express'
 
@@ -30,6 +33,20 @@ router.get(
   accessByRole(['admin', 'student', 'teacher']),
   getSubjectbyID,
 )
+router.get(
+  '/byteacher/:teacherId',  // Assure-toi que l'URL correspond à celle que tu veux
+  loggedMiddleware,
+  accessByRole(['admin', 'student', 'teacher']),
+  getSubjectsByTeacher
+);
+router.get(
+  '/bystudent/:studentId',  // Assure-toi que l'URL correspond à celle que tu veux
+  loggedMiddleware,
+  accessByRole(['admin', 'student', 'teacher']),
+  getSubjectsByStudent
+);
+
+
 
 // Routes protégées par les permissions admin
 router.post('/', loggedMiddleware, accessByRole(['admin']), addSubject)

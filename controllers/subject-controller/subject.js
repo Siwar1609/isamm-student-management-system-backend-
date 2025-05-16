@@ -6,6 +6,7 @@ import subjectValidator from '../../validators/subject_validator.js'
 import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js';
 
 
+import mongoose from 'mongoose';
 import dotenv from 'dotenv'
 dotenv.config() // This loads environment variables from the .env file
 export const addSubject = async (req, res) => {
@@ -47,68 +48,73 @@ export const addSubject = async (req, res) => {
 
 export const updateSubject = async (req, res) => {
   try {
+    // 1. Validation des données d'entrée
     const { error } = subjectValidator.validate(req.body);
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
     }
 
+    // 2. Récupération de la matière existante
     const existingSubject = await Subject.findById(req.params.id);
     if (!existingSubject) {
       return res.status(404).json({ message: 'Matière non trouvée' });
     }
 
-    // Historique des modifications
+    // 3. Création de l'entrée d'historique
     const historyEntry = {
       modifiedAt: new Date(),
-      previousState: {
-        ...existingSubject.toObject(),
-      },
+      previousState: existingSubject.toObject(),
     };
 
-    // Nouvel ID enseignant venant de la requête
+    // 4. Gestion du changement d'enseignant
     const newTeacherId = req.body.teacherId;
     const oldTeacherId = existingSubject.teacherId;
 
-    // Mise à jour des champs de la matière
-    Object.assign(existingSubject, req.body);
-    existingSubject.history = [...(existingSubject.history || []), historyEntry];
+    if (newTeacherId && newTeacherId !== oldTeacherId) {
+      // a. Vérification que le nouvel enseignant existe et a le bon rôle
+      const newTeacher = await mongoose.model('User').findOne({
+        _id: newTeacherId,
+        role: 'teacher' // Vérification directe du rôle dans User
+      });
 
-    // Gestion du changement d'enseignant
-    if (newTeacherId !== oldTeacherId) {
-      // Retirer la matière de l'ancien enseignant
+      if (!newTeacher) {
+        return res.status(404).json({
+          message: `L'utilisateur avec ID ${newTeacherId} n'existe pas ou n'est pas un enseignant`,
+        });
+      }
+
+      // b. Retrait de l'ancien enseignant (si existant)
       if (oldTeacherId) {
-        const oldTeacher = await Teacher.findById(oldTeacherId);
-        if (oldTeacher) {
-          oldTeacher.subjects.pull(existingSubject._id);
-          await oldTeacher.save();
-        }
+        await mongoose.model('User').findByIdAndUpdate(
+          oldTeacherId,
+          { $pull: { subjects: existingSubject._id } }
+        );
       }
 
-      // Ajouter la matière au nouvel enseignant
-      if (newTeacherId) {
-        const newTeacher = await Teacher.findById(newTeacherId);
-        if (!newTeacher) {
-          return res.status(404).json({
-            message: `Enseignant avec ID ${newTeacherId} non trouvé`,
-          });
-        }
-
-        if (!newTeacher.subjects.includes(existingSubject._id)) {
-          newTeacher.subjects.push(existingSubject._id);
-          await newTeacher.save();
-        }
-      }
+      // c. Ajout au nouvel enseignant
+      await mongoose.model('User').findByIdAndUpdate(
+        newTeacherId,
+        { $addToSet: { subjects: existingSubject._id } }
+      );
     }
 
-    await existingSubject.save();
+    // 5. Mise à jour de la matière
+    Object.assign(existingSubject, req.body);
+    existingSubject.history = [...(existingSubject.history || []), historyEntry];
+    const updatedSubject = await existingSubject.save();
 
+    // 6. Réponse avec la matière mise à jour
     res.status(200).json({
-      subject: existingSubject,
+      subject: updatedSubject,
       message: 'Matière mise à jour avec succès',
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(400).json({ error: error.message });
+    console.error('Erreur lors de la mise à jour de la matière:', error);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la mise à jour',
+      error: error.message 
+    });
   }
 };
 export const deleteSubject = async (req, res) => {
@@ -340,77 +346,112 @@ export const addProposition = async (req, res) => {
   }
 }
 
+
 export const validateProposition = async (req, res) => {
-  const id = req.params.id
+  const id = req.params.id;
 
   try {
-    // Récupérer la matière par ID
+    // 1. Récupération du sujet avec ses relations
     const subject = await Subject.findById(id)
+      .populate('curriculumId')
+      .populate('teacherId')
+      .populate('skillId');
+
     if (!subject) {
-      return res.status(404).json({ message: 'Subject not found' })
+      return res.status(404).json({ message: 'Matière non trouvée' });
     }
 
-    // Afficher l'historique pour le débogage
-    console.log('History Array:', JSON.stringify(subject.history, null, 2))
+    // 2. Vérification des propositions en attente
+    const pendingProposals = subject.history.filter(
+      entry => entry.proposedState && !entry.proposedState.propositionValidated
+    );
 
-    // Trouver la dernière proposition non validée
-    const lastPropositionIndex = subject.history.findIndex(
-      (entry) =>
-        entry.proposedState &&
-        entry.proposedState.propositionValidated === false,
-    )
-
-    if (lastPropositionIndex === -1) {
-      return res.status(400).json({ message: 'No unvalidated proposal found.' })
+    if (pendingProposals.length === 0) {
+      return res.status(400).json({ message: 'Aucune proposition en attente' });
     }
 
-    // Récupérer la proposition non validée
-    const lastProposition = subject.history[lastPropositionIndex]
-
-    // Sauvegarder l'état actuel comme ancien état
+    // 3. Traitement de la dernière proposition
+    const lastProposal = pendingProposals[pendingProposals.length - 1];
     const previousState = {
       title: subject.title,
       description: subject.description,
       level: subject.level,
       semester: subject.semester,
-      chapId: subject.chapId,
-      teacherId: subject.teacherId,
-      skillId: subject.skillId,
-      Assesment_Id: subject.Assesment_Id,
       published: subject.published,
-      academicYearId: subject.academicYearId,
-      curriculumId: subject.curriculumId,
-      studentId: subject.studentId,
+      // Ajouter d'autres champs si nécessaire
+    };
+
+    // 4. Application des modifications
+    const proposedChanges = lastProposal.proposedState;
+    const updatePayload = {};
+
+    if (proposedChanges.title) updatePayload.title = proposedChanges.title;
+    if (proposedChanges.description) updatePayload.description = proposedChanges.description;
+    if (proposedChanges.level) updatePayload.level = proposedChanges.level;
+    if (proposedChanges.semester) updatePayload.semester = proposedChanges.semester;
+    if (proposedChanges.duration) updatePayload.duration = proposedChanges.duration;
+    if (proposedChanges.published !== undefined) updatePayload.published = proposedChanges.published;
+
+    // 5. Mise à jour du curriculum si nécessaire
+    if (subject.curriculumId && proposedChanges.duration) {
+      await Curriculum.findByIdAndUpdate(
+        subject.curriculumId,
+        { duration: proposedChanges.duration },
+        { new: true }
+      );
     }
 
-    // Appliquer les changements proposés au sujet
-    Object.assign(subject, lastProposition.proposedState)
+    // 6. Mise à jour du sujet
+    const updatedSubject = await Subject.findByIdAndUpdate(
+      id,
+      updatePayload,
+      { new: true }
+    );
 
-    // Marquer la proposition comme validée
-    subject.history[lastPropositionIndex].proposedState.propositionValidated =
-      true
+    // 7. Mise à jour de l'historique
+    updatedSubject.history = updatedSubject.history.map(entry =>
+      entry._id.equals(lastProposal._id)
+        ? {
+            ...entry.toObject(),
+            proposedState: {
+              ...entry.proposedState,
+              propositionValidated: true
+            }
+          }
+        : entry
+    );
 
-    // Ajouter l'ancien état dans l'historique
-    subject.history.push({
+    updatedSubject.history.push({
       modifiedAt: new Date(),
+      modifiedBy: req.auth.userId, // Correction ici
       previousState,
-    })
+      actionType: 'validation'
+    });
 
-    // Sauvegarder les modifications
-    await subject.save()
+    await updatedSubject.save();
 
+    // 8. Réponse
     return res.status(200).json({
-      message: 'Proposition validated successfully',
-      subject,
-    })
-  } catch (error) {
-    console.error('Error in validateProposition:', error)
-    return res
-      .status(500)
-      .json({ message: 'Error while validating the proposition' })
-  }
-}
+      success: true,
+      message: 'Proposition validée et appliquée avec succès',
+      subject: updatedSubject,
+      updatedFields: Object.keys(updatePayload)
+    });
 
+  } catch (error) {
+    console.error('Erreur lors de la validation:', {
+      error: error.message,
+      stack: error.stack,
+      subjectId: id
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la validation',
+      error: error.message
+    });
+  }
+};
 export const sendEvaluationEmail = async (req, res) => {
   try {
     const { id } = req.body; // Subject ID from the request body
@@ -436,10 +477,14 @@ export const sendEvaluationEmail = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'benboubakerchiraz054@gmail.com',
-        pass: 'brqd tlgs naoy rkwe',
+        user: 'benboubakerchiraz054@gmail.com', // À remplacer par variables d'environnement
+        pass: 'brqd tlgs naoy rkwe' // À remplacer par variables d'environnement
       },
     });
+
+    // Nouveau : URL du frontend avec le chemin d'évaluation
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const evaluationPath = `/student/evaluate/${subject._id}`;
 
     // Iterate through students and send personalized emails
     for (const student of students) {
@@ -522,7 +567,7 @@ export const sendEvaluationEmail = async (req, res) => {
             <p>Bonjour ${studentFullName},</p>
             <p>Nous vous invitons à remplir le formulaire d'évaluation pour le cours <strong>"${subject.title}"</strong>.</p>
             <p>Veuillez cliquer sur le lien ci-dessous pour accéder au formulaire d'évaluation :</p>
-            <a href="http://your-site.com/evaluation?subjectId=${subject._id}">Accédez au formulaire</a>
+            <a href="${frontendBaseUrl}${evaluationPath}">Accédez au formulaire</a>
             <p>Merci pour vos retours !</p>
           </div>
           <div class="footer">
@@ -534,7 +579,7 @@ export const sendEvaluationEmail = async (req, res) => {
       </html>`;
 
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_USER || 'benboubakerchiraz054@gmail.com',
         to: student.email,
         subject: `Évaluation du cours: ${subject.title}`,
         html: emailHtml,
@@ -554,3 +599,78 @@ export const sendEvaluationEmail = async (req, res) => {
   }
 };
 
+
+// Assure-toi que le chemin est correct
+
+export const getSubjectsByTeacher = async (req, res) => {
+    try {
+        // Récupérer l'ID du professeur depuis les paramètres de l'URL
+        const teacherId = req.params.teacherId;
+
+        // Vérification si l'ID du professeur est valide
+        if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+            return res.status(400).json({ message: "Invalid teacher ID" });
+        }
+
+        // Recherche des matières pour le professeur donné
+        const subjects = await Subject.find({
+            teacherId: teacherId
+        }).populate('teacherId'); // On popul les informations du professeur
+
+        // Si aucune matière n'est trouvée pour ce professeur
+        if (!subjects || subjects.length === 0) {
+            return res.status(404).json({
+                message: "No subjects found for this teacher",
+                model: []
+            });
+        }
+
+        // Si des matières sont trouvées, on les retourne
+        res.json({
+            model: subjects
+        });
+
+    } catch (error) {
+        console.error("Error in getSubjectsByTeacher:", error);
+        res.status(500).json({
+            message: "Server error",
+            error: error.message
+        });
+    }
+};
+export const getSubjectsByStudent= async (req, res) => {
+    try {
+        // Récupérer l'ID du professeur depuis les paramètres de l'URL
+        const teacherId = req.params.studentId;
+
+        // Vérification si l'ID du professeur est valide
+        if (!mongoose.Types.ObjectId.isValid(studentId)) {
+            return res.status(400).json({ message: "Invalid student ID" });
+        }
+
+        // Recherche des matières pour le professeur donné
+        const subjects = await Subject.find({
+            studentId: studentId
+        }).populate('teacherId'); // On popul les informations du professeur
+
+        // Si aucune matière n'est trouvée pour ce professeur
+        if (!subjects || subjects.length === 0) {
+            return res.status(404).json({
+                message: "No subjects found for this student",
+                model: []
+            });
+        }
+
+        // Si des matières sont trouvées, on les retourne
+        res.json({
+            model: subjects
+        });
+
+    } catch (error) {
+        console.error("Error in getSubjectsBystudent:", error);
+        res.status(500).json({
+            message: "Server error",
+            error: error.message
+        });
+    }
+};
