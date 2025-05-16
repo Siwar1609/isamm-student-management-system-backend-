@@ -540,40 +540,31 @@ export const updateOptionResults = async (req, res) => {
 
 export const getClassementByOption = async (req, res) => {
   try {
-    // Get the option name from the request parameters (either INREV or INLOG)
     const { optionName } = req.params
 
-    // Check if the optionName is valid (either INREV or INLOG)
     if (!['INREV', 'INLOG'].includes(optionName)) {
       return res
         .status(400)
         .json({ message: 'Invalid option name. It should be INREV or INLOG.' })
     }
 
-    // Fetch the results for the specific option and populate the student details
     const optionResults = await OptionResults.find({ optionName })
-      .populate('student') // Populate the student details
-      .sort({ score: -1 }) // Sort by score in descending order
+      .populate('student')
+      .sort({ score: -1 })
 
-    if (!optionResults || optionResults.length === 0) {
-      return res
-        .status(404)
-        .json({ message: `No results found for option ${optionName}.` })
-    }
-
-    // Map the results to return the student details, score, and rank
     const classement = optionResults.map((result, index) => ({
+      resultId: result._id, // The OptionResults document ID
       student: {
-        id: result.student._id, // Student ID
-        firstName: result.student.firstName, // Student first name
-        lastName: result.student.lastName, // Student last name
-        cin: result.student.cin, // Student CIN
+        id: result.student._id,
+        firstName: result.student.firstName,
+        lastName: result.student.lastName,
+        cin: result.student.cin,
       },
       score: result.score,
-      rank: index + 1, // Rank starts at 1
+      rank: index + 1,
+      valid: result.valid, // <-- new: include valid flag
     }))
 
-    // Respond with the ranking for the selected option
     res.status(200).json({
       message: `Classement for option ${optionName} fetched successfully.`,
       classement,
@@ -586,6 +577,7 @@ export const getClassementByOption = async (req, res) => {
     })
   }
 }
+
 export const SentEmailFinalOption = async (req, res) => {
   try {
     const optionResult = await OptionResults.find({ published: true })
@@ -647,6 +639,7 @@ export const getFinalList = async (req, res) => {
   try {
     const studentId = req.auth.userId
 
+    // Fetch all results, populate student
     const optionResults = await OptionResults.find().populate('student').exec()
 
     if (optionResults.length === 0) {
@@ -654,20 +647,23 @@ export const getFinalList = async (req, res) => {
         .status(404)
         .json({ message: 'Aucun résultat trouvé pour les options.' })
     }
-    const finalList = optionResults.map((result) => {
-      return {
-        studentId: result.student._id,
-        studentName: `${result.student.firstName} ${result.student.lastName}`,
-        studentEmail: result.student.email,
-        selectedOption: result.optionName,
-        score: result.score,
-        rank: result.rank,
-      }
-    })
 
+    // Build the final list with valid flag
+    const finalList = optionResults.map((result) => ({
+      studentId: result.student._id,
+      studentName: `${result.student.firstName} ${result.student.lastName}`,
+      studentEmail: result.student.email,
+      selectedOption: result.optionName,
+      score: result.score,
+      rank: result.rank,
+      valid: result.valid, // <-- include valid
+    }))
+
+    // Find the current student’s choice
     const studentChoice = optionResults.find(
-      (optionResult) => optionResult.student._id.toString() === studentId,
+      (r) => r.student._id.toString() === studentId,
     )
+
     let studentChoiceDetails = null
     if (studentChoice) {
       studentChoiceDetails = {
@@ -676,6 +672,7 @@ export const getFinalList = async (req, res) => {
         selectedOption: studentChoice.optionName,
         score: studentChoice.score,
         rank: studentChoice.rank,
+        valid: studentChoice.valid, // <-- include valid
       }
     }
 
