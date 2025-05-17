@@ -300,20 +300,51 @@ export const approveChoicePFA = async (req, res) => {
 //___________________________________________________done_________________________________________________________________
 export const fetchStudentChoices = async (req, res) => {
   try {
-    // Fetch all student choices with their project and student details
-    const studentChoices = await choice_pfa
-      .find({ studentList: req.params.id })
-      .populate('studentList')
+    let studentChoices;
+    const studentId = req.params.id;
+    console.log('Fetching choices for student ID:', studentId);
 
-    if (!studentChoices || studentChoices.length === 0) {
-      return res.status(404).json({ message: 'No student foud with such id ' })
+    if (studentId !== 'all') {
+      // Fetch choices for a specific student
+      studentChoices = await choice_pfa.find({ studentList: studentId })
+        .populate({
+          path: 'projectId',
+          model: 'PFA',
+          select: 'title description technologies_list numberOfStudents',
+        })
+        .populate({
+          path: 'studentList',
+          select: 'firstName lastName email',
+        })
+        .sort({ priority: 1 }); // Lower priority = higher choice
+    } else {
+      // Fetch all student choices
+      studentChoices = await choice_pfa.find({})
+        .populate({
+          path: 'projectId',
+          model: 'PFA',
+          select: 'title description technologies_list numberOfStudents',
+        })
+        .populate({
+          path: 'studentList',
+          select: 'firstName lastName email',
+        })
+        .sort({ priority: 1 }); // Lower priority = higher choice
     }
 
-    res.status(200).json({ choices: studentChoices })
+    if (!studentChoices.length) {
+      console.log('No choices found for student ID:', studentId);
+      return res.status(404).json({ message: 'No PFA choices found' });
+    }
+    console.log('Found choices:', studentChoices);
+    res.status(200).json({ choices: studentChoices });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching student choices', error })
+    console.error('Error fetching student choices:', error);
+    res.status(500).json({ message: 'Server error while fetching student choices', error });
   }
-}
+};
+
+
 // ---------------------------
 // affected :true |false
 // approved : true |
@@ -388,6 +419,46 @@ export const autoAllocatePFA = async (req, res) => {
   }
 }
 
+export const manualAssignPFA2 = async (req, res) => {
+  const { studentId, pfaId } = req.body
+
+  try {
+    // Step 1: Find the student and PFA
+    const student = await Student.findById(studentId)
+    const pfa = await PFA.findById(pfaId)
+
+    if (!student || !pfa) {
+      return res.status(404).json({
+        message: 'Student or PFA not found. Please verify the IDs provided.',
+      })
+    }
+
+    // Step 2: Check if the PFA is already assigned
+    if (pfa.affected) {
+      return res.status(400).json({
+        message: 'This PFA has already been assigned to another student.',
+      })
+    }
+
+    // Step 3: Assign the PFA to the student
+    pfa.affected = true
+    pfa.list_of_student = [student._id] // Assuming only one student per PFA for manual assignment
+    await pfa.save()
+
+    res.status(200).json({
+      message: 'PFA successfully assigned to the student.',
+      pfa: {
+        title: pfa.title,
+        student: student.firstName,
+      },
+    })
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error during manual assignment',
+      error,
+    })
+  }
+}
 //___________________________________________done_____________________________________________________________________________________
 export const manualAssignPFA = async (req, res) => {
   const { studentEmails = [], removedStudents = [] } = req.body
@@ -463,7 +534,7 @@ export const manualAssignPFA = async (req, res) => {
         email: { $in: studentEmails },
       }).select('_id email firstName lastName')
 
-      // Vérification existence étudiants
+      // Vérifier existence étudiants
       if (students.length !== studentEmails.length) {
         const foundEmails = students.map((s) => s.email)
         const missingEmails = studentEmails.filter(
@@ -537,7 +608,7 @@ export const togglePublishPFA = async (req, res) => {
 
     // Step 2: Update the `published` status
     pfa.published = !pfa.published
-
+    console.log(pfa.published)
     await pfa.save()
 
     res.status(200).json({
@@ -553,148 +624,147 @@ export const togglePublishPFA = async (req, res) => {
 }
 
 //------------------------
-
+// services/pfaValidationService.js
+// services/pfaValidationService.js
 export const sendEmailToRecipients = async (req, res) => {
   try {
-    let recipients = []
-    // we will get from here the teachers emails and push them in the recipients array
-    const valid_pfa = await PFA.find({ affected: true }).populate('teacherId')
+    const students = await Student.find({ role: 'student', level: '2' });
+    const teachers = await Teacher.find({});
 
-    recipients.push(...valid_pfa.map((pfa) => pfa.teacherId.email))
-
-    // now we will get the students ids then we will get the students emails
-    let ids = []
-    for (let i = 0; i < valid_pfa.length; i++) {
-      for (let j = 0; j < valid_pfa[i].list_of_student.length; j++) {
-        ids.push(valid_pfa[i].list_of_student[j]._id)
-      }
+    if (!students.length || !teachers.length) {
+      return res.status(404).json({ message: 'Aucun étudiant ou enseignant trouvé.' });
     }
-    const students = await Student.find({ _id: { $in: ids } })
-    recipients.push(...students.map((student) => student.email))
-    // we will remove the duplicates using this SET
-    recipients = [...new Set(recipients)]
-    console.log('all recipients', recipients)
 
-    // Step 2: Configure Nodemailer transporter
+    // Automatically decide type
+    const existingSend = await PFA.findOne({ send: true });
+    const type = existingSend ? 'update' : 'first';
 
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
+      service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: "benboubakerchiraz054@gmail.com",
+        pass: "brqd tlgs naoy rkwe", // 🔒 Move this to .env before production
       },
-    })
+    });
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: 'ahmedgafsi88@gmail.com',
-      subject: 'hhh',
-      html: 'this oggg',
-    })
+    const htmlContent = generateEmailTemplate(type);
+    const allRecipients = [...students, ...teachers];
 
-    const pfaSendStatus = await PFA.findOne({ send: true }).select('send')
-    const isFirstSend = !pfaSendStatus // Si aucun PFA avec send=true, c'est le premier envoi
-
-    if (!pfaSendStatus) {
-      return res.status(404).json({ message: 'Aucun PFA trouvé.' })
-    }
-
-    // Contenu du mail selon le type d'envoi
-    const subject = isFirstSend
-      ? 'Choix du sujet PFA'
-      : 'Mise à jour : Liste des sujets PFA'
-
-    const htmlContent = isFirstSend
-      ? `
-            <p>Bonjour,</p>
-            <p>Une liste complète de sujets PFA vous attend. Veuillez consulter et choisir votre sujet en cliquant sur le lien ci-dessous :</p>
-            <a href="http://v1/pfa/list">Voir la liste des sujets PFA</a>
-            <p>Cordialement,</p>
-            <p>L'équipe PFA</p>
-          `
-      : `
-            <p>Bonjour,</p>
-            <p>La liste des sujets PFA a été mise à jour. Veuillez consulter les nouvelles informations en cliquant sur le lien ci-dessous :</p>
-            <a href="http://v1/pfa/list">Voir la liste mise à jour des sujets PFA</a>
-            <p>Cordialement,</p>
-            <p>L'équipe PFA</p>
-          `
-
-    // Envoyer l'email à chaque étudiant
-    const emailPromises = students.map((student) => {
-      return transporter.sendMail({
+    const emailPromises = allRecipients.map((user) =>
+      transporter.sendMail({
         from: '"Équipe PFA" <votre_email@gmail.com>',
-        to: student.email, // Adresse email de l'étudiant
-        subject, // Sujet de l'email
-        html: htmlContent, // Contenu HTML de l'email
+        to: user.email,
+        subject: type === 'first' ? 'Choix du sujet PFA' : 'Mise à jour : Liste des sujets PFA',
+        html: htmlContent,
       })
-    })
+    );
 
-    // Attendre que tous les emails soient envoyés
-    await Promise.all(emailPromises)
+    await Promise.all(emailPromises);
 
-    // Si c'est le premier envoi, mettre à jour "send" à true pour tous les PFA
-    if (isFirstSend) {
-      await PFA.updateMany({}, { send: true })
+    if (type === 'first') {
+      await PFA.updateMany({}, { send: true });
     }
 
     return res.status(200).json({
-      message: `Emails envoyés avec succès (${isFirstSend ? 'premier envoi' : 'mise à jour'}).`,
-    })
+      message: `Emails envoyés avec succès (${type === 'first' ? 'premier envoi' : 'mise à jour'}).`,
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error sending email', error })
+    return res.status(500).json({
+      message: "Erreur lors de l'envoi des emails.",
+      error: error.message,
+    });
   }
-}
+};
 
-//publier un choix
 
-export const publish_one_choice = async (req, res) => {
-  try {
-    const published = true
-    const updated_choice = await choice_pfa.findOneAndUpdate(
-      { _id: req.params.id },
-      { published },
-      { new: true },
-    ) // <-- Ajoutez cette ligne
-
-    if (!updated_choice) {
-      return res.status(404).json({
-        message: 'Sujet PFA non trouvé.',
-      })
+// Fonction pour générer le contenu HTML de l'email
+const generateEmailTemplate = (isFirstSend) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+      body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f9;
+          color: #333;
+      }
+      .email-container {
+          max-width: 600px;
+          margin: 20px auto;
+          background: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0);
+      }
+      .header {
+          background-color: #0078d7;
+          color: #fff;
+          text-align: center;
+          padding: 20px;
+      }
+      .header h1 {
+          margin: 0;
+          font-size: 1.8rem;
+      }
+      .content {
+          padding: 20px;
+          text-align: left;
+      }
+      .content p {
+          margin: 0 0 15px;
+          line-height: 1.6;
+      }
+      .content a {
+          color: #0078d7;
+          text-decoration: underline;
+      }
+      .footer {
+          background-color: #f4f4f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 0.9rem;
+          color: #666;
+      }
+      .footer img {
+          display: block;
+          margin: 10px auto;
+          width: 65px;
+          height: 50px;
+      }
+      .footer p {
+          margin: 5px 0;
+      }
+    .black {
+      color: #000;
     }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+      <div class="header">
+          <h1>${isFirstSend ? 'Choix du sujet PFA' : 'Mise à jour : Liste des sujets PFA'}</h1>
+      </div>
+      <div class="content">
+          <p class="black">Bonjour,</p>
+          <p>${
+            isFirstSend
+              ? 'Une liste complète de sujets PFA vous attend. Veuillez consulter et choisir votre sujet en cliquant sur le lien ci-dessous :'
+              : 'La liste des sujets PFA a été mise à jour. Veuillez consulter les nouvelles informations en cliquant sur le lien ci-dessous :'
+          }</p>
+          <p><a href="http://v1/pfa/list">http://v1/pfa/list</a></p>
+          <p>Cordialement,</p>
+          <p>L'équipe PFA</p>
+      </div>
+      <div class="footer">
+          <img src="https://isa2m.rnu.tn/assets/img/logo-dark.png" alt="ISAMM Logo">
+          <p>&copy; ISAMM PFA Management System</p>
+      </div>
+  </div>
+</body>
+</html>`
 
-    return res.status(200).json({
-      model: updated_choice,
-      message: "Le champ 'published' a été mis à jour avec succès.",
-    })
-  } catch (error) {
-    return res.status(400).json({ error: error.message })
-  }
-}
 
-//masquer un choix
-export const unpublish_one_choice = async (req, res) => {
-  try {
-    const published = false
-    const updated_choice = await choice_pfa.findOneAndUpdate(
-      { _id: req.params.id },
-      { published },
-      { new: true },
-    ) // <-- Ajoutez cette ligne
-
-    if (!updated_choice) {
-      return res.status(404).json({
-        message: 'choix PFA non trouvé.',
-      })
-    }
-
-    return res.status(200).json({
-      model: updated_choice,
-      message: "Le champ 'published' a été mis à jour avec succès.",
-    })
-  } catch (error) {
-    return res.status(400).json({ error: error.message })
-  }
-}

@@ -15,18 +15,18 @@ import {
   sendEmailToRecipients,
   togglePublishPFA,
   list_pfa_by_teacher,
-  sorted_pfa, // Added the sorted_pfa import
-  publish_one_choice,
-  unpublish_one_choice,
+  sorted_pfa,
+  manualAssignPFA2  // Added the manualAssignPFA2 import
+
 } from '../../controllers/pfa-controller/choice_pfa_controller.js'
 
 const choice_pfa_route = express.Router()
 
-choice_pfa_route.post(
-  '/:pfaId/assign',
-  accessByRole(['admin']),
-  manualAssignPFA,
-)
+// choice_pfa_route.post(
+//   '/:pfaId/assign',
+//   accessByRole(['admin']),
+//   manualAssignPFA,
+// )
 // ----------------------- Student Routes --------------------------------------------------------
 choice_pfa_route.patch(
   '/:choiceId',
@@ -83,7 +83,10 @@ choice_pfa_route.get(
   fetchStudentChoices,
 )
 choice_pfa_route.post('/allocate', accessByRole(['admin']), autoAllocatePFA)
-choice_pfa_route.post('/assign', accessByRole(['admin']), manualAssignPFA)
+choice_pfa_route.post('/assign/:pfaId', accessByRole(['admin']), manualAssignPFA)
+// Add the new route for manualAssignPFA2
+choice_pfa_route.post('/assign2', accessByRole(['admin']), manualAssignPFA2)
+
 choice_pfa_route.patch(
   '/:id/publish',
   accessByRole(['admin']),
@@ -114,16 +117,16 @@ choice_pfa_route.post(
   sendEmailToRecipients,
 )
 
-choice_pfa_route.post(
-  '/:id/publish',
-  accessByRole(['admin']),
-  publish_one_choice,
-)
+// choice_pfa_route.post(
+//   '/:id/publish',
+//   accessByRole(['admin']),
+//   publish_one_choice,
+// )
 
-choice_pfa_route.post(
-  '/:id/unpublish',
-  accessByRole(['admin']),
-  unpublish_one_choice,
-)
+// choice_pfa_route.post(
+//   '/:id/unpublish',
+//   accessByRole(['admin']),
+//   unpublish_one_choice,
+// )
 
 export default choice_pfa_route

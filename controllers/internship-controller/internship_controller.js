@@ -743,11 +743,14 @@ export const updateInternshipPlanning = async (req, res) => {
 
 export const publishOrMaskPlanning = async (req, res) => {
   try {
-    const { type } = req.params // '1' ou '2' (niveau de stage)
-    const { response } = req.params // 'true' ou 'false' pour publier ou masquer le planning
+    const { type, response } = req.params // type: '1' or '2', response: 'true' or 'false'
+    console.log('--- Incoming request ---')
+    console.log('Type (level):', type)
+    console.log('Response (publish or hide):', response)
 
-    // Valider la valeur du paramètre response
+    // Validate the value of response
     if (response !== 'true' && response !== 'false') {
+      console.log('Invalid response value:', response)
       return res.status(400).json({
         success: false,
         message:
@@ -755,34 +758,59 @@ export const publishOrMaskPlanning = async (req, res) => {
       })
     }
 
-    // Convertir la réponse en booléen
     const isPublished = response === 'true'
+    console.log('Converted isPublished (boolean):', isPublished)
 
-    // Utiliser getInternshipsByLevel pour récupérer les stages par niveau
+    // Fetch internships by level
     let internships
     try {
       internships = await getInternshipsByLevel(type)
+      console.log(`Internships found for level ${type}:`, internships)
     } catch (error) {
+      console.error('Error fetching internships:', error.message)
       return res.status(400).json({
         success: false,
         message: error.message,
       })
     }
 
-    // Vérifier si tous les plannings sont déjà dans l'état souhaité
+    if (!internships || internships.length === 0) {
+      console.log(`No internships found for level ${type}`)
+      return res.status(404).json({
+        success: false,
+        message: `Aucun stage trouvé pour le niveau ${type}.`,
+      })
+    }
+
+    // Fetch corresponding internship plannings
     const internshipPlannings = await Promise.all(
       internships.map(async (internship) => {
-        return await InternshipPlanning.findOne({
+        const planning = await InternshipPlanning.findOne({
           idInternship: internship._id,
         })
-      }),
+        console.log(`Planning for internship ${internship._id}:`, planning)
+        return planning
+      })
     )
 
-    const allPlanningsAreAlready = internshipPlannings.every(
-      (planning) => planning.published === isPublished,
+    // Filter out nulls
+    const validPlannings = internshipPlannings.filter(p => p !== null)
+    if (validPlannings.length === 0) {
+      console.log(`No internship plannings found for level ${type}`)
+      return res.status(404).json({
+        success: false,
+        message: `Aucun planning trouvé pour les stages du niveau ${type}.`,
+      })
+    }
+
+    // Check if all are already in the desired state
+    const allPlanningsAreAlready = validPlannings.every(
+      (planning) => planning.published === isPublished
     )
+    console.log('All plannings already in desired state:', allPlanningsAreAlready)
 
     if (allPlanningsAreAlready) {
+      console.log('Nothing to update. Skipping.')
       return res.status(200).json({
         success: true,
         message: isPublished
@@ -791,22 +819,23 @@ export const publishOrMaskPlanning = async (req, res) => {
       })
     }
 
-    // Mettre à jour l'état des plannings
+    // Update published status
     for (const internship of internships) {
       const internshipPlanning = await InternshipPlanning.findOne({
         idInternship: internship._id,
       })
 
       if (internshipPlanning) {
-        // Mettre à jour l'état de publication
+        console.log(`Updating planning for internship ${internship._id}`)
         internshipPlanning.published = isPublished
-
-        // Sauvegarder le planning mis à jour
         await internshipPlanning.save()
+        console.log(`Saved updated planning for internship ${internship._id}`)
+      } else {
+        console.log(`No planning found for internship ${internship._id}`)
       }
     }
 
-    // Retourner une réponse de succès
+    console.log('All plannings updated successfully.')
     return res.status(200).json({
       success: true,
       message: isPublished
@@ -823,6 +852,7 @@ export const publishOrMaskPlanning = async (req, res) => {
     })
   }
 }
+
 export const publishOrMaskPlanningById = async (req, res) => {
   try {
     const { type, response, id } = req.params // 'type' (internship level), 'response' (true or false), and 'id' (planning ID)
