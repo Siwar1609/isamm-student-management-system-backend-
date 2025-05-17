@@ -378,8 +378,12 @@ export const getAssignedPFEs = async (req, res) => {
     if (!teacherId) {
       return res.status(400).json({ message: "L'ID de l'enseignant est requis." });
     }
+    let query =  PFE.find({ affected: true, teacherId });
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
 
-    const assignedPFEs = await PFE.find({ affected: true, teacherId })
+    const assignedPFEs = await query
       .populate('studentId', 'firstName lastName')
       .populate('company_name title description');
 
