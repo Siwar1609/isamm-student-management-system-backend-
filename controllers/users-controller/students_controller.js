@@ -366,6 +366,7 @@ const updateStudentCV = async (req, res) => {
 }
 
 //******************************************************************************** */
+//******************************************************************************** */
 const evaluteStudentStatus = async (req, res) => {
   try {
     const studentId = req.params.id
@@ -375,69 +376,118 @@ const evaluteStudentStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid student ID.' })
     }
 
+    // Find the student and only select the fields we need to update
     const student = await Student.findById(studentId)
 
     if (!student) {
       return res.status(404).json({ message: 'Student not found.' })
     }
 
-    // Update student's status based on their academicYearStatus
-    switch (req.body.academicYearStatus) {
-      case 'pass':
-        // Check for graduation
-        if (['3L', '2M', '3ING'].includes(student.academicYearlevel)) {
-          student.isGraduated = true
-          student.status = 'graduated_student'
-          student.graduationYear = new Date().getFullYear()
-        } else {
-          student.status = 'active_student'
-          student.academicYearlevel = getNextLevel(student.academicYearlevel)
-        }
-        break
-      case 'fail':
-        student.academicYearStatus = 'fail'
-        break
-
-      case 'suspended':
-        student.status = 'suspended_student'
-        break
-
-      default:
-        return res
-          .status(400)
-          .json({ message: 'Invalid academic year status.' })
+    // Get the new status from request body
+    const { academicYearStatus } = req.body;
+    
+    if (!['pass', 'fail', 'suspended'].includes(academicYearStatus)) {
+      return res.status(400).json({ message: 'Invalid academic year status. Must be pass, fail, or suspended.' });
     }
 
-    // Save the updated student
-    await student.save()
-    res
-      .status(200)
-      .json({ message: 'Student status updated successfully.', student })
+    // Create an update object instead of modifying the student directly
+    const updateData = {
+      academicYearStatus: academicYearStatus
+    };
+
+    // Process based on the status
+    switch (academicYearStatus) {
+      case 'pass':
+        // If student is in final year (3ING), mark as graduated
+        if (student.level === '3' || student.academicYearlevel === '3ING') {
+          updateData.isGraduated = true;
+          updateData.graduationDate = new Date(); // Set graduation date to today
+          updateData.status = 'graduated'; // Update status to graduated
+          
+          // Update both level indicators to maintain consistency
+          updateData.level = 'Graduated';
+          updateData.academicYearlevel = 'Graduated';
+        } else {
+          // Advance to next year
+          if (student.level === '1') {
+            updateData.level = '2';
+            updateData.academicYearlevel = '2ING';
+          } else if (student.level === '2') {
+            updateData.level = '3';
+            updateData.academicYearlevel = '3ING';
+          }
+        }
+        break;
+        
+      case 'fail':
+        // Student stays in the same year (no change to level)
+        // Just update the status to indicate failure
+        break;
+        
+      case 'suspended':
+        // Mark student as suspended
+        updateData.status = 'suspended';
+        break;
+    }
+
+    // Update the student with the new data
+    const updatedStudent = await Student.findByIdAndUpdate(
+      studentId,
+      { $set: updateData },
+      { new: true, runValidators: false }
+    );
+    
+    // Return a simplified student object
+    res.status(200).json({ 
+      message: 'Student status updated successfully.',
+      student: {
+        id: updatedStudent._id,
+        name: `${updatedStudent.firstName} ${updatedStudent.lastName}`,
+        level: updatedStudent.level,
+        academicYearlevel: updatedStudent.academicYearlevel,
+        academicYearStatus: updatedStudent.academicYearStatus,
+        status: updatedStudent.status,
+        isGraduated: updatedStudent.isGraduated || false,
+        graduationDate: updatedStudent.isGraduated ? updatedStudent.graduationDate : null
+      }
+    });
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: 'Internal Server Error', error: err.message })
+    console.error('Error evaluating student status:', err);
+    res.status(500).json({ 
+      message: 'Internal Server Error', 
+      error: err.message 
+    });
   }
 }
 
 //**************************************************************
 
 // Utility function to determine the next academic level
-const getNextLevel = (currentLevel) => {
-  const levels = ['1L', '2L', '3L', '1M', '2M', '1ING', '2ING', '3ING']
-  const index = levels.indexOf(currentLevel)
-  return index !== -1 && index < levels.length - 1
-    ? levels[index + 1]
-    : currentLevel
-}
+// const getNextLevel = (currentLevel) => {
+//   const levels = ['1L', '2L', '3L', '1M', '2M', '1ING', '2ING', '3ING']
+//   const index = levels.indexOf(currentLevel)
+//   return index !== -1 && index < levels.length - 1
+//     ? levels[index + 1]
+//     : currentLevel
+// }
 //**************************************************************
 // notify old students to update their cv info ( diplomes / certifications / langues / competences / experiences )
+// Update the notifyOldStudents function to match the correct status
 const notifyOldStudents = async (req, res) => {
   try {
+    // Change 'graduated_student' to 'graduated' to match your frontend status
     const graduated_students = await Student.find({
       isGraduated: true,
-      status: 'graduated_student',
+      status: 'graduated', // Changed from 'graduated_student' to 'graduated'
     })
+    
+    if (graduated_students.length === 0) {
+      return res.status(200).json({
+        message: 'No graduated students found to notify',
+        students: [],
+      })
+    }
+    
     const emailBatches = chunk(graduated_students, 10)
     for (const batch of emailBatches) {
       await Promise.all(
@@ -461,6 +511,7 @@ const notifyOldStudents = async (req, res) => {
       students: graduated_students,
     })
   } catch (err) {
+    console.error('Error sending notification emails:', err)
     res.status(500).json({ message: err.message })
   }
 }
