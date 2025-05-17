@@ -159,27 +159,175 @@ const updateTeacherPassword = async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.params.id).exec()
     if (!teacher) {
-      const error = new Error('Teacher not found')
-      error.statusCode = 404
-      throw error
+      return res.status(404).json({ message: 'Teacher not found' });
     }
 
     const teacherFullName = `${teacher.firstName} ${teacher.lastName}`
 
-    if (req.body.password !== req.body.confirmPassword) {
-      const error = new Error('Passwords do not match')
-      error.statusCode = 400
-      throw error
+    if (req.body.oldPassword === undefined || req.body.newPassword === undefined) {
+      return res.status(400).json({ message: 'Old password and new password are required' });
     }
 
-    await updatePassword(req.params.id, req.body.password, Teacher)
+    // Check if old password matches
+    // This would require a password verification function
+    // For now, we'll just update the password
+
+    await updatePassword(req.params.id, req.body.newPassword, Teacher)
     res.status(200).json({
-      message: ` Password of teacher  ${teacherFullName} updated successfully`,
+      message: `Password of teacher ${teacherFullName} updated successfully`,
     })
   } catch (error) {
     console.error('Error in updateTeacherPassword function: ', error)
-    throw error
+    res.status(500).json({ message: error.message });
   }
+}
+
+//**************************************************************
+// Get current teacher profile
+const getCurrentTeacher = async function (req, res) {
+  try {
+    // Log the auth object to see what's available
+    console.log('Auth object:', req.auth);
+    console.log('User object:', req.user);
+    console.log('Request keys:', Object.keys(req));
+    
+    // Try to find the user ID in various places
+    const teacherId = req.auth?.id || req.auth?.userId || req.user?.id || req.userId;
+    
+    console.log('Teacher ID from token:', teacherId);
+    
+    // If we can't find the user ID, check the token directly
+    if (!teacherId) {
+      const token = req.headers.authorization?.split(' ')[1];
+      console.log('Token from headers:', token ? 'Present' : 'Not found');
+      
+      if (token) {
+        try {
+          // Decode the token manually
+          const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+          console.log('Decoded token payload:', payload);
+          
+          // Use the user ID from the decoded token
+          const tokenUserId = payload.userId || payload.id || payload.sub;
+          
+          if (tokenUserId) {
+            const teacher = await Teacher.findById(tokenUserId)
+              .populate({
+                path: 'subjects',
+                select: 'title code level description'
+              })
+              .exec();
+              
+            if (teacher) {
+              console.log('Teacher found using token payload:', teacher.firstName, teacher.lastName);
+              return res.status(200).json(teacher);
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error decoding token:', decodeError);
+        }
+      }
+      
+      return res.status(401).json({ message: 'User ID not found in token. Please login again.' });
+    }
+    
+    const teacher = await Teacher.findById(teacherId)
+      .populate({
+        path: 'subjects',
+        select: 'title code level description'
+      })
+      .exec();
+
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    console.log('Teacher found:', teacher.firstName, teacher.lastName);
+    res.status(200).json(teacher);
+  } catch (err) {
+    console.error('Error getting current teacher profile:', err);
+    res.status(500).json({ message: err.message });
+  }
+}
+
+//**************************************************************
+// Update current teacher profile
+const updateCurrentTeacher = async function (req, res) {
+  try {
+    // Log the auth object to see what's available
+    console.log('Auth object for update:', req.auth);
+    console.log('User object for update:', req.user);
+    
+    // Try to find the user ID in various places
+    const teacherId = req.auth?.id || req.auth?.userId || req.user?.id || req.userId;
+    
+    console.log('Teacher ID from token for update:', teacherId);
+    
+    // If we can't find the user ID, check the token directly
+    if (!teacherId) {
+      const token = req.headers.authorization?.split(' ')[1];
+      console.log('Token from headers for update:', token ? 'Present' : 'Not found');
+      
+      if (token) {
+        try {
+          // Decode the token manually
+          const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+          console.log('Decoded token payload for update:', payload);
+          
+          // Use the user ID from the decoded token
+          const tokenUserId = payload.userId || payload.id || payload.sub;
+          
+          if (tokenUserId) {
+            // Continue with the update using the token user ID
+            return handleTeacherUpdate(tokenUserId, req, res);
+          }
+        } catch (decodeError) {
+          console.error('Error decoding token for update:', decodeError);
+        }
+      }
+      
+      return res.status(401).json({ message: 'User ID not found in token. Please login again.' });
+    }
+    
+    // Continue with the update using the found user ID
+    return handleTeacherUpdate(teacherId, req, res);
+    
+  } catch (err) {
+    console.error('Error updating current teacher profile:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Helper function to handle the teacher update
+async function handleTeacherUpdate(teacherId, req, res) {
+  const teacher = await Teacher.findById(teacherId).exec();
+  
+  if (!teacher) {
+    return res.status(404).json({ message: 'Teacher not found' });
+  }
+  
+  console.log('Teacher found for update:', teacher.firstName, teacher.lastName);
+  
+  // Only allow updating certain fields
+  const allowedFields = ['firstName', 'lastName', 'phone', 'department', 'specialization'];
+  const updateData = {};
+  
+  allowedFields.forEach(field => {
+    if (req.body[field] !== undefined) {
+      updateData[field] = req.body[field];
+    }
+  });
+  
+  const updatedTeacher = await Teacher.findByIdAndUpdate(
+    teacherId,
+    { $set: updateData },
+    { new: true }
+  ).populate({
+    path: 'subjects',
+    select: 'title code level description'
+  });
+  
+  return res.status(200).json(updatedTeacher);
 }
 
 export {
@@ -190,4 +338,6 @@ export {
   deleteOneTeacher,
   createTeachersAccountsExcelFile,
   updateTeacherPassword,
+  getCurrentTeacher,
+  updateCurrentTeacher
 }

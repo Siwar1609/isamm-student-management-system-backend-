@@ -160,4 +160,142 @@ const deleteUser = async (req, res) => {
   }
 }
 //**************************************** */
-export { getUsers, getUser, createUser, updateUser, deleteUser }
+// Get current admin profile
+const getCurrentAdmin = async (req, res) => {
+  try {
+    console.log('Auth object:', req.auth);
+    console.log('User object:', req.user);
+    console.log('Request keys:', Object.keys(req));
+    console.log('UserId from request:', req.userId);
+    
+    // Get the admin ID from the request
+    const adminId = req.userId || req.auth?.userId || req.auth?.id;
+    
+    console.log('Admin ID:', adminId);
+    
+    if (!adminId) {
+      return res.status(401).json({ message: 'User ID not found in token. Please login again.' });
+    }
+    
+    const admin = await getUserById(adminId);
+    
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+    
+    res.status(200).json(admin);
+  } catch (err) {
+    console.error('Error getting current admin profile:', err);
+    res.status(500).json({ message: err.message });
+  }
+}
+//**************************************** */
+// Update current admin profile
+const updateCurrentAdmin = async (req, res) => {
+  try {
+    // Get the admin ID from the auth object
+    const adminId = req.auth?.id || req.auth?.userId || req.user?.id;
+    
+    if (!adminId) {
+      return res.status(401).json({ message: 'User ID not found in token. Please login again.' });
+    }
+    
+    // Check if admin exists
+    const admin = await user_model.findById(adminId).exec();
+    
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+    
+    // Only allow updating certain fields for self-update
+    const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'secondEmail', 'photoUrl'];
+    const updateData = {};
+    
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+    
+    // Handle password separately
+    if (req.body.password && typeof req.body.password === 'string' && req.body.password.trim() !== '') {
+      try {
+        updateData.password = await bcrypt.hash(req.body.password, 12);
+      } catch (hashError) {
+        console.error('Password hashing error:', hashError);
+        return res.status(400).json({
+          message: 'Invalid password format'
+        });
+      }
+    }
+    
+    // Validate update data
+    const { error, value } = userValidator.validate(updateData, { 
+      allowUnknown: true,
+      stripUnknown: true 
+    });
+    
+    if (error) {
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: error.details.map(detail => detail.message)
+      });
+    }
+    
+    const updatedAdmin = await updateUserById(adminId, value);
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      user: updatedAdmin
+    });
+  } catch (err) {
+    console.error('Error updating admin profile:', err);
+    res.status(500).json({ message: err.message });
+  }
+}
+
+//**************************************** */
+// Update admin password
+const updateAdminPassword = async (req, res) => {
+  try {
+    // Get the admin ID from the request
+    const adminId = req.userId || req.auth?.userId || req.auth?.id;
+    
+    if (!adminId) {
+      return res.status(401).json({ message: 'User ID not found in token. Please login again.' });
+    }
+    
+    const admin = await user_model.findById(adminId).exec();
+    
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+    
+    if (!req.body.password || !req.body.confirmPassword) {
+      return res.status(400).json({ message: 'Password and confirmation are required' });
+    }
+    
+    if (req.body.password !== req.body.confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match' });
+    }
+    
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(req.body.password, 12);
+    
+    // Update only the password
+    const updatedAdmin = await user_model.findByIdAndUpdate(
+      adminId,
+      { password: hashedPassword },
+      { new: true }
+    ).exec();
+
+
+    
+    res.status(200).json({
+      message: 'Password updated successfully' ,
+    });
+  } catch (err) {
+    console.error('Error updating admin password:', err);
+    res.status(500).json({ message: err.message });
+  }
+}
+export { getUsers, getUser, createUser, updateUser, deleteUser, getCurrentAdmin , updateCurrentAdmin , updateAdminPassword }

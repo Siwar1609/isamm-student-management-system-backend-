@@ -71,9 +71,9 @@ app.get('/', (req, res) => {
 })
 
 scheduleTeacherReminder()
+app.use('/api/accounts', usersRouter)  // Keep only this instance
 
 app.use('/api/auth', routerAuth)
-app.use('/api/accounts', usersRouter)  // Keep only this instance
 app.use('/api/students', studentsRouter)
 app.use('/api/teachers', teachersRouter)
 app.use('/api/internship', loggedMiddleware, routerInternship)

@@ -1,6 +1,6 @@
 import express from 'express'
 
-import { accessByRole } from '../../middlewares/users-middlewares/auth_middleware.js'
+import { accessByRole ,authenticate  } from '../../middlewares/users-middlewares/auth_middleware.js'
 
 import {
   getUsers,
@@ -8,9 +8,17 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  getCurrentAdmin,
+  updateCurrentAdmin,
+  updateAdminPassword
 } from '../../controllers/users-controller/users_controller.js'
 
 const router = express.Router()
+
+// Admin profile routes - add authenticate middleware
+router.get('/me', authenticate, getCurrentAdmin)
+router.patch('/me', authenticate,updateCurrentAdmin)
+router.patch('/me/password', authenticate,updateAdminPassword)
 
 // users accounts management routes
 router.post('/', createUser)
