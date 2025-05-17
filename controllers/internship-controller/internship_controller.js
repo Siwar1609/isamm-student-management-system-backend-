@@ -112,12 +112,6 @@ export const getInternshipsByStudentId = async (req, res) => {
       .populate('periodeId')
       .lean()
 
-    if (!internships.length) {
-      return res
-        .status(404)
-        .json({ message: 'No internships found for this student' })
-    }
-
     // Modify document paths to return full URLs
     const internshipsWithDocuments = internships.map((internship) => {
       if (internship.documents && internship.documents.length > 0) {
