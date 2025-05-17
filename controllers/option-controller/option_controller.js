@@ -580,11 +580,11 @@ export const getClassementByOption = async (req, res) => {
 
 export const SentEmailFinalOption = async (req, res) => {
   try {
-    const optionResult = await OptionResults.find({ published: true })
+    const optionResult = await OptionResults.find({ published: true, valid: true  })
       .populate('student')
       .exec()
     if (!optionResult || optionResult.length === 0) {
-      return res.status(404).json({ message: 'All options are hidden' })
+      return res.status(404).json({ message: 'No validated and published options available , Please validate and publish the list before sending emails' })
     }
 
     const transporter = nodemailer.createTransport({
@@ -635,6 +635,7 @@ export const SentEmailFinalOption = async (req, res) => {
     })
   }
 }
+
 export const getFinalList = async (req, res) => {
   try {
     const studentId = req.auth.userId
@@ -782,7 +783,7 @@ export function generateEmailTemplateOptionInfo(
       <div class="content">
           <p class="black">Hello ${studentFullName.trim()},</p>
           <p class="black">${studentEmailText}</p>
-          <p class="black">Best Regars.</p>
+          <p class="black">Best Regards.</p>
           <hr>
           <p class="black">L'équipe du système de gestion des options de l'ISAMM - <span style="font-size: 0.7rem; color: #666;">${new Date().toLocaleDateString()}</span></p>
       </div>
