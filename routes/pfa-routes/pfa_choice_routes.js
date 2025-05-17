@@ -32,7 +32,7 @@ choice_pfa_route.patch(
   '/:choiceId',
   loggedMiddleware,
   accessByRole(['student']),
-  accessByLevel(['1']),
+  accessByLevel(['2']),
   InformApproval,
 )
 
@@ -40,7 +40,7 @@ choice_pfa_route.post(
   '/:id/choice',
   loggedMiddleware,
   accessByRole(['student']),
-  accessByLevel(['1']),
+  accessByLevel(['2']),
   choose_pfa,
 )
 
@@ -48,8 +48,9 @@ choice_pfa_route.get(
   '/teacher/:teacherId/pfas',
   loggedMiddleware,
   accessByRole(['student']),
-  accessByLevel(['1']),
-  list_pfa_by_teacher,
+  accessByLevel(['2']),
+  list_pfa_by_teacher
+
 )
 
 // Add new route for sorted PFAs
@@ -57,8 +58,9 @@ choice_pfa_route.get(
   '/sorted',
   loggedMiddleware,
   accessByRole(['student']),
-  accessByLevel(['1']),
-  sorted_pfa,
+  accessByLevel(['2']),
+  sorted_pfa
+
 )
 
 // -------------------- Teacher Routes ----------------------------------
