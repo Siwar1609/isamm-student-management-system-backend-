@@ -648,12 +648,6 @@ export const getFinalList = async (req, res) => {
       })
       .exec()
 
-    if (optionResults.length === 0) {
-      return res.status(404).json({
-        message: 'Aucun résultat trouvé pour les options.',
-      })
-    }
-
     // Build the final list with name fallback
     const finalList = optionResults.map((result) => {
       const student = result.student
