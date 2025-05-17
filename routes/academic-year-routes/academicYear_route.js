@@ -1,10 +1,15 @@
 import express from 'express'
 import {
   createAcademicYear,
-  deleteAcademicYear,
   fetchAcademicYear,
   fetchPendingAcademicYear,
 } from '../../controllers/academic-year-controller/academic_year.js'
+import {
+  openNewSeason,
+  switchAcademicYear,
+  getCurrentAcademicYear,
+  deleteAcademicYear // Make sure this is imported from years_controller.js
+} from '../../controllers/academic-year-controller/years_controller.js'
 import {
   loggedMiddleware,
   accessByRole,
@@ -12,14 +17,16 @@ import {
 
 const router = express.Router()
 
+// Academic year management routes
 router.post('/', loggedMiddleware, accessByRole(['admin']), createAcademicYear)
-router.delete(
-  '/:id',
-  loggedMiddleware,
-  accessByRole(['admin']),
-  deleteAcademicYear,
-)
+// Add this route for deleting an academic year
+router.delete('/delete/:academicYearId', loggedMiddleware, accessByRole(['admin']), deleteAcademicYear);
 router.get('/', fetchAcademicYear)
 router.get('/pending', fetchPendingAcademicYear)
+router.get('/current', getCurrentAcademicYear)
+
+// Season management routes
+router.post('/new-season', loggedMiddleware, accessByRole(['admin']), openNewSeason)
+router.post('/switch', loggedMiddleware, accessByRole(['admin']), switchAcademicYear)
 
 export default router

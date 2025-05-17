@@ -4,6 +4,7 @@ const historySchema = new mongoose.Schema({
   previousState: { type: Object, required: true },
   proposedState: { type: Object },
 })
+import { setAcademicYear } from '../../utils/setAcademicYear.js'
 
 const SubjectSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -28,4 +29,12 @@ const SubjectSchema = new mongoose.Schema({
   history: [historySchema], // Ajouter l'historique
 })
 
+
+
+
+SubjectSchema.pre('save', setAcademicYear)
 export default mongoose.model('Subject', SubjectSchema)
+
+// InternshipPlanningSchema.pre('save', setAcademicYear)
+
+// export default mongoose.model('InternshipPlanning', InternshipPlanningSchema)

@@ -1,15 +1,15 @@
-import Period from '../../models/period-model/period_model.js'
-import PFE from '../../models/project_models/project_pfe.js'
-import { pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
-import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
-import mongoose from 'mongoose'
-import nodemailer from 'nodemailer';
-import Student from '../../models/users-models/student_model.js';
-import SoutenancePfe from '../../models/soutenances-models/soutenance_pfe.js';
-import Teacher from '../../models/users-models/teacher_model.js';
-import { updateSoutenanceValidation } from '../../validators/updatePfeSoutenance_Validator.js';
+import mongoose from 'mongoose';
 import multer from 'multer';
+import nodemailer from 'nodemailer';
 import Document from '../../models/document-models/document_model.js';
+import Period from '../../models/period-model/period_model.js';
+import PFE from '../../models/project_models/project_pfe.js';
+import SoutenancePfe from '../../models/soutenances-models/soutenance_pfe.js';
+import Student from '../../models/users-models/student_model.js';
+import Teacher from '../../models/users-models/teacher_model.js';
+import { pfeValidationSchema } from '../../validators/pfeValidationSchema.js';
+import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
+import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -21,7 +21,23 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage }).single('file');
+export const assignDocumentsToPfe = async (req, res) => {
+  try {
+      const { pfeId } = req.params;
+      const { documentIds } = req.body;
 
+      // Mettre à jour les documents avec le pfeId
+      await Promise.all(
+          documentIds.map(async (docId) => {
+              await Document.findByIdAndUpdate(docId, { pfeId });
+          })
+      );
+
+      res.status(200).json({ message: "Documents associés au PFE avec succès" });
+  } catch (error) {
+      res.status(500).json({ message: "Erreur lors de l'association des documents" });
+  }
+};
 
 export const checkPfe = async (req, res) => {
   try {
@@ -70,9 +86,13 @@ export const deleteDocument = async (req, res) => {
 }
 
 
-// Méthode pour ouvrir une période de dépôt PFE
 export const addPFE = async (req, res) => {
   try {
+    // Nettoyer le teacherId avant validation
+    if (req.body.teacherId === "") {
+      delete req.body.teacherId; // Supprime complètement la propriété si vide
+    }
+
     // Extraire les données du corps de la requête
     const {
       company_name,
@@ -92,16 +112,16 @@ export const addPFE = async (req, res) => {
       return res.status(400).json({ message: error.details[0].message });
     }
 
-
     // Vérification si le délai est dépassé
     const period = await Period.findOne({
       name: 'Dépot PFE',
       end_date: { $gte: new Date() },
-    })
+    });
 
     if (!period) {
-      return res.status(404).json({ message: '❌ Période non trouvée❌' })
+      return res.status(404).json({ message: '❌ Période non trouvée❌' });
     }
+
     // Validate if documents exist
     for (let docId of documentId) {
       if (!mongoose.Types.ObjectId.isValid(docId)) {
@@ -117,39 +137,42 @@ export const addPFE = async (req, res) => {
       }
     }
 
-    // Validation du nombre d'étudiants en fonction du type
+    // Validation du nombre d'étudiants
     if (WorkMode === "Monome" && studentId.length !== 1) {
       return res.status(400).json({
-        message:
-          '❌ Si le PFE est "monome", il doit contenir exactement un ID étudiant.',
+        message: '❌ Si le PFE est "monome", il doit contenir exactement un ID étudiant.',
       });
     }
 
     if (WorkMode === "Binome" && studentId.length !== 2) {
       return res.status(400).json({
-        message:
-          '❌ Si le PFE est "binome", il doit contenir exactement deux IDs étudiants.',
+        message: '❌ Si le PFE est "binome", il doit contenir exactement deux IDs étudiants.',
       });
     }
 
-    // Créer un nouveau PFE
-    const newPFE = new PFE({
+    // Création de l'objet PFE sans teacherId si vide/null/undefined
+    const pfeData = {
       company_name,
       title,
       description,
       type,
-      teacherId,
       studentId,
       WorkMode,
       affected,
       documentId,
+    };
 
-    });
+    // Ajouter teacherId seulement si défini et non vide
+    if (teacherId && teacherId !== "") {
+      pfeData.teacherId = teacherId;
+    }
 
-    // Sauvegarder le PFE dans la base de données
+    const newPFE = new PFE(pfeData);
+
+    // Sauvegarder le PFE
     const savedPFE = await newPFE.save();
 
-    // Populate les champs studentId, documentId, et periodId
+    // Population des références
     const populatedPFE = await PFE.findById(savedPFE._id)
       .populate('studentId')
       .populate('teacherId', 'firstName lastName email cv')
@@ -162,9 +185,10 @@ export const addPFE = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res
-      .status(500)
-      .json({ message: '❗ Erreur du serveur.', error: err.message });
+    return res.status(500).json({ 
+      message: '❗ Erreur du serveur.', 
+      error: err.message 
+    });
   }
 };
 
@@ -250,8 +274,53 @@ export const updatePFE = async (req, res) => {
 //recuperer les details des PFEs pour les étudiants
 export const getPFEDetailsForStudent = async (req, res) => {
   try {
+
+    const currentYearId = await getCurrentAcademicYearId();
+
+
+    let query =  PFE.find();
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+
+  
     // Recherche des PFEs non affectés avec les étudiants associés
-    const availablePFEs = await PFE.find({ affected: false })
+    const availablePFEs = await query
+      .populate('studentId')
+      .populate('teacherId')
+      .populate('documentId')
+      .populate('academicyear')
+
+    if (availablePFEs.length === 0) {
+      return res.status(200).json({ message: 'Aucun PFE disponible.' })
+    }
+
+    res.status(200).json(availablePFEs)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'Erreur lors de la récupération des PFEs disponibles.',
+      error,
+    })
+  }
+}
+//recuperer les details des PFEs pour sujets non affectés
+
+export const getPFEDetailsForStudent3 = async (req, res) => {
+  try {
+    // Recherche des PFEs non affectés avec les étudiants associés
+
+    const currentYearId = await getCurrentAcademicYearId();
+
+
+    let query =  PFE.find({ affected: false });
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+
+    const availablePFEs = await query
       .populate('studentId')
       .populate('teacherId')
       .populate('documentId')
@@ -274,8 +343,18 @@ export const getPFEDetailsForStudent = async (req, res) => {
 
 export const getPFEDetailsForStudent2 = async (req, res) => {
   try {
+
+    const currentYearId = await getCurrentAcademicYearId();
+
+
+    let query =  PFE.find({ affected: true });
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+    
     // Recherche des PFEs non affectés avec les étudiants associés
-    const availablePFEs = await PFE.find({ affected: true })
+    const availablePFEs = await query
       .populate('studentId')
       .populate('teacherId')
       .populate('documentId')
@@ -711,30 +790,51 @@ export const send_pfe_planning = async (req, res) => {
   }
 };
 
+export const getApprovedPfes = async (req, res) => {
+  try {
+    // Étape 1: récupérer tous les projectId déjà associés à une soutenance
+    const soutenances = await SoutenancePfe.find({}, 'projectId');
+    const projectIdsWithSoutenance = soutenances.map(s => s.projectId.toString());
+
+    // Étape 2: récupérer les PFEs approuvés qui ne sont pas dans les soutenances
+    const pfes = await PFE.find({
+      isApproved: true,
+      _id: { $nin: projectIdsWithSoutenance },
+    })
+      .populate('teacherId')
+      .populate('studentId');
+
+    res.status(200).json(pfes);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des PFEs approuvés non liés à une soutenance:", error);
+    res.status(500).json({ 
+      message: "Erreur lors de la récupération des PFEs approuvés non liés à une soutenance", 
+      error 
+    });
+  }
+};
+
+
 export const assignTeacherToSoutenance = async (req, res) => {
   try {
     const { projectId, salle, date, teachers } = req.body; // Tableau des enseignants : [{ teacherId, role }]
 
-    // Vérification que le projet PFE existe
     const pfe = await PFE.findById(projectId);
     if (!pfe) {
       return res.status(404).json({ message: "❌ Projet PFE introuvable." });
     }
 
-    // Vérification si une soutenance existe déjà pour ce projet PFE
     let soutenance = await SoutenancePfe.findOne({ projectId }).populate("projectId");
 
-    // Si aucune soutenance n'existe, créer une nouvelle soutenance
     if (!soutenance) {
       soutenance = new SoutenancePfe({
         projectId,
         students: pfe.studentId,
         academicYear: pfe.academicyear,
-        teachers: [{ teacherId: pfe.teacherId, role: "encadrant" }], // Ajout automatique de l'encadrant
+        teachers: [{ teacherId: pfe.teacherId, role: "encadrant" }],
       });
     }
 
-    // Vérification des chevauchements d'horaires et de salles
     const chevauchement = await SoutenancePfe.findOne({
       salleSoutenance: salle,
       dateSoutenance: { $eq: new Date(date) },
@@ -747,17 +847,30 @@ export const assignTeacherToSoutenance = async (req, res) => {
       });
     }
 
-    // Ajout des enseignants fournis dans la requête
     for (const teacher of teachers) {
       const { teacherId, role } = teacher;
 
-      // Vérifier si l'enseignant existe
       const teacherExists = await Teacher.findById(teacherId);
       if (!teacherExists) {
         return res.status(400).json({
           message: `❌ L'enseignant avec l'ID ${teacherId} n'existe pas.`,
         });
       }
+
+     // Vérifier si le même enseignant a déjà été assigné à la soutenance (quel que soit le rôle)
+const sameTeacher = soutenance.teachers.find(
+  (existingTeacher) => existingTeacher.teacherId.toString() === teacherId.toString()
+);
+
+if (sameTeacher) {
+  // Récupérer les infos de l'enseignant pour un message clair
+  const teacherInfo = await Teacher.findById(teacherId).select("firstName lastName");
+
+  return res.status(400).json({
+    message: `❌ L'enseignant ${teacherInfo.firstName} ${teacherInfo.lastName} est déjà assigné à cette soutenance en tant que "${sameTeacher.role}".`,
+  });
+}
+
       // Vérifier si un rôle unique (président de jury ou rapporteur) est déjà attribué
       if (
         ["président de jury", "rapporteur"].includes(role) &&
@@ -768,19 +881,6 @@ export const assignTeacherToSoutenance = async (req, res) => {
         });
       }
 
-      // Vérifier si l'enseignant est déjà assigné avec le même rôle
-      const alreadyAssigned = soutenance.teachers.some(
-        (existingTeacher) =>
-          existingTeacher.teacherId.toString() === teacherId.toString() &&
-          existingTeacher.role === role
-      );
-
-      if (alreadyAssigned) {
-        return res.status(400).json({
-          message: `❌ L'enseignant ${teacherId} est déjà assigné à cette soutenance avec le rôle ${role}.`,
-        });
-      }
-      // Vérifier si l'enseignant est déjà assigné à une autre soutenance avec la même date
       const conflictSoutenance = await SoutenancePfe.findOne({
         "teachers.teacherId": teacherId,
         date: date,
@@ -792,15 +892,12 @@ export const assignTeacherToSoutenance = async (req, res) => {
         });
       }
 
-      // Ajouter l'enseignant avec son rôle à la soutenance
       soutenance.teachers.push({ teacherId, role });
     }
 
-    // Mettre à jour les informations de la soutenance
     soutenance.salleSoutenance = salle;
     soutenance.dateSoutenance = new Date(date);
 
-    // Sauvegarder les modifications
     await soutenance.save();
 
     return res.status(200).json({
@@ -986,6 +1083,55 @@ export const publishOrHideSoutenances = async (req, res) => {
 };
 
 
+// Méthode pour récupérer toutes les soutenances avec tous les détails
+export const getAllSoutenances = async (req, res) => {
+  try {
+
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query = SoutenancePfe.find();
+    console.log(query,"query +++++++++++++")
+    
+    // Apply academic year filter if available
+    if (currentYearId) {
+      query = query.where('academicYear', currentYearId);
+    }
+    const soutenances = await query
+      .populate("students", "firstName lastName ") 
+      .populate("teachers.teacherId", "firstName lastName") 
+      .populate("projectId", "title company_name") 
+      .sort({ dateSoutenance: -1 }); 
+
+    console.log("soutenances : ",soutenances)
+
+    if (!soutenances || soutenances.length === 0) {
+      return res.status(404).json({ message: "Aucune soutenance trouvée" });
+    }
+
+    return res.status(200).json(soutenances);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Erreur lors de la récupération des soutenances" });
+  }
+};
+
+export const deleteSoutenance=async(req,res)=> {
+
+try {
+        const soutenance = await SoutenancePfe.findByIdAndDelete(req.params.id);
+
+        if (!soutenance) {
+            return res.status(404).json({ message: "Soutenance non trouvée" });
+        }
+
+        res.status(200).json({ message: "Soutenance supprimée avec succès" });
+    } catch (error) {
+        console.error("Erreur lors de la suppression :", error);
+        res.status(500).json({ message: "Erreur serveur lors de la suppression" });
+    }
+}
+
 
 export const updateSoutenance = async (req, res) => {
   try {
@@ -1032,8 +1178,10 @@ export const updateSoutenance = async (req, res) => {
       );
 
       if (alreadyAssigned) {
+        // Récupérer les informations de l'enseignant
+        const teacher = await Teacher.findById(teacherId).select("firstName lastName");
         return res.status(400).json({
-          message: `❌ L'enseignant ${teacherId} est déjà assigné à cette soutenance avec le rôle ${role}.`,
+          message: `❌ L'enseignant  ${teacher.firstName} ${teacher.lastName}  est déjà assigné à cette soutenance avec le rôle ${role}.`,
         });
       }
 
@@ -1045,8 +1193,11 @@ export const updateSoutenance = async (req, res) => {
       });
 
       if (conflict) {
+        // Récupérer les informations de l'enseignant
+        const teacher = await Teacher.findById(teacherId).select("firstName lastName");
+      
         return res.status(400).json({
-          message: `❌ L'enseignant ${teacherId} a déjà une autre soutenance prévue à cette date.`,
+          message: `❌ L'enseignant ${teacher.firstName} ${teacher.lastName} a déjà une autre soutenance prévue à cette date.`,
         });
       }
     }
@@ -1126,11 +1277,22 @@ export const getTeacherSoutenances = async (req, res) => {
   try {
     const teacherId = req.auth.userId; // ID de l'enseignant connecté
 
-
+      console.log("hello")
     // Récupérer toutes les soutenances où l'enseignant est impliqué
-    const teacherSoutenances = await SoutenancePfe.find({
+
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query = SoutenancePfe.find({
       "teachers.teacherId": teacherId,
-    }).populate("projectId", "title description")
+    })
+
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+
+
+    const teacherSoutenances = await query.populate("projectId", "title description")
       .populate("students", "firstName lastName email")
       .select("-academicYear")
 
@@ -1227,11 +1389,15 @@ export const getStudentSoutenances = async (req, res) => {
 
   try {
     const studentId = req.auth.userId; // ID de l'étudiant connecté
-
     // Récupérer toutes les soutenances où l'étudiant est impliqué
-    const studentSoutenances = await SoutenancePfe.find({
-      students: studentId,
-    }).populate("projectId", "title description")
+    const currentYearId = await getCurrentAcademicYearId(); 
+    let query =  SoutenancePfe.find({ students: studentId, })
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+    const studentSoutenances = await query
+      .populate("projectId")
       .populate("teachers.teacherId", "firstName lastName email")
       .select("-academicYear")
 

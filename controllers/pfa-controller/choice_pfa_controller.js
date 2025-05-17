@@ -14,20 +14,23 @@ dotenv.config()
 // --------------------------- Student Functions -----------------------------------------------------
 export const list_pfa_by_teacher = async (req, res) => {
   try {
-    const { teacherId } = req.params;
+    const { teacherId } = req.params
     const topics = await PFA.find({ teacherId: teacherId })
-      .populate("teacherId", "firstName lastName email").lean(); 
-    
+      .populate('teacherId', 'firstName lastName email')
+      .lean()
+
     if (!topics || topics.length === 0) {
-      return res.status(404).json({ error: "No topics found for this teacher." });
+      return res
+        .status(404)
+        .json({ error: 'No topics found for this teacher.' })
     }
-    
-    return res.status(200).json({ topics });
+
+    return res.status(200).json({ topics })
   } catch (err) {
-    console.error("Error fetching topics:", err);
+    console.error('Error fetching topics:', err)
     return res.status(500).json({
-      error: "An error has occurred while fetching PFA for teacher",
-    });
+      error: 'An error has occurred while fetching PFA for teacher',
+    })
   }
 }
 export const sorted_pfa = async (req, res) => {
@@ -36,42 +39,44 @@ export const sorted_pfa = async (req, res) => {
     const pfas = await PFA.find({ published: true })
       .populate({
         path: 'teacherId',
-        select: 'firstName lastName '
-      }).lean();
-      
-    
+        select: 'firstName lastName ',
+      })
+      .lean()
+
     if (!pfas || pfas.length === 0) {
-      if (!pfas){return res.status(404).json({ 
-        message: '1 No PFA projects found.' 
-      });}
-      else{ return res.status(404).json({ 
-        message: ' 2No PFA projects found.' 
-      });}
-     
+      if (!pfas) {
+        return res.status(404).json({
+          message: '1 No PFA projects found.',
+        })
+      } else {
+        return res.status(404).json({
+          message: ' 2No PFA projects found.',
+        })
+      }
     }
-    
+
     // Add teacher's full name to each PFA object
-    const pfasWithTeacherName = pfas.map(pfa => {
+    const pfasWithTeacherName = pfas.map((pfa) => {
       return {
         ...pfa,
-        teacherName: `${pfa.teacherId.firstName} ${pfa.teacherId.lastName}`
-      };
-    });
-    
+        teacherName: `${pfa.teacherId.firstName} ${pfa.teacherId.lastName}`,
+      }
+    })
+
     // Sort the PFAs by teacher name
     const sortedPfas = pfasWithTeacherName.sort((a, b) => {
-      return a.teacherName.localeCompare(b.teacherName);
-    });
-    
-    return res.status(200).json({ 
-      pfas: sortedPfas 
-    });
+      return a.teacherName.localeCompare(b.teacherName)
+    })
+
+    return res.status(200).json({
+      pfas: sortedPfas,
+    })
   } catch (error) {
-    console.error('Error sorting PFAs by teacher:', error);
+    console.error('Error sorting PFAs by teacher:', error)
     return res.status(500).json({
       message: 'Error sorting PFAs by teacher',
-      error: error.message
-    });
+      error: error.message,
+    })
   }
 }
 export const choose_pfa = async (req, res) => {
@@ -358,13 +363,9 @@ export const autoAllocatePFA = async (req, res) => {
     })
 
     if (approvedPFAs.length === 0) {
-      return res
-        .status(400)
-        .json({
-          message:
-            'No PFAs found with affected === true and approval === true.',
-        })
-
+      return res.status(400).json({
+        message: 'No PFAs found with affected === true and approval === true.',
+      })
     }
 
     // Step 2: Update related ChoicePFA documents
@@ -460,42 +461,47 @@ export const manualAssignPFA2 = async (req, res) => {
 }
 //___________________________________________done_____________________________________________________________________________________
 export const manualAssignPFA = async (req, res) => {
-  const { studentEmails = [], removedStudents = [] } = req.body;
-  const { choiceId: pfaId } = req.params;
-
+  const { studentEmails = [], removedStudents = [] } = req.body
+  const { pfaId } = req.params
 
   if (!Array.isArray(studentEmails)) {
     return res.status(400).json({
       success: false,
-      message: 'Les emails doivent être fournis dans un tableau'
-    });
+      message: 'Les emails doivent être fournis dans un tableau',
+    })
   }
 
   try {
     // 1. Vérification du PFA existant avec populate teacherId
     const pfa = await PFA.findById(pfaId)
-      .select('title description technologies_list numberOfStudents list_of_student affected teacherId')
+      .select(
+        'title description technologies_list numberOfStudents list_of_student affected teacherId',
+      )
       .populate('list_of_student', 'email firstName lastName')
-      .populate('teacherId', 'firstName lastName email'); // Ajout du populate teacherId
+      .populate('teacherId', 'firstName lastName email') // Ajout du populate teacherId
 
     if (!pfa) {
       return res.status(404).json({
         success: false,
-        message: 'PFA introuvable'
-      });
+        message: 'PFA introuvable',
+      })
     }
 
     // 2. Traitement des étudiants à supprimer
     if (removedStudents.length > 0) {
       const studentsToRemove = await Student.find({
-        email: { $in: removedStudents }
-      }).select('_id');
+        email: { $in: removedStudents },
+      }).select('_id')
 
       await PFA.findByIdAndUpdate(
         pfaId,
-        { $pull: { list_of_student: { $in: studentsToRemove.map(s => s._id) } } },
-        { runValidators: true }
-      );
+        {
+          $pull: {
+            list_of_student: { $in: studentsToRemove.map((s) => s._id) },
+          },
+        },
+        { runValidators: true },
+      )
     }
 
     // 3. Traitement des étudiants à ajouter
@@ -504,89 +510,88 @@ export const manualAssignPFA = async (req, res) => {
       if (studentEmails.length > 2) {
         return res.status(400).json({
           success: false,
-          message: 'Maximum 2 étudiants par PFA'
-        });
+          message: 'Maximum 2 étudiants par PFA',
+        })
       }
 
       // Vérification type PFA
       if (pfa.numberOfStudents === 'Monome' && studentEmails.length !== 1) {
         return res.status(400).json({
           success: false,
-          message: 'Ce PFA Monôme nécessite exactement 1 étudiant'
-        });
+          message: 'Ce PFA Monôme nécessite exactement 1 étudiant',
+        })
       }
 
       if (pfa.numberOfStudents === 'Binome' && studentEmails.length !== 2) {
         return res.status(400).json({
           success: false,
-          message: 'Ce PFA Binôme nécessite exactement 2 étudiants'
-        });
+          message: 'Ce PFA Binôme nécessite exactement 2 étudiants',
+        })
       }
 
       // Recherche des étudiants
       const students = await Student.find({
-        email: { $in: studentEmails }
-      }).select('_id email firstName lastName');
+        email: { $in: studentEmails },
+      }).select('_id email firstName lastName')
 
       // Vérifier existence étudiants
       if (students.length !== studentEmails.length) {
-        const foundEmails = students.map(s => s.email);
-        const missingEmails = studentEmails.filter(email => !foundEmails.includes(email));
-        
+        const foundEmails = students.map((s) => s.email)
+        const missingEmails = studentEmails.filter(
+          (email) => !foundEmails.includes(email),
+        )
+
         return res.status(404).json({
           success: false,
           message: 'Étudiants non trouvés',
-          missingEmails
-        });
+          missingEmails,
+        })
       }
 
       // Ajout des nouveaux étudiants
       await PFA.findByIdAndUpdate(
         pfaId,
         {
-          $addToSet: { list_of_student: { $each: students.map(s => s._id) } },
+          $addToSet: { list_of_student: { $each: students.map((s) => s._id) } },
           affected: true,
-          approval: true
+          approval: true,
         },
-        { runValidators: true }
-      );
+        { runValidators: true },
+      )
     }
 
     // 4. Récupération finale du PFA mis à jour avec populate complet
     const updatedPfa = await PFA.findById(pfaId)
       .populate('list_of_student', 'email firstName lastName')
-      .populate('teacherId', 'firstName lastName email'); // Populate teacherId
+      .populate('teacherId', 'firstName lastName email') // Populate teacherId
 
     // 5. Désaffectation si plus d'étudiants
     if (updatedPfa.list_of_student.length === 0) {
       await PFA.findByIdAndUpdate(
         pfaId,
         { affected: false, approval: false },
-        { runValidators: true }
-      );
-      updatedPfa.affected = false;
-      updatedPfa.approval = false;
+        { runValidators: true },
+      )
+      updatedPfa.affected = false
+      updatedPfa.approval = false
     }
 
     return res.status(200).json({
       success: true,
       message: 'PFA mis à jour avec succès',
-      pfa: updatedPfa
-    });
-
+      pfa: updatedPfa,
+    })
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du PFA:', error);
+    console.error('Erreur lors de la mise à jour du PFA:', error)
     return res.status(500).json({
       success: false,
       message: 'Erreur serveur',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    })
   }
-};
+}
 
 //_______________________________________done____________________________________________________________________________________
-
-
 
 //_______________________________________done_____________________________________________________
 export const togglePublishPFA = async (req, res) => {
@@ -761,3 +766,5 @@ const generateEmailTemplate = (isFirstSend) => `
   </div>
 </body>
 </html>`
+
+
