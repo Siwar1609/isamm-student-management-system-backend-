@@ -117,16 +117,16 @@ choice_pfa_route.post(
   sendEmailToRecipients,
 )
 
-choice_pfa_route.post(
-  '/:id/publish',
-  accessByRole(['admin']),
-  publish_one_choice,
-)
+// choice_pfa_route.post(
+//   '/:id/publish',
+//   accessByRole(['admin']),
+//   publish_one_choice,
+// )
 
-choice_pfa_route.post(
-  '/:id/unpublish',
-  accessByRole(['admin']),
-  unpublish_one_choice,
-)
+// choice_pfa_route.post(
+//   '/:id/unpublish',
+//   accessByRole(['admin']),
+//   unpublish_one_choice,
+// )
 
 export default choice_pfa_route
