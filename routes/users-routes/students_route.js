@@ -13,6 +13,7 @@ import {
   updateStudentCV,
   updateStudentProfile,
   getStudentCVInfo,
+  getProfileInfo,
 } from '../../controllers/users-controller/students_controller.js'
 import {
   accessByRole,
@@ -27,6 +28,14 @@ const router = express.Router()
 //**************************
 // get all students
 router.get('/', loggedMiddleware, accessByRole(['admin','teacher','student']), getStudents)
+
+router.get(
+  '/me',
+  loggedMiddleware,
+  accessByRole(['student']),
+  getProfileInfo
+)
+
 //**************************
 // get a student by id
 router.get('/:id', loggedMiddleware, accessByRole(['admin']), getStudent)
@@ -60,6 +69,8 @@ router.get(
 )
 
 // students can change their profil info ( adress / phone / second email / photo )
+
+
 // tested and working ✅ Us 5.1
 router.patch(
   '/me',

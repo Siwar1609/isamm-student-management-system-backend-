@@ -540,40 +540,31 @@ export const updateOptionResults = async (req, res) => {
 
 export const getClassementByOption = async (req, res) => {
   try {
-    // Get the option name from the request parameters (either INREV or INLOG)
     const { optionName } = req.params
 
-    // Check if the optionName is valid (either INREV or INLOG)
     if (!['INREV', 'INLOG'].includes(optionName)) {
       return res
         .status(400)
         .json({ message: 'Invalid option name. It should be INREV or INLOG.' })
     }
 
-    // Fetch the results for the specific option and populate the student details
     const optionResults = await OptionResults.find({ optionName })
-      .populate('student') // Populate the student details
-      .sort({ score: -1 }) // Sort by score in descending order
+      .populate('student')
+      .sort({ score: -1 })
 
-    if (!optionResults || optionResults.length === 0) {
-      return res
-        .status(404)
-        .json({ message: `No results found for option ${optionName}.` })
-    }
-
-    // Map the results to return the student details, score, and rank
     const classement = optionResults.map((result, index) => ({
+      resultId: result._id, // The OptionResults document ID
       student: {
-        id: result.student._id, // Student ID
-        firstName: result.student.firstName, // Student first name
-        lastName: result.student.lastName, // Student last name
-        cin: result.student.cin, // Student CIN
+        id: result.student._id,
+        firstName: result.student.firstName,
+        lastName: result.student.lastName,
+        cin: result.student.cin,
       },
       score: result.score,
-      rank: index + 1, // Rank starts at 1
+      rank: index + 1,
+      valid: result.valid, // <-- new: include valid flag
     }))
 
-    // Respond with the ranking for the selected option
     res.status(200).json({
       message: `Classement for option ${optionName} fetched successfully.`,
       classement,
@@ -586,13 +577,14 @@ export const getClassementByOption = async (req, res) => {
     })
   }
 }
+
 export const SentEmailFinalOption = async (req, res) => {
   try {
-    const optionResult = await OptionResults.find({ published: true })
+    const optionResult = await OptionResults.find({ published: true, valid: true  })
       .populate('student')
       .exec()
     if (!optionResult || optionResult.length === 0) {
-      return res.status(404).json({ message: 'All options are hidden' })
+      return res.status(404).json({ message: 'No validated and published options available , Please validate and publish the list before sending emails' })
     }
 
     const transporter = nodemailer.createTransport({
@@ -602,7 +594,7 @@ export const SentEmailFinalOption = async (req, res) => {
         pass: 'znvw qfty lltn sajs',
       },
     })
-    const listOptionLink = `http://Options/Finallist`
+    const listOptionLink = `http://localhost:3000`
 
     for (const result of optionResult) {
       const studentEmail = result.student.email
@@ -643,46 +635,60 @@ export const SentEmailFinalOption = async (req, res) => {
     })
   }
 }
+
 export const getFinalList = async (req, res) => {
   try {
     const studentId = req.auth.userId
 
-    const optionResults = await OptionResults.find().populate('student').exec()
+    // Fetch all results, populate student (only necessary fields)
+    const optionResults = await OptionResults.find()
+      .populate({
+        path: 'student',
+        select: 'firstName lastName email',
+      })
+      .exec()
 
     if (optionResults.length === 0) {
-      return res
-        .status(404)
-        .json({ message: 'Aucun résultat trouvé pour les options.' })
+      return res.status(404).json({
+        message: 'Aucun résultat trouvé pour les options.',
+      })
     }
+
+    // Build the final list with name fallback
     const finalList = optionResults.map((result) => {
+      const student = result.student
+      const fullName =
+        student?.firstName && student?.lastName
+          ? `${student.firstName} ${student.lastName}`
+          : student?.email || 'Anonyme'
+
       return {
-        studentId: result.student._id,
-        studentName: `${result.student.firstName} ${result.student.lastName}`,
-        studentEmail: result.student.email,
+        studentId: student?._id,
+        studentName: fullName,
+        studentEmail: student?.email,
         selectedOption: result.optionName,
         score: result.score,
         rank: result.rank,
+        valid: result.valid,
+        published: result.published, 
+
       }
     })
 
-    const studentChoice = optionResults.find(
-      (optionResult) => optionResult.student._id.toString() === studentId,
+    // Find the current student's choice
+    const studentChoice = finalList.find(
+      (item) => item.studentId.toString() === studentId,
     )
-    let studentChoiceDetails = null
-    if (studentChoice) {
-      studentChoiceDetails = {
-        studentId: studentChoice.student._id,
-        studentName: `${studentChoice.student.firstName} ${studentChoice.student.lastName}`,
-        selectedOption: studentChoice.optionName,
-        score: studentChoice.score,
-        rank: studentChoice.rank,
-      }
-    }
+
+    // Get other students' results
+    const othersChoices = finalList.filter(
+      (item) => item.studentId.toString() !== studentId,
+    )
 
     res.status(200).json({
       message: 'Liste finale des options et des choix des étudiants.',
-      FinalList: finalList,
-      studentChoice: studentChoiceDetails,
+      studentChoice: studentChoice || null,
+      othersChoices: othersChoices,
     })
   } catch (error) {
     console.error(
@@ -785,7 +791,7 @@ export function generateEmailTemplateOptionInfo(
       <div class="content">
           <p class="black">Hello ${studentFullName.trim()},</p>
           <p class="black">${studentEmailText}</p>
-          <p class="black">Best Regars.</p>
+          <p class="black">Best Regards.</p>
           <hr>
           <p class="black">L'équipe du système de gestion des options de l'ISAMM - <span style="font-size: 0.7rem; color: #666;">${new Date().toLocaleDateString()}</span></p>
       </div>

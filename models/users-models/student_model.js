@@ -91,14 +91,14 @@ const studentSchema = mongoose.Schema(
     },
     academicYearlevel: {
       type: String,
-      enum: ['1L', '2L', '3L', '1M', '2M', '1ING', '2ING', '3ING'],
+      enum: ['1ING', '2ING', '3ING'],
       required: false,
     },
-    // status: {
-    //   type: String,
-    //   enum: ['active_student', 'graduated_student', 'suspended_student'],
-    //   required: false,
-    // },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'suspended','graduated'],
+      required: false,
+    },
     academicYearStatus: {
       type: String,
       enum: ['pass', 'fail', 'suspended'],

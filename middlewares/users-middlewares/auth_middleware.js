@@ -89,3 +89,46 @@ export const accessByLevel = (requiredLevel) => async (req, res, next) => {
     })
   }
 }
+
+// Update the authenticate middleware to properly extract user info
+export const authenticate = async (req, res, next) => {
+  try {
+    // Get the token from the Authorization header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('No token found in Authorization header');
+      return res.status(401).json({ message: 'Authentication required. No token provided.' });
+    }
+    
+    // Extract the token
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      console.log('Token extraction failed');
+      return res.status(401).json({ message: 'Authentication required. Invalid token format.' });
+    }
+    
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Decoded token:', decoded);
+    
+    // Attach the user info to the request object
+    req.auth = decoded;
+    req.userId = decoded.userId || decoded.id; // Make sure we capture the ID regardless of field name
+    
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token has expired. Please login again.' });
+    }
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token. Please login again.' });
+    }
+    
+    res.status(401).json({ message: 'Authentication failed. Please login again.' });
+  }
+};

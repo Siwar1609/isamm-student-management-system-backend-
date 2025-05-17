@@ -16,11 +16,11 @@ const document_Schema = mongoose.Schema({
     type: String,
     required: true,
   },
-  pfeId:{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"PFE",
-    
-  },
+  pfeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PFE',
+    default: null
+},
   
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,

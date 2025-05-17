@@ -1,10 +1,10 @@
-import Subject from '../../models/subject-models/subject_model.js'
-import subjectValidator from '../../validators/subject_validator.js'
-import Joi from 'joi'
-import Teacher from '../../models/users-models/teacher_model.js'
 import nodemailer from 'nodemailer'
-import Student from '../../models/users-models/student_model.js'
-import Curriculum from '../../models/subject-models/curriculum_model.js' // Adjust the path as necessary
+import Curriculum from '../../models/subject-models/curriculum_model.js'; // Adjust the path as necessary
+import Subject from '../../models/subject-models/subject_model.js'
+import Teacher from '../../models/users-models/teacher_model.js'
+import subjectValidator from '../../validators/subject_validator.js'
+import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js';
+
 
 import mongoose from 'mongoose';
 import dotenv from 'dotenv'
@@ -158,9 +158,22 @@ export const fetchSubjects = async (req, res) => {
     }
 
     // Récupérer les matières en fonction du filtre et peupler le champ teacherId
-    const subjects = await Subject.find(filter)
-      .populate('teacherId') // Populate teacherId to get teacher details
-      .exec()
+
+  // Get current academic year ID
+    const currentYearId = await getCurrentAcademicYearId(); 
+    // Create query with academic year filter
+    let query = Subject.find(filter);
+    // Apply academic year filter if available
+    if (currentYearId) {
+      query = query.where('academicYearId', currentYearId);
+    }
+    const subjects = await query.populate('teacherId')
+
+    console.log(subjects)
+
+    // const subjects = await Subject.find(filter)
+    //   .populate('teacherId') // Populate teacherId to get teacher details
+    //   .exec()
 
     res.status(200).json({
       model: subjects,

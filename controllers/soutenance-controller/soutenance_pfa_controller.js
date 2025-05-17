@@ -7,6 +7,7 @@ import soutenance_pfa from '../../models/soutenances-models/soutenance_pfa.js'
 import soutenancePFAUpdateValidator from '../../validators/soutenance_pfa_updateValidator.js'
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
+import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js';
 
 dotenv.config()
 
@@ -220,7 +221,7 @@ export const planifier = async (req, res) => {
         list_of_student: element.students,
       })
 
-      const saved = await soutenance.save()
+      // const saved = await soutenance.save()
     }
     res.status(200).json(planning)
   } catch (error) {
@@ -229,15 +230,38 @@ export const planifier = async (req, res) => {
   }
 }
 
+// export const fetch_soutenances = async (req, res) => {
+//   try {
+//     const soutenances = await soutenance_pfa.find()
+//     res.status(200).json({ model: soutenances, message: 'success ' })
+//   } catch (e) {
+//     res.status(400).json({ error: e.message, message: 'access problem' })
+//   }
+// }
 export const fetch_soutenances = async (req, res) => {
   try {
-    const soutenances = await soutenance_pfa.find()
-    res.status(200).json({ model: soutenances, message: 'success ' })
+
+  const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query = soutenance_pfa.find();
+    
+    // Apply academic year filter if available
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+
+    const soutenances = await query
+      .populate('pfa', 'title') // Supposons que 'pfa' a un champ 'title'
+      .populate('encadrant', 'firstName lastName email')
+      .populate('rapporteur', 'firstName lastName email')
+      .populate('list_of_student', 'firstName lastName email')
+
+    res.status(200).json({ model: soutenances, message: 'success' })
   } catch (e) {
     res.status(400).json({ error: e.message, message: 'access problem' })
   }
 }
-
 export const updateSoutenance = async (req, res) => {
   try {
     const soutenanceId = req.params.id
@@ -370,8 +394,8 @@ export const send_soutenancePfa_list_email = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: 'benboubakerchiraz054@gmail.com',
+        pass: 'brqd tlgs naoy rkwe',
       },
     })
 
@@ -514,13 +538,27 @@ export const fetch_by_filter = async (req, res) => {
       })
     }
 
+    const currentYearId = await getCurrentAcademicYearId(); 
+
+    let finalQuery = soutenance_pfa.find(query)
+
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+
     // Rechercher les soutenances avec le filtre approprié
-    const soutenances = await soutenance_pfa
-      .find(query)
+    const soutenances = await finalQuery
       .select('date time room') // Sélectionner uniquement les champs nécessaires
-      .populate({ path: 'rapporteur', select: 'email phone' })
-      .populate({ path: 'encadrant', select: 'email phone' })
+      .populate({
+        path: 'rapporteur',
+        select: 'firstName lastName email phone',
+      })
+      .populate({ path: 'encadrant', select: 'firstName lastName email phone' })
       .populate({ path: 'pfa', select: 'title description technologies_list ' })
+      .populate({
+        path: 'list_of_student',
+        select: 'firstName lastName email phone ',
+      })
       .exec()
 
     // Vérifier si des soutenances ont été trouvées
@@ -549,12 +587,30 @@ export const fetch_my_soutenance = async (req, res) => {
   try {
     // Filtre pour récupérer uniquement les sujets postés par l'enseignant authentifié
     const teacherId = req.auth.userId
-    const soutenancePFA = await soutenance_pfa.find({
+
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query =  soutenance_pfa
+    .find({
       $or: [
         { rapporteur: teacherId }, // Filtrer par rapporteur
         { encadrant: teacherId }, // Filtrer par encadrant
       ],
     })
+    
+    // Apply academic year filter if available
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+
+
+    const soutenancePFA = await query
+      .populate('pfa', 'title description technologies_list ') // Supposons que 'pfa' a un champ 'title'
+      .populate('encadrant', 'firstName lastName email phone')
+      .populate('rapporteur', 'firstName lastName email phone')
+      .populate('list_of_student', 'firstName lastName email phone')
+
     res.status(200).json({ model: soutenancePFA, message: 'success ' })
   } catch (e) {
     res.status(400).json({ error: e.message, message: 'access problem' })
@@ -610,8 +666,18 @@ export const fetch_my_soutenance_byId = async (req, res) => {
 export const fetch_my_soutenances_as_student = async (req, res) => {
   try {
     // Recherche des soutenances où l'utilisateur authentifié est dans `list_of_student`
-    const mySoutenances = await soutenance_pfa
-      .find({ list_of_student: req.auth.userId })
+
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query =  soutenance_pfa.find({ list_of_student: req.auth.userId })
+    
+    // Apply academic year filter if available
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+
+    const mySoutenances = await query
       .select('date time room')
       .populate({
         path: 'rapporteur',

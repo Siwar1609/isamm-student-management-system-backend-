@@ -1,12 +1,14 @@
-import PFA from '../../models/project_models/project_pfa.js'
-import PFAValidator from '../../validators/project_pfa_validator.js'
-import period_model from '../../models/period-model/period_model.js'
-import { sendApprovalEmails } from '../../utils/Send_Pfa_Email.js'
 import nodemailer from 'nodemailer'
-import Student from '../../models/users-models/student_model.js'
+import period_model from '../../models/period-model/period_model.js'
 import choicePFA from '../../models/project_models/choice_pfa.js'
+import PFA from '../../models/project_models/project_pfa.js'
+import Student from '../../models/users-models/student_model.js'
+import { sendApprovalEmails } from '../../utils/Send_Pfa_Email.js'
+import PFAValidator from '../../validators/project_pfa_validator.js'
 
 import dotenv from 'dotenv'
+import Teacher from '../../models/users-models/teacher_model.js'
+import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js'
 
 dotenv.config()
 
@@ -14,13 +16,25 @@ dotenv.config()
 
 export const fetch_my_pfa = async (req, res) => {
   try {
-    // Filtre pour récupérer uniquement les sujets postés par l'enseignant authentifié
-    const teacherId = req.auth.userId
-    const projects_pfa = await PFA.find({ teacherId: teacherId })
-
-    res.status(200).json({ model: projects_pfa, message: 'Succès' })
+    // Get current academic year ID
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query = PFA.find();
+    
+    // Apply academic year filter if available
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+    // Execute query with population
+    const pfas = await query
+      .populate('teacherId')
+      .populate('list_of_student');
+    
+    res.status(200).json({ model: pfas, message: 'success ' });
   } catch (e) {
-    res.status(400).json({ error: e.message, message: "Problème d'accès" })
+    res.status(400).json({ error: e.message, message: 'access problem' });
   }
 }
 
@@ -342,7 +356,19 @@ export const fetch_my_pfa_byId = async (req, res) => {
 
 export const fetch_all_pfa = async (req, res) => {
   try {
-    const pfas = await PFA.find().populate('teacherId').populate('list_of_student')
+    // const pfas = await PFA.find().populate('teacherId').populate('list_of_student')
+
+    const currentYearId = await getCurrentAcademicYearId(); 
+
+    let query = PFA.find().populate('teacherId').populate('list_of_student')
+
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+    const pfas = await query
+    
+
     res.status(200).json({ model: pfas, message: 'success ' })
   } catch (e) {
     res.status(400).json({ error: e.message, message: 'access problem' })
@@ -640,12 +666,30 @@ const generateEmailTemplate = (isFirstSend) => `
 export const fetsh_published_pfa = async (req, res) => {
   try {
     console.log(req.auth)
-    // Find pfa with published are true
-    const projects_pfa = await PFA.find({ published: true })
+
+    let query = await PFA.find({ published: true })
       .populate('teacherId')
       .select(
         'teacherId technologies_list title description numberOfStudents affected',
       )
+
+    const currentYearId = await getCurrentAcademicYearId();
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+
+    const projects_pfa = await query.exec();
+
+    res.status(200).json({ model: projects_pfa, message: 'Succès' })
+    
+
+
+    // Find pfa with published are true
+    // const projects_pfa = await PFA.find({ published: true })
+    //   .populate('teacherId')
+    //   .select(
+    //     'teacherId technologies_list title description numberOfStudents affected',
+    //   )
     res.status(200).json({ model: projects_pfa, message: 'Succès' })
   } catch (e) {
     res.status(400).json({ error: e.message, message: "Problème d'accès" })

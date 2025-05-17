@@ -33,15 +33,23 @@ export const getChapterById = async (req, res) => {
   }
 }
 
+// put it here ********************** 
+function translateStatus(status) {
+  const statusMap = {
+    'not yet': 'Pas encore commencé',
+    'in progress': 'En cours',
+    'completed': 'Terminé'
+  };
+  return statusMap[status] || status;
+}
 
 export const updateProgressChapter = async (req, res) => {
   try {
     const chapterId = req.params.id;
     const { status, sections, ...updates } = req.body;
 
-    console.log('Incoming payload:', req.body);
+    console.log('Received update request:', { chapterId, status, sections });
 
-    // Find the chapter by ID
     const chapter = await Chapter.findById(chapterId);
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' });
@@ -50,28 +58,28 @@ export const updateProgressChapter = async (req, res) => {
     let emailNeeded = false;
     let chapterCompletedEmailNeeded = false;
 
-    // Update chapter status if provided
+    // Update chapter status
     if (status && status !== chapter.status) {
       chapter.status = status;
       chapter.statusUpdatedAt = new Date();
       emailNeeded = true;
+      console.log(`Chapter status updated to ${status}`);
     }
 
-    // Update sections if provided
+    // Update sections
     if (sections && Array.isArray(sections)) {
-      sections.forEach((updatedSection, index) => {
-        if (index < chapter.section.length) {
-          const sectionToUpdate = chapter.section[index];
-          
-          // Update section advancement if changed
+      sections.forEach(updatedSection => {
+        const sectionToUpdate = chapter.section.id(updatedSection._id);
+        if (sectionToUpdate) {
           if (updatedSection.advancement && 
               updatedSection.advancement !== sectionToUpdate.advancement) {
             sectionToUpdate.advancement = updatedSection.advancement;
             sectionToUpdate.statusUpdatedAt = new Date();
+            sectionToUpdate.modificationDate = new Date();
             emailNeeded = true;
+            console.log(`Section ${sectionToUpdate._id} advancement updated to ${updatedSection.advancement}`);
           }
 
-          // Update content if provided
           if (updatedSection.content) {
             sectionToUpdate.content = updatedSection.content;
           }
@@ -79,109 +87,126 @@ export const updateProgressChapter = async (req, res) => {
       });
     }
 
-    // Check if all sections are now completed
+    // Check if all sections are completed
     const allSectionsCompleted = chapter.section.every(
-      (section) => section.advancement === 'completed'
+      s => s.advancement === 'completed'
     );
 
-    // Update chapter completion status if needed
     if (allSectionsCompleted && chapter.status !== 'completed') {
       chapter.status = 'completed';
       chapter.statusUpdatedAt = new Date();
       chapterCompletedEmailNeeded = true;
-    } else if (!allSectionsCompleted && chapter.status === 'completed') {
-      chapter.status = 'in progress';
+      console.log('Chapter marked as completed automatically');
     }
 
-    // Apply other updates to the chapter
-    Object.keys(updates).forEach((key) => {
-      if (chapter[key] !== undefined) {
-        chapter[key] = updates[key];
-      }
-    });
-
-    // Save the updated chapter
     await chapter.save();
-    console.log('Chapter updated successfully:', chapter);
 
-    // Send email if the status was updated
+    // Send email notification if needed
     if (emailNeeded || chapterCompletedEmailNeeded) {
-  console.log('Preparing to send email notification...');
-
-  const subject = await Subject.findById(chapter.subjectId).populate('studentId');
-  if (!subject || !subject.studentId || subject.studentId.length === 0) {
-    return res.status(404).json({ message: 'Related student not found' });
-  }
-
-  const student = await Student.findById(subject.studentId[0]);
-  console.log('Found student:', student);
-
-  if (!student || !student.email) {
-    return res.status(404).json({ message: 'Student email not found' });
-  }
-
-  const transporter = nodemailer.createTransport({
-    service: 'Gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
-
-  // Formatage de la date
-  const formattedDate = new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(chapter.statusUpdatedAt);
-
-  let emailSubject, emailText;
-
-  if (chapterCompletedEmailNeeded) {
-    emailSubject = `Chapitre complété : ${chapter.title}`;
-    emailText = `Bonjour ${student.firstName} ${student.lastName},\n\nFélicitations ! Le chapitre "${chapter.title}" a été complété avec succès le ${formattedDate}.\n\nCordialement,\nVotre équipe pédagogique`;
-  } else {
-    emailSubject = `Mise à jour du statut : ${chapter.title}`;
-    emailText = `Bonjour ${student.firstName} ${student.lastName},\n\nLe statut du chapitre "${chapter.title}" a été mis à jour à "${translateStatus(chapter.status)}" le ${formattedDate}.\n\nCordialement,\nVotre équipe pédagogique`;
-  }
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: student.email,
-    subject: emailSubject,
-    text: emailText,
-    // Optionnel : ajoutez une version HTML
-    html: `
-      <p>Bonjour ${student.firstName} ${student.lastName},</p>
-      ${chapterCompletedEmailNeeded ? 
-        `<p>Félicitations ! Le chapitre <strong>${chapter.title}</strong> a été complété avec succès le ${formattedDate}.</p>` :
-        `<p>Le statut du chapitre <strong>${chapter.title}</strong> a été mis à jour à <strong>${translateStatus(chapter.status)}</strong> le ${formattedDate}.</p>`
-      }
-      <p>Cordialement,<br>Votre équipe pédagogique</p>
-    `
-  };
       try {
-        await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully to:', student.email);
-      } catch (err) {
-        console.error('Error sending email:', err.message);
+        console.log('Preparing to send email notification...');
+
+        const subject = await Subject.findById(chapter.subjectId).populate('studentId');
+        if (!subject || !subject.studentId || subject.studentId.length === 0) {
+          console.error('Related student not found');
+          return res.status(404).json({ message: 'Related student not found' });
+        }
+
+        const student = await Student.findById(subject.studentId[0]);
+        if (!student || !student.email) {
+          console.error('Student email not found');
+          return res.status(404).json({ message: 'Student email not found' });
+        }
+
+        // Configure transporter with secure settings
+        const transporter = nodemailer.createTransport({
+          service: 'Gmail',
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD
+          },
+          tls: {
+            rejectUnauthorized: false // Only for testing, remove in production
+          }
+        });
+
+        // Verify connection configuration
+        transporter.verify(function(error, success) {
+          if (error) {
+            console.error('SMTP connection error:', error);
+          } else {
+            console.log('SMTP server is ready to take our messages');
+          }
+        });
+
+        const formattedDate = new Intl.DateTimeFormat('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(chapter.statusUpdatedAt);
+
+        // Email content
+        const mailOptions = {
+          from: `"EduPlatform" <${process.env.EMAIL_USER}>`,
+          to: student.email,
+          subject: chapterCompletedEmailNeeded 
+            ? `[EduPlatform] Chapitre complété : ${chapter.title}`
+            : `[EduPlatform] Mise à jour de statut : ${chapter.title}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+              <p>Bonjour ${student.firstName} ${student.lastName},</p>
+              
+              ${chapterCompletedEmailNeeded ? 
+                `<p>Félicitations ! Vous avez complété le chapitre <strong>"${chapter.title}"</strong> avec succès le ${formattedDate}.</p>` :
+                `<p>Le statut du chapitre <strong>"${chapter.title}"</strong> a été mis à jour à <strong>"${translateStatus(chapter.status)}"</strong> le ${formattedDate}.</p>`
+              }
+              
+              <p>Vous pouvez consulter votre progression à tout moment sur la plateforme.</p>
+              
+              <p style="margin-top: 20px;">
+                <a href="${process.env.FRONTEND_URL}/progress" 
+                   style="background-color: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">
+                   Voir ma progression
+                </a>
+              </p>
+              
+              <p style="margin-top: 30px; font-size: 0.9em; color: #666;">
+                Cet email est envoyé automatiquement, merci de ne pas y répondre.
+              </p>
+            </div>
+          `,
+          // Text fallback for email clients that don't support HTML
+          text: chapterCompletedEmailNeeded
+            ? `Bonjour ${student.firstName},\n\nFélicitations ! Vous avez complété le chapitre "${chapter.title}" avec succès le ${formattedDate}.\n\nCordialement,\nL'équipe EduPlatform`
+            : `Bonjour ${student.firstName},\n\nLe statut du chapitre "${chapter.title}" a été mis à jour à "${translateStatus(chapter.status)}" le ${formattedDate}.\n\nCordialement,\nL'équipe EduPlatform`
+        };
+
+        // Send email
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId, 'to:', student.email);
+
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError);
+        // Ne pas bloquer la réponse même si l'email échoue
       }
     }
 
     res.status(200).json({
       model: chapter,
-      message: 'Chapter updated successfully!',
+      message: 'Chapter updated successfully!'
     });
+
   } catch (error) {
-    console.error('Error during updateProgressChapter:', error);
+    console.error('Error in updateProgressChapter:', error);
     res.status(400).json({ 
       error: error.message, 
       message: 'Failed to update chapter' 
     });
   }
 };
+
 export const deleteChapter = async (req, res) => {
   try {
     const chapter = await Chapter.findByIdAndDelete(req.params.id)

@@ -87,9 +87,8 @@ export const generateRandomPassword = function () {
 }
 
 export const sendEmail = async function ({ to, subject, html }) {
-  console.log(`
-    Email sent to ${to} with subject: ${subject} 
-    `)
+  console.log(`Attempting to send email to: ${to}`);
+
 
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -103,6 +102,8 @@ export const sendEmail = async function ({ to, subject, html }) {
     },
   })
 
+ 
+
   await transporter.sendMail({
     // eslint-disable-next-line no-undef
     from: process.env.EMAIL_USER,
@@ -110,7 +111,9 @@ export const sendEmail = async function ({ to, subject, html }) {
     subject,
     html: html,
   })
+  console.log(`Email sent successfully to: ${to}`);
 }
+
 
 export const updatePassword = async function (id, password, Schema) {
   // generate a new password

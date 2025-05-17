@@ -10,10 +10,11 @@ import { getTeacher } from '../../services/teachers_services.js'
 import { internshipPlanningValidator } from '../../validators/internshipPlanning_validator.js'
 
 import path from 'path'
-import { fileURLToPath } from 'url'
+// import { fileURLToPath } from 'url'
+import {  getCurrentAcademicYearId } from '../../utils/academicYearFilter.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+// const __filename = fileURLToPath(import.meta.url)
+// const __dirname = path.dirname(__filename)
 
 // Function to generate full file URL
 const getFileUrl = (req, filePath) => {
@@ -21,11 +22,60 @@ const getFileUrl = (req, filePath) => {
 }
 
 // Get all internships with documents
+// export const getAllInternships = async (req, res) => {
+//   try {
+//     // const internships = await Internship.find()
+//     //   .populate('studentId', 'firstName lastName email cin')
+//     //   .lean()
+
+//     const internships = await filterByCurrentAcademicYear(Internship,'academicyear')
+//     .populate('studentId', 'firstName lastName email cin')
+//     .lean()
+
+
+//     // Modify document paths to return full URLs
+//     const internshipsWithDocuments = internships.map((internship) => {
+//       if (internship.documents && internship.documents.length > 0) {
+//         return {
+//           ...internship,
+//           documents: internship.documents.map((doc) => ({
+//             name: path.basename(doc), // Extract document name
+//             url: getFileUrl(req, doc), // Generate full URL for file
+//           })),
+//         }
+//       }
+//       return internship
+//     })
+
+//     res.status(200).json({
+//       models: internshipsWithDocuments,
+//       message: 'Internship periods retrieved successfully!',
+//     })
+//   } catch (error) {
+//     res.status(400).json({
+//       error: error.message,
+//       message: 'Error retrieving internship periods',
+//     })
+//   }
+// }
 export const getAllInternships = async (req, res) => {
   try {
-    const internships = await Internship.find()
+    // Get the current academic year ID
+    const currentYearId = await getCurrentAcademicYearId();
+
+    console.log(currentYearId,"current year --------")
+    // Create the query with the academic year filter
+    let query = Internship.find();
+    
+    // Apply the academic year filter if we have a current year
+    if (currentYearId) {
+      query = query.where('academicYear', currentYearId);
+    }
+    
+    // Now chain the populate and execute the query
+    const internships = await query
       .populate('studentId', 'firstName lastName email cin')
-      .lean()
+      .lean();
 
     // Modify document paths to return full URLs
     const internshipsWithDocuments = internships.map((internship) => {
@@ -46,13 +96,13 @@ export const getAllInternships = async (req, res) => {
       message: 'Internship periods retrieved successfully!',
     })
   } catch (error) {
+    console.error('Error retrieving internships:', error);
     res.status(400).json({
       error: error.message,
       message: 'Error retrieving internship periods',
     })
   }
 }
-
 // Get internships by student ID with documents
 export const getInternshipsByStudentId = async (req, res) => {
   try {
@@ -558,8 +608,19 @@ export const assignTeachersToInternship = async (req, res) => {
 
 export const fetchAllPlanning = async (req, res) => {
   try {
-    // Retrieve all planning entries and populate the relationships (internship and teacher)
-    const planning = await InternshipPlanning.find()
+    // Get the current academic year ID
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Find internships with the current academic year
+    const internships = await Internship.find({ academicYear: currentYearId }).select('_id');
+    
+    // Get the internship IDs
+    const internshipIds = internships.map(internship => internship._id);
+    
+    // Retrieve planning entries for the current academic year's internships
+    const planning = await InternshipPlanning.find({
+      idInternship: { $in: internshipIds }
+    })
       .populate({
         path: 'idInternship',
         populate: {
@@ -572,11 +633,12 @@ export const fetchAllPlanning = async (req, res) => {
     if (!planning || planning.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'No planning found.',
+        message: 'No planning found for the current academic year.',
       })
     }
+    
     res.status(200).json({
-      message: 'Planning retrieved successfully.',
+      message: 'Planning retrieved successfully for the current academic year.',
       data: planning,
     })
   } catch (error) {
@@ -681,11 +743,14 @@ export const updateInternshipPlanning = async (req, res) => {
 
 export const publishOrMaskPlanning = async (req, res) => {
   try {
-    const { type } = req.params // '1' ou '2' (niveau de stage)
-    const { response } = req.params // 'true' ou 'false' pour publier ou masquer le planning
+    const { type, response } = req.params // type: '1' or '2', response: 'true' or 'false'
+    console.log('--- Incoming request ---')
+    console.log('Type (level):', type)
+    console.log('Response (publish or hide):', response)
 
-    // Valider la valeur du paramètre response
+    // Validate the value of response
     if (response !== 'true' && response !== 'false') {
+      console.log('Invalid response value:', response)
       return res.status(400).json({
         success: false,
         message:
@@ -693,34 +758,59 @@ export const publishOrMaskPlanning = async (req, res) => {
       })
     }
 
-    // Convertir la réponse en booléen
     const isPublished = response === 'true'
+    console.log('Converted isPublished (boolean):', isPublished)
 
-    // Utiliser getInternshipsByLevel pour récupérer les stages par niveau
+    // Fetch internships by level
     let internships
     try {
       internships = await getInternshipsByLevel(type)
+      console.log(`Internships found for level ${type}:`, internships)
     } catch (error) {
+      console.error('Error fetching internships:', error.message)
       return res.status(400).json({
         success: false,
         message: error.message,
       })
     }
 
-    // Vérifier si tous les plannings sont déjà dans l'état souhaité
+    if (!internships || internships.length === 0) {
+      console.log(`No internships found for level ${type}`)
+      return res.status(404).json({
+        success: false,
+        message: `Aucun stage trouvé pour le niveau ${type}.`,
+      })
+    }
+
+    // Fetch corresponding internship plannings
     const internshipPlannings = await Promise.all(
       internships.map(async (internship) => {
-        return await InternshipPlanning.findOne({
+        const planning = await InternshipPlanning.findOne({
           idInternship: internship._id,
         })
-      }),
+        console.log(`Planning for internship ${internship._id}:`, planning)
+        return planning
+      })
     )
 
-    const allPlanningsAreAlready = internshipPlannings.every(
-      (planning) => planning.published === isPublished,
+    // Filter out nulls
+    const validPlannings = internshipPlannings.filter(p => p !== null)
+    if (validPlannings.length === 0) {
+      console.log(`No internship plannings found for level ${type}`)
+      return res.status(404).json({
+        success: false,
+        message: `Aucun planning trouvé pour les stages du niveau ${type}.`,
+      })
+    }
+
+    // Check if all are already in the desired state
+    const allPlanningsAreAlready = validPlannings.every(
+      (planning) => planning.published === isPublished
     )
+    console.log('All plannings already in desired state:', allPlanningsAreAlready)
 
     if (allPlanningsAreAlready) {
+      console.log('Nothing to update. Skipping.')
       return res.status(200).json({
         success: true,
         message: isPublished
@@ -729,22 +819,23 @@ export const publishOrMaskPlanning = async (req, res) => {
       })
     }
 
-    // Mettre à jour l'état des plannings
+    // Update published status
     for (const internship of internships) {
       const internshipPlanning = await InternshipPlanning.findOne({
         idInternship: internship._id,
       })
 
       if (internshipPlanning) {
-        // Mettre à jour l'état de publication
+        console.log(`Updating planning for internship ${internship._id}`)
         internshipPlanning.published = isPublished
-
-        // Sauvegarder le planning mis à jour
         await internshipPlanning.save()
+        console.log(`Saved updated planning for internship ${internship._id}`)
+      } else {
+        console.log(`No planning found for internship ${internship._id}`)
       }
     }
 
-    // Retourner une réponse de succès
+    console.log('All plannings updated successfully.')
     return res.status(200).json({
       success: true,
       message: isPublished
@@ -761,6 +852,7 @@ export const publishOrMaskPlanning = async (req, res) => {
     })
   }
 }
+
 export const publishOrMaskPlanningById = async (req, res) => {
   try {
     const { type, response, id } = req.params // 'type' (internship level), 'response' (true or false), and 'id' (planning ID)
@@ -993,64 +1085,85 @@ export const sendInternshipPlanningEmail = async (req, res) => {
   }
 }
 
-// Function to retrieve all internships assigned to the teacher
 export const getAssignedInternshipTeacher = async (req, res) => {
   try {
-    // Retrieve the teacher's ID from the token
-    const teacherId = req.auth.userId
-    console.log('Teacher ID:', teacherId)
+    const teacherId = req.auth.userId;
+    const requestedLevel = Number(req.params.type); 
 
-    // Retrieve all internship plannings where the teacher is assigned
+    console.log('Teacher ID:', teacherId);
+    console.log('Requested Level:', requestedLevel);
+
+    // Get all internships where this teacher is evaluator
     const plannings = await InternshipPlanning.find({ EvaluatorId: teacherId })
       .populate({
         path: 'idInternship',
         populate: {
           path: 'studentId',
         },
-      }) // Populate the internship details
-      .exec()
+      })
+      .exec();
+    console.log("planning",plannings)
 
-    // If no plannings are found for the teacher
-    if (plannings.length === 0) {
+    // Filter internships where student.level == requestedLevel
+    const filteredInternships = plannings.filter(
+      (planning) =>
+        planning.idInternship &&
+        planning.idInternship.level === requestedLevel
+    );
+
+    if (filteredInternships.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'No internships assigned to this teacher.',
-      })
+        message: `No internships found for teacher with level ${requestedLevel}.`,
+      });
     }
-
     return res.status(200).json({
       success: true,
-      model: plannings.map((planning) => ({
-        internship: planning.idInternship,
-      })),
-    })
+      model: filteredInternships,
+    });
   } catch (error) {
-    console.error(error)
+    console.error(error);
     return res.status(500).json({
       success: false,
       message: 'Error retrieving assigned internships.',
-    })
+    });
   }
-}
+};
+
 
 export const updatePlanningSoutenance = async (req, res) => {
-  const { type, id } = req.params
-  const { date, horaire, LienGoogleMeet } = req.body
-  const teacherId = req.auth.userId
-
+  const { type, id } = req.params;
+  const { date, horaire, LienGoogleMeet } = req.body;
+  const teacherId = req.auth.userId;
+  //console.log(teacherId)
   // Validation des données
-  const { error } = internshipPlanningValidator.validate(req.body)
+  const { error } = internshipPlanningValidator.validate(req.body);
   if (error) {
-    return res.status(400).json({ message: error.details[0].message })
+    return res.status(400).json({ message: error.details[0].message });
   }
-  //test For level matching
+
+  // Vérification du stage correspondant au niveau
   const internship = await Internship.findOne({
+    _id: id,
     level: type,
-  })
+  });
+
   if (!internship) {
-    console.log('the level does not match.')
-    return
+    return res.status(404).json({ message: "Stage non trouvé ou niveau incorrect." });
   }
+
+  // Vérification de la date : la date de soutenance doit être > date de fin de stage
+  const meetingDate = new Date(date);
+  const endInternshipDate = new Date(internship.endDate);
+
+  if (meetingDate <= endInternshipDate) {
+  const meetingDateStr = meetingDate.toISOString().split('T')[0];
+  const endInternshipDateStr = endInternshipDate.toISOString().split('T')[0];
+
+  return res.status(400).json({
+    message: `La date de soutenance (${meetingDateStr}) doit être postérieure à la date de fin de stage (${endInternshipDateStr}).`
+  });
+}
 
   try {
     const planning = await InternshipPlanning.findOneAndUpdate(
@@ -1060,12 +1173,12 @@ export const updatePlanningSoutenance = async (req, res) => {
       },
       {
         $set: {
-          'meeting.date': new Date(date),
+          'meeting.date': meetingDate,
           'meeting.time': horaire,
           'meeting.googleMeetLink': LienGoogleMeet,
         },
       },
-      { new: true, upsert: false }, // Return updated document, do not create a new one
+      { new: true, upsert: false }
     )
       .populate({
         path: 'idInternship',
@@ -1308,3 +1421,69 @@ const isInternshipAssigned = async (internshipId) => {
     throw new Error('Error checking internship assignment.')
   }
 }
+
+export const validateInternship = async (req, res) => {
+  try {
+    const { id } = req.params; 
+    const { valid, reason } = req.body; 
+    const teacherId = req.auth.userId;
+    //console.log(teacherId)
+    
+    // Vérifie que le stage existe
+    const internship = await Internship.findById(id);
+    if (!internship) {
+      return res.status(404).json({
+        error: 'Stage non trouvé.',
+        message: 'Le stage avec cet ID n\'existe pas.',
+      });
+    }
+    console.log(internship._id)
+
+    // Vérification que le stage est terminé (status = 'ended')
+    if (internship.status !== 'ended') {
+      return res.status(400).json({
+        error: 'Validation impossible',
+        message: 'Le stage doit être terminé (status: ended) pour pouvoir être validé.',
+      });
+    }
+
+    // Vérifie que le stage appartient bien à l'enseignant qui effectue la demande
+    const internshipPlanning = await InternshipPlanning.findOne({ idInternship: id }).populate('EvaluatorId');
+    console.log(internshipPlanning)
+    if (!internshipPlanning) {
+      return res.status(404).json({
+        error: 'Planification de stage non trouvée.',
+        message: 'La planification de ce stage est introuvable.',
+      });
+    }
+     
+    if (String(internshipPlanning.EvaluatorId._id) !== String(teacherId)) {
+      return res.status(403).json({
+        error: 'Accès non autorisé.',
+        message: 'Vous n\'êtes pas l\'enseignant responsable de ce stage.',
+      });
+    }
+
+    // Mise à jour du statut de validation et de la raison
+    internship.Validate.value = valid;
+    if (!valid) {
+      internship.Validate.reason = reason; 
+    } else {
+      internship.Validate.reason = undefined; 
+    }
+
+    // Sauvegarde les modifications
+    await internship.save();
+
+    res.status(200).json({
+      message: 'Stage mis à jour avec succès!',
+      internship,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: error.message,
+      message: 'Erreur lors de la validation du stage.',
+    });
+  }
+};
