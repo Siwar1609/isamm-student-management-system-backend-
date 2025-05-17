@@ -1,15 +1,15 @@
-import Period from '../../models/period-model/period_model.js'
-import PFE from '../../models/project_models/project_pfe.js'
-import { pfeValidationSchema } from '../../validators/pfeValidationSchema.js'
-import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
-import mongoose from 'mongoose'
-import nodemailer from 'nodemailer';
-import Student from '../../models/users-models/student_model.js';
-import SoutenancePfe from '../../models/soutenances-models/soutenance_pfe.js';
-import Teacher from '../../models/users-models/teacher_model.js';
-import { updateSoutenanceValidation } from '../../validators/updatePfeSoutenance_Validator.js';
+import mongoose from 'mongoose';
 import multer from 'multer';
+import nodemailer from 'nodemailer';
 import Document from '../../models/document-models/document_model.js';
+import Period from '../../models/period-model/period_model.js';
+import PFE from '../../models/project_models/project_pfe.js';
+import SoutenancePfe from '../../models/soutenances-models/soutenance_pfe.js';
+import Student from '../../models/users-models/student_model.js';
+import Teacher from '../../models/users-models/teacher_model.js';
+import { pfeValidationSchema } from '../../validators/pfeValidationSchema.js';
+import { updatePFEValidation } from '../../validators/updatepfeValidation.js';
+import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -274,8 +274,19 @@ export const updatePFE = async (req, res) => {
 //recuperer les details des PFEs pour les étudiants
 export const getPFEDetailsForStudent = async (req, res) => {
   try {
+
+    const currentYearId = await getCurrentAcademicYearId();
+
+
+    let query =  PFE.find();
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+
+  
     // Recherche des PFEs non affectés avec les étudiants associés
-    const availablePFEs = await PFE.find()
+    const availablePFEs = await query
       .populate('studentId')
       .populate('teacherId')
       .populate('documentId')
@@ -299,7 +310,17 @@ export const getPFEDetailsForStudent = async (req, res) => {
 export const getPFEDetailsForStudent3 = async (req, res) => {
   try {
     // Recherche des PFEs non affectés avec les étudiants associés
-    const availablePFEs = await PFE.find({ affected: false })
+
+    const currentYearId = await getCurrentAcademicYearId();
+
+
+    let query =  PFE.find({ affected: false });
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+
+    const availablePFEs = await query
       .populate('studentId')
       .populate('teacherId')
       .populate('documentId')
@@ -322,8 +343,18 @@ export const getPFEDetailsForStudent3 = async (req, res) => {
 
 export const getPFEDetailsForStudent2 = async (req, res) => {
   try {
+
+    const currentYearId = await getCurrentAcademicYearId();
+
+
+    let query =  PFE.find({ affected: true });
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+    
     // Recherche des PFEs non affectés avec les étudiants associés
-    const availablePFEs = await PFE.find({ affected: true })
+    const availablePFEs = await query
       .populate('studentId')
       .populate('teacherId')
       .populate('documentId')
@@ -1055,11 +1086,24 @@ export const publishOrHideSoutenances = async (req, res) => {
 // Méthode pour récupérer toutes les soutenances avec tous les détails
 export const getAllSoutenances = async (req, res) => {
   try {
-    const soutenances = await SoutenancePfe.find()
+
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query = SoutenancePfe.find();
+    console.log(query,"query +++++++++++++")
+    
+    // Apply academic year filter if available
+    if (currentYearId) {
+      query = query.where('academicYear', currentYearId);
+    }
+    const soutenances = await query
       .populate("students", "firstName lastName ") 
       .populate("teachers.teacherId", "firstName lastName") 
       .populate("projectId", "title company_name") 
       .sort({ dateSoutenance: -1 }); 
+
+    console.log("soutenances : ",soutenances)
 
     if (!soutenances || soutenances.length === 0) {
       return res.status(404).json({ message: "Aucune soutenance trouvée" });
@@ -1235,9 +1279,20 @@ export const getTeacherSoutenances = async (req, res) => {
 
       console.log("hello")
     // Récupérer toutes les soutenances où l'enseignant est impliqué
-    const teacherSoutenances = await SoutenancePfe.find({
+
+    const currentYearId = await getCurrentAcademicYearId();
+    
+    // Create query with academic year filter
+    let query = SoutenancePfe.find({
       "teachers.teacherId": teacherId,
-    }).populate("projectId", "title description")
+    })
+
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+
+
+    const teacherSoutenances = await query.populate("projectId", "title description")
       .populate("students", "firstName lastName email")
       .select("-academicYear")
 
@@ -1334,11 +1389,15 @@ export const getStudentSoutenances = async (req, res) => {
 
   try {
     const studentId = req.auth.userId; // ID de l'étudiant connecté
-
     // Récupérer toutes les soutenances où l'étudiant est impliqué
-    const studentSoutenances = await SoutenancePfe.find({
-      students: studentId,
-    }).populate("projectId")
+    const currentYearId = await getCurrentAcademicYearId(); 
+    let query =  SoutenancePfe.find({ students: studentId, })
+    if (currentYearId) {
+      query = query.where('academicyear', currentYearId);
+    }
+    
+    const studentSoutenances = await query
+      .populate("projectId")
       .populate("teachers.teacherId", "firstName lastName email")
       .select("-academicYear")
 
