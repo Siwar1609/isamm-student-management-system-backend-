@@ -670,6 +670,8 @@ export const getFinalList = async (req, res) => {
         score: result.score,
         rank: result.rank,
         valid: result.valid,
+        published: result.published, 
+
       }
     })
 
