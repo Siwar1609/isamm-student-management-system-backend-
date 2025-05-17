@@ -11,7 +11,7 @@ soutenance_pfa_route.get("/mine",loggedMiddleware, accessByRole(['teacher']),fet
 soutenance_pfa_route.get("/mine/:id",loggedMiddleware,accessByRole(['teacher']),fetch_my_soutenance_byId)
 
 // --------------------------- Student ---------------------------------------------------
-soutenance_pfa_route.get("/student/mine",loggedMiddleware,accessByRole(['student']),fetch_my_soutenances_as_student)
+soutenance_pfa_route.get("/student/mine/",loggedMiddleware,accessByRole(['student']),fetch_my_soutenances_as_student)
 
 // -------------------------- Admin ------------------------------------------------
 soutenance_pfa_route.post("/assign",accessByRole(['admin']),planifier)
