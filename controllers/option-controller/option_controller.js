@@ -594,7 +594,7 @@ export const SentEmailFinalOption = async (req, res) => {
         pass: 'znvw qfty lltn sajs',
       },
     })
-    const listOptionLink = `http://Options/Finallist`
+    const listOptionLink = `http://localhost:3000`
 
     for (const result of optionResult) {
       const studentEmail = result.student.email
