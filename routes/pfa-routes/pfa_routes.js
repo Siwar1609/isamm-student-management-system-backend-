@@ -34,13 +34,13 @@ const pfa_route = express.Router()
 pfa_route.get(
   '/choice/',
   accessByRole(['student']),
-  accessByLevel(['1']),
+  accessByLevel(['2']),
   fetsh_published_pfa,
 )
 pfa_route.get(
   '/choice/:id',
   accessByRole(['student']),
-  accessByLevel(['1']),
+  accessByLevel(['2']),
   get_published_pfa_by_id,
 )
 

@@ -44,7 +44,7 @@ const PFA_Schema = mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  academicyear: {
+  academicYearId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AcademicYear',
   },

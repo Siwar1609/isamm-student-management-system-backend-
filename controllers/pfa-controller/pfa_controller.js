@@ -17,24 +17,25 @@ dotenv.config()
 export const fetch_my_pfa = async (req, res) => {
   try {
     // Get current academic year ID
-    const currentYearId = await getCurrentAcademicYearId();
-    
+    const currentYearId = await getCurrentAcademicYearId()
+
     // Create query with academic year filter
-    let query = PFA.find();
-    
+    let query = PFA.find()
+
     // Apply academic year filter if available
     if (currentYearId) {
-      query = query.where('academicyear', currentYearId);
+      query = query.where({
+        academicYearId: currentYearId,
+        teacherId: req.auth.userId,
+      })
     }
-    
+    console.log(query)
     // Execute query with population
-    const pfas = await query
-      .populate('teacherId')
-      .populate('list_of_student');
-    
-    res.status(200).json({ model: pfas, message: 'success ' });
+    const pfas = await query.populate('teacherId').populate('list_of_student')
+
+    res.status(200).json({ model: pfas, message: 'success ' })
   } catch (e) {
-    res.status(400).json({ error: e.message, message: 'access problem' });
+    res.status(400).json({ error: e.message, message: 'access problem' })
   }
 }
 
@@ -47,55 +48,56 @@ export const add_my_pfa = async (req, res) => {
       technologies_list,
       numberOfStudents,
       list_of_student, // Peut contenir des emails
-      academicYear,
+      academicYearId,
       documentId,
       periodId,
-    } = req.body;
+    } = req.body
 
     // Validation des données avec Joi (modifiez votre validator pour accepter les emails)
-    const { error } = PFAValidator.validate(req.body);
+    const { error } = PFAValidator.validate(req.body)
     if (error) {
-      return res.status(400).json({ message: error.details[0].message });
+      return res.status(400).json({ message: error.details[0].message })
     }
 
     // Vérification du délai
     const period = await period_model.findOne({
       name: 'Dépôt des Sujet des PFA',
       end_date: { $gte: new Date() },
-    });
+    })
     if (!period) {
-      return res.status(400).json({ message: 'Le délai pour l\'ajout des sujets PFA est dépassé.' });
+      return res
+        .status(400)
+        .json({ message: "Le délai pour l'ajout des sujets PFA est dépassé." })
     }
 
     // Conversion des emails en IDs
-    let studentIds = [];
+    let studentIds = []
     if (list_of_student && list_of_student.length > 0) {
       // Vérifier si ce sont des emails (contient @) ou des IDs
-      const emails = list_of_student.filter(item => item.includes('@'));
-      const potentialIds = list_of_student.filter(item => !item.includes('@'));
+      const emails = list_of_student.filter((item) => item.includes('@'))
+      const potentialIds = list_of_student.filter((item) => !item.includes('@'))
 
       // Trouver les étudiants par email
-      const students = await Student.find({ email: { $in: emails } });
+      const students = await Student.find({ email: { $in: emails } })
 
       // Vérifier si tous les emails ont été trouvés
-      const foundEmails = students.map(s => s.email);
-      const missingEmails = emails.filter(email => !foundEmails.includes(email));
+      const foundEmails = students.map((s) => s.email)
+      const missingEmails = emails.filter(
+        (email) => !foundEmails.includes(email),
+      )
 
       if (missingEmails.length > 0) {
         return res.status(404).json({
           message: `Étudiants non trouvés: ${missingEmails.join(', ')}`,
-        });
+        })
       }
 
       // Vérifier les IDs potentiels
       const existingStudents = await Student.find({
-        $or: [
-          { _id: { $in: potentialIds } },
-          { email: { $in: emails } }
-        ]
-      });
+        $or: [{ _id: { $in: potentialIds } }, { email: { $in: emails } }],
+      })
 
-      studentIds = existingStudents.map(s => s._id);
+      studentIds = existingStudents.map((s) => s._id)
     }
 
     // Création du PFA
@@ -106,35 +108,33 @@ export const add_my_pfa = async (req, res) => {
       technologies_list,
       numberOfStudents,
       list_of_student: studentIds, // Stockage des IDs
-      academicYear,
+      academicYearId,
       documentId,
       periodId,
       teacherId: req.auth.userId,
-      affected: studentIds.length > 0
-    });
+      affected: studentIds.length > 0,
+    })
 
-    const savedPFA = await newPFA.save();
+    const savedPFA = await newPFA.save()
 
     // Envoi des emails de confirmation
     if (studentIds.length > 0) {
-      const students = await Student.find({ _id: { $in: studentIds } });
-      await sendApprovalEmails(students, savedPFA);
-
+      const students = await Student.find({ _id: { $in: studentIds } })
+      await sendApprovalEmails(students, savedPFA)
     }
 
     return res.status(201).json({
       message: 'PFA créé avec succès',
-      pfa: savedPFA
-    });
-
+      pfa: savedPFA,
+    })
   } catch (err) {
-    console.error('Erreur création PFA:', err);
+    console.error('Erreur création PFA:', err)
     return res.status(500).json({
       message: 'Erreur serveur lors de la création du PFA',
-      error: err.message
-    });
+      error: err.message,
+    })
   }
-};
+}
 
 export const update_my_pfa = async (req, res) => {
   try {
@@ -142,140 +142,142 @@ export const update_my_pfa = async (req, res) => {
     const period = await period_model.findOne({
       name: 'Dépôt des Sujet des PFA',
       end_date: { $gte: new Date() },
-    });
+    })
 
     if (!period) {
       return res.status(400).json({
         message: 'Le délai pour la modification des sujets PFA est dépassé.',
-      });
+      })
     }
 
     // 2. Vérification de l'existence du PFA
-    const existingPfa = await PFA.findById(req.params.id);
+    const existingPfa = await PFA.findById(req.params.id)
     if (!existingPfa) {
-      return res.status(404).json({ message: 'Sujet PFA non trouvé.' });
+      return res.status(404).json({ message: 'Sujet PFA non trouvé.' })
     }
 
     // 3. Vérification des permissions
     if (existingPfa.teacherId.toString() !== req.auth.userId.toString()) {
       return res.status(403).json({
         message: "Vous n'êtes pas autorisé à modifier ce sujet PFA.",
-      });
+      })
     }
     // 4. Validation du type de projet
     if (!['Monome', 'Binome'].includes(req.body.numberOfStudents)) {
       return res.status(400).json({
         message: "Le type de projet doit être 'Monome' ou 'Binome'",
-      });
+      })
     }
 
     // 5. Vérification des doublons dans la liste d'étudiants
     if (req.body.list_of_student?.length > 0) {
-      const uniqueStudents = [...new Set(req.body.list_of_student.map(s => s.toLowerCase()))];
+      const uniqueStudents = [
+        ...new Set(req.body.list_of_student.map((s) => s.toLowerCase())),
+      ]
       if (uniqueStudents.length !== req.body.list_of_student.length) {
-        const duplicates = req.body.list_of_student.filter((email, index) => 
-          req.body.list_of_student.findIndex(
-            e => e.toLowerCase() === email.toLowerCase()
-          ) !== index
-        );
+        const duplicates = req.body.list_of_student.filter(
+          (email, index) =>
+            req.body.list_of_student.findIndex(
+              (e) => e.toLowerCase() === email.toLowerCase(),
+            ) !== index,
+        )
         return res.status(400).json({
           message: `Les emails doivent être uniques. Doublons détectés : ${duplicates.join(', ')}`,
           code: 'DUPLICATE_EMAILS',
           data: {
             duplicates,
-            uniqueCount: uniqueStudents.length
-          }
-        });
+            uniqueCount: uniqueStudents.length,
+          },
+        })
       }
-
     }
 
     // 6. Traitement des étudiants
-    let studentIds = [];
+    let studentIds = []
     if (req.body.list_of_student?.length > 0) {
       // Séparation emails/IDs
-      const emails = req.body.list_of_student.filter(item => item.includes('@'));
-      const ids = req.body.list_of_student.filter(item => !item.includes('@'));
+      const emails = req.body.list_of_student.filter((item) =>
+        item.includes('@'),
+      )
+      const ids = req.body.list_of_student.filter((item) => !item.includes('@'))
 
       // Validation emails
       if (emails.length > 0) {
-        const emailStudents = await Student.find({ 
-          email: { $in: emails.map(e => e.toLowerCase()) } 
-        });
-        
+        const emailStudents = await Student.find({
+          email: { $in: emails.map((e) => e.toLowerCase()) },
+        })
+
         if (emailStudents.length !== emails.length) {
-          const foundEmails = emailStudents.map(s => s.email.toLowerCase());
+          const foundEmails = emailStudents.map((s) => s.email.toLowerCase())
           const missing = emails.filter(
-            e => !foundEmails.includes(e.toLowerCase())
-          );
+            (e) => !foundEmails.includes(e.toLowerCase()),
+          )
           return res.status(404).json({
             message: `Étudiants non trouvés (vérifiez les emails) : ${missing.join(', ')}`,
-            code: 'STUDENTS_NOT_FOUND'
-          });
+            code: 'STUDENTS_NOT_FOUND',
+          })
         }
-        studentIds.push(...emailStudents.map(s => s._id));
+        studentIds.push(...emailStudents.map((s) => s._id))
       }
 
       // Validation IDs
       if (ids.length > 0) {
-        const idStudents = await Student.find({ _id: { $in: ids } });
+        const idStudents = await Student.find({ _id: { $in: ids } })
         if (idStudents.length !== ids.length) {
-          const foundIds = idStudents.map(s => s._id.toString());
-          const missing = ids.filter(id => !foundIds.includes(id));
+          const foundIds = idStudents.map((s) => s._id.toString())
+          const missing = ids.filter((id) => !foundIds.includes(id))
           return res.status(404).json({
             message: `IDs étudiants invalides : ${missing.join(', ')}`,
-            code: 'INVALID_STUDENT_IDS'
-          });
+            code: 'INVALID_STUDENT_IDS',
+          })
         }
-        studentIds.push(...ids);
+        studentIds.push(...ids)
       }
     }
 
     // 7. Vérification du nombre max d'étudiants
-    const maxStudents = req.body.numberOfStudents === 'Binome' ? 2 : 1;
+    const maxStudents = req.body.numberOfStudents === 'Binome' ? 2 : 1
     if (studentIds.length > maxStudents) {
       return res.status(400).json({
         message: `Un projet ${req.body.numberOfStudents} ne peut avoir que ${maxStudents} étudiant(s)`,
-        code: 'TOO_MANY_STUDENTS'
-      });
+        code: 'TOO_MANY_STUDENTS',
+      })
     }
 
     // 8. Mise à jour du PFA
     const updateData = {
       title: req.body.title,
       description: req.body.description,
-      technologies_list: Array.isArray(req.body.technologies_list) 
-        ? req.body.technologies_list 
-        : req.body.technologies_list?.split(',').map(t => t.trim()),
+      technologies_list: Array.isArray(req.body.technologies_list)
+        ? req.body.technologies_list
+        : req.body.technologies_list?.split(',').map((t) => t.trim()),
       numberOfStudents: req.body.numberOfStudents,
       list_of_student: studentIds,
       affected: studentIds.length > 0,
-      updatedAt: new Date()
-    };
+      updatedAt: new Date(),
+    }
 
-    const updatedPfa = await PFA.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('list_of_student', 'email name');
+    const updatedPfa = await PFA.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate('list_of_student', 'email name')
 
     // 9. Réponse
     res.status(200).json({
       success: true,
       model: updatedPfa,
-      message: 'PFA mis à jour avec succès'
-    });
-
+      message: 'PFA mis à jour avec succès',
+    })
   } catch (error) {
-    console.error('Erreur modification PFA:', error);
+    console.error('Erreur modification PFA:', error)
     res.status(500).json({
       success: false,
       message: 'Erreur serveur lors de la modification',
       error: error.message,
-      code: 'SERVER_ERROR'
-    });
+      code: 'SERVER_ERROR',
+    })
   }
-};
+}
 
 export const delete_my_pfa = async (req, res) => {
   try {
@@ -358,16 +360,15 @@ export const fetch_all_pfa = async (req, res) => {
   try {
     // const pfas = await PFA.find().populate('teacherId').populate('list_of_student')
 
-    const currentYearId = await getCurrentAcademicYearId(); 
+    const currentYearId = await getCurrentAcademicYearId()
 
     let query = PFA.find().populate('teacherId').populate('list_of_student')
 
     if (currentYearId) {
-      query = query.where('academicyear', currentYearId);
+      query = query.where('academicYearId', currentYearId)
     }
-    
+
     const pfas = await query
-    
 
     res.status(200).json({ model: pfas, message: 'success ' })
   } catch (e) {
@@ -398,75 +399,75 @@ export const get_pfa_ByID = async (req, res) => {
 
 export const update_pfa = async (req, res) => {
   try {
-    const rejected = true;
+    const rejected = true
     const updated_pfa = await PFA.findOneAndUpdate(
       { _id: req.params.id },
       { rejected },
-      { new: true }
-    ).populate('teacherId'); // <-- Ajoutez cette ligne
+      { new: true },
+    ).populate('teacherId') // <-- Ajoutez cette ligne
 
     if (!updated_pfa) {
       return res.status(404).json({
         message: 'Sujet PFA non trouvé.',
-      });
+      })
     }
 
     return res.status(200).json({
       model: updated_pfa,
       message: "Le champ 'rejected' a été mis à jour avec succès.",
-    });
+    })
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: error.message })
   }
-};
+}
 
 export const restaure_pfa = async (req, res) => {
   try {
-    const rejected = false;
+    const rejected = false
     const updated_pfa = await PFA.findOneAndUpdate(
       { _id: req.params.id },
       { rejected },
-      { new: true }
-    ).populate('teacherId'); // <-- Ajoutez cette ligne
+      { new: true },
+    ).populate('teacherId') // <-- Ajoutez cette ligne
 
     if (!updated_pfa) {
       return res.status(404).json({
         message: 'Sujet PFA non trouvé.',
-      });
+      })
     }
 
     return res.status(200).json({
       model: updated_pfa,
       message: "Le champ 'rejected' a été mis à jour avec succès.",
-    });
+    })
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: error.message })
   }
-};
+}
 
 export const publish_one_pfa = async (req, res) => {
   try {
-    const published= true;
+    const published = true
     const updated_pfa = await PFA.findOneAndUpdate(
       { _id: req.params.id },
       { published },
-      { new: true }
-    ).populate('teacherId'); // <-- Ajoutez cette ligne
+      { new: true },
+    ).populate('teacherId') // <-- Ajoutez cette ligne
 
     if (!updated_pfa) {
       return res.status(404).json({
         message: 'Sujet PFA non trouvé.',
-      });
+      })
     }
 
     return res.status(200).json({
       model: updated_pfa,
       message: "Le champ 'rejected' a été mis à jour avec succès.",
-    });
+    })
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: error.message })
   }
-};
+}
 
 export const publish_pfa = async (req, res) => {
   try {
@@ -533,8 +534,8 @@ export const send_pfa_list_email = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: "benboubakerchiraz054@gmail.com",
-        pass: "brqd tlgs naoy rkwe",
+        user: 'benboubakerchiraz054@gmail.com',
+        pass: 'brqd tlgs naoy rkwe',
       },
     })
 
@@ -673,16 +674,14 @@ export const fetsh_published_pfa = async (req, res) => {
         'teacherId technologies_list title description numberOfStudents affected',
       )
 
-    const currentYearId = await getCurrentAcademicYearId();
+    const currentYearId = await getCurrentAcademicYearId()
     if (currentYearId) {
-      query = query.where('academicyear', currentYearId);
+      query = query.where('academicYearId', currentYearId)
     }
 
-    const projects_pfa = await query.exec();
+    const projects_pfa = await query.exec()
 
     res.status(200).json({ model: projects_pfa, message: 'Succès' })
-    
-
 
     // Find pfa with published are true
     // const projects_pfa = await PFA.find({ published: true })

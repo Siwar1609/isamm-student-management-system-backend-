@@ -7,7 +7,7 @@ import soutenance_pfa from '../../models/soutenances-models/soutenance_pfa.js'
 import soutenancePFAUpdateValidator from '../../validators/soutenance_pfa_updateValidator.js'
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
-import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js';
+import { getCurrentAcademicYearId } from '../../utils/academicYearFilter.js'
 
 dotenv.config()
 
@@ -183,11 +183,12 @@ export const planifier = async (req, res) => {
     return res.status(400).json({ message: error.details[0].message })
   }
   const { jours, salles } = req.body
+  // Get current academic year ID
+  const currentYearId = await getCurrentAcademicYearId()
   try {
     // Étape 1 : Récupérer les PFAs
     const pfaList = await PFA.find(
-      // {},
-      { affected: true, rejected: false },
+      { affected: true, rejected: false, academicYearId: currentYearId },
       { list_of_student: 1, _id: 1, teacherId: 1 },
     )
 
@@ -221,7 +222,7 @@ export const planifier = async (req, res) => {
         list_of_student: element.students,
       })
 
-      // const saved = await soutenance.save()
+      const saved = await soutenance.save()
     }
     res.status(200).json(planning)
   } catch (error) {
@@ -240,17 +241,15 @@ export const planifier = async (req, res) => {
 // }
 export const fetch_soutenances = async (req, res) => {
   try {
+    const currentYearId = await getCurrentAcademicYearId()
 
-  const currentYearId = await getCurrentAcademicYearId();
-    
     // Create query with academic year filter
-    let query = soutenance_pfa.find();
-    
+    let query = soutenance_pfa.find()
+
     // Apply academic year filter if available
     if (currentYearId) {
-      query = query.where('academicyear', currentYearId);
+      query = query.where('academicYearId', currentYearId)
     }
-
     const soutenances = await query
       .populate('pfa', 'title') // Supposons que 'pfa' a un champ 'title'
       .populate('encadrant', 'firstName lastName email')
@@ -524,30 +523,26 @@ const generateEmailTemplate = (isFirstSend) => `
 export const fetch_by_filter = async (req, res) => {
   try {
     const { filter, id } = req.params
-
+    const currentYearId = await getCurrentAcademicYearId()
     let query
     if (filter === 'teacher') {
       // Recherche des soutenances pour un enseignant
-      query = { $or: [{ rapporteur: id }, { encadrant: id }] }
+      query = {
+        $or: [{ rapporteur: id }, { encadrant: id }],
+        academicYearId: currentYearId,
+      }
     } else if (filter === 'student') {
       // Recherche des soutenances pour un étudiant
-      query = { list_of_student: id }
+      query = { list_of_student: id, academicYearId: currentYearId }
     } else {
       return res.status(400).json({
         message: 'Filtre invalide. Utilisez "teacher" ou "student".',
       })
     }
 
-    const currentYearId = await getCurrentAcademicYearId(); 
-
-    let finalQuery = soutenance_pfa.find(query)
-
-    if (currentYearId) {
-      query = query.where('academicyear', currentYearId);
-    }
-
     // Rechercher les soutenances avec le filtre approprié
-    const soutenances = await finalQuery
+    const soutenances = await soutenance_pfa
+      .find(query)
       .select('date time room') // Sélectionner uniquement les champs nécessaires
       .populate({
         path: 'rapporteur',
@@ -587,30 +582,17 @@ export const fetch_my_soutenance = async (req, res) => {
   try {
     // Filtre pour récupérer uniquement les sujets postés par l'enseignant authentifié
     const teacherId = req.auth.userId
-
-    const currentYearId = await getCurrentAcademicYearId();
-    
-    // Create query with academic year filter
-    let query =  soutenance_pfa
-    .find({
-      $or: [
-        { rapporteur: teacherId }, // Filtrer par rapporteur
-        { encadrant: teacherId }, // Filtrer par encadrant
-      ],
-    })
-    
-    // Apply academic year filter if available
-    if (currentYearId) {
-      query = query.where('academicyear', currentYearId);
-    }
-
-
-    const soutenancePFA = await query
+    const currentYearId = await getCurrentAcademicYearId()
+    const soutenancePFA = await soutenance_pfa
+      .find({
+        academicYearId: currentYearId,
+        $or: [{ rapporteur: teacherId }, { encadrant: teacherId }],
+      })
       .populate('pfa', 'title description technologies_list ') // Supposons que 'pfa' a un champ 'title'
       .populate('encadrant', 'firstName lastName email phone')
       .populate('rapporteur', 'firstName lastName email phone')
       .populate('list_of_student', 'firstName lastName email phone')
-
+    console.log(soutenancePFA)
     res.status(200).json({ model: soutenancePFA, message: 'success ' })
   } catch (e) {
     res.status(400).json({ error: e.message, message: 'access problem' })
@@ -666,18 +648,8 @@ export const fetch_my_soutenance_byId = async (req, res) => {
 export const fetch_my_soutenances_as_student = async (req, res) => {
   try {
     // Recherche des soutenances où l'utilisateur authentifié est dans `list_of_student`
-
-    const currentYearId = await getCurrentAcademicYearId();
-    
-    // Create query with academic year filter
-    let query =  soutenance_pfa.find({ list_of_student: req.auth.userId })
-    
-    // Apply academic year filter if available
-    if (currentYearId) {
-      query = query.where('academicyear', currentYearId);
-    }
-
-    const mySoutenances = await query
+    const mySoutenances = await soutenance_pfa
+      .find({ list_of_student: req.auth.userId })
       .select('date time room')
       .populate({
         path: 'rapporteur',
@@ -687,29 +659,10 @@ export const fetch_my_soutenances_as_student = async (req, res) => {
         path: 'encadrant',
         select: 'email phone',
       })
-      .populate({
-        path: 'pfa',
-        select: 'title',
-      })
       .exec()
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-
-      console.log(mySoutenances)
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
-      console.log("***************************************************************************")
 
     // Vérification si des soutenances existent
     if (!mySoutenances || mySoutenances.length === 0) {
-      console.log('Aucune soutenance trouvée pour cet utilisateur.')
       return res.status(404).json({
         message: 'Aucune soutenance trouvée pour cet utilisateur.',
       })
@@ -725,6 +678,83 @@ export const fetch_my_soutenances_as_student = async (req, res) => {
     return res.status(400).json({
       error: error.message,
       message: 'Erreur lors de la récupération des soutenances.',
+    })
+  }
+}
+
+export const getActiveLevel2Students = async (req, res) => {
+  try {
+    // Find students with status='Active_student' and level=2
+    const students = await Student.find({
+      // status: 'Active_student',
+      level: '2',
+    })
+      .select('firstName lastName email status level internships')
+      .populate('internships')
+      .exec()
+
+    if (!students || students.length === 0) {
+      return res
+        .status(404)
+        .json({ message: 'No active level 2 students found.' })
+    }
+
+    // Enhance each student with their postulation status and internship planning details
+    const enhancedStudents = await Promise.all(
+      students.map(async (student) => {
+        const internships = Array.isArray(student.internships)
+          ? student.internships
+          : []
+
+        const internshipPlannings = await Promise.all(
+          internships.map(async (internship) => {
+            const internshipPlanning = await Internship_planning.findOne({
+              idInternship: internship._id,
+            })
+              .populate('EvaluatorId', 'firstName lastName email')
+              .populate('meeting', 'date time googleMeetLink')
+              .exec()
+
+            return internshipPlanning
+              ? {
+                  internship: {
+                    _id: internship._id,
+                    title: internship.title,
+                  },
+                  published: internshipPlanning.published,
+                  meeting: internshipPlanning.meeting || null,
+                  sentEmail: internshipPlanning.sentEmail,
+                  sentAt: internshipPlanning.sentAt,
+                  evaluator: internshipPlanning.EvaluatorId || null,
+                }
+              : null
+          }),
+        )
+
+        const postulationStatus =
+          internships.length > 0
+            ? 'postulated successfully'
+            : 'did not postulate'
+
+        return {
+          ...student.toObject(),
+          postulationStatus,
+          internshipPlannings: internshipPlannings.filter(
+            (planning) => planning !== null,
+          ),
+        }
+      }),
+    )
+
+    res.status(200).json({
+      students: enhancedStudents,
+      message: 'Active level 2 students retrieved successfully!',
+    })
+  } catch (error) {
+    console.error('Error:', error.message)
+    res.status(500).json({
+      error: error.message,
+      message: 'Error retrieving active level 2 students.',
     })
   }
 }

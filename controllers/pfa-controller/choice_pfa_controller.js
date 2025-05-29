@@ -300,13 +300,14 @@ export const approveChoicePFA = async (req, res) => {
 //___________________________________________________done_________________________________________________________________
 export const fetchStudentChoices = async (req, res) => {
   try {
-    let studentChoices;
-    const studentId = req.params.id;
-    console.log('Fetching choices for student ID:', studentId);
+    let studentChoices
+    const studentId = req.params.id
+    console.log('Fetching choices for student ID:', studentId)
 
     if (studentId !== 'all') {
       // Fetch choices for a specific student
-      studentChoices = await choice_pfa.find({ studentList: studentId })
+      studentChoices = await choice_pfa
+        .find({ studentList: studentId })
         .populate({
           path: 'projectId',
           model: 'PFA',
@@ -316,10 +317,11 @@ export const fetchStudentChoices = async (req, res) => {
           path: 'studentList',
           select: 'firstName lastName email',
         })
-        .sort({ priority: 1 }); // Lower priority = higher choice
+        .sort({ priority: 1 }) // Lower priority = higher choice
     } else {
       // Fetch all student choices
-      studentChoices = await choice_pfa.find({})
+      studentChoices = await choice_pfa
+        .find({})
         .populate({
           path: 'projectId',
           model: 'PFA',
@@ -329,21 +331,22 @@ export const fetchStudentChoices = async (req, res) => {
           path: 'studentList',
           select: 'firstName lastName email',
         })
-        .sort({ priority: 1 }); // Lower priority = higher choice
+        .sort({ priority: 1 }) // Lower priority = higher choice
     }
 
     if (!studentChoices.length) {
-      console.log('No choices found for student ID:', studentId);
-      return res.status(404).json({ message: 'No PFA choices found' });
+      console.log('No choices found for student ID:', studentId)
+      return res.status(404).json({ message: 'No PFA choices found' })
     }
-    console.log('Found choices:', studentChoices);
-    res.status(200).json({ choices: studentChoices });
+    console.log('Found choices:', studentChoices)
+    res.status(200).json({ choices: studentChoices })
   } catch (error) {
-    console.error('Error fetching student choices:', error);
-    res.status(500).json({ message: 'Server error while fetching student choices', error });
+    console.error('Error fetching student choices:', error)
+    res
+      .status(500)
+      .json({ message: 'Server error while fetching student choices', error })
   }
-};
-
+}
 
 // ---------------------------
 // affected :true |false
@@ -535,18 +538,18 @@ export const manualAssignPFA = async (req, res) => {
       }).select('_id email firstName lastName')
 
       // Vérifier existence étudiants
-      if (students.length !== studentEmails.length) {
-        const foundEmails = students.map((s) => s.email)
-        const missingEmails = studentEmails.filter(
-          (email) => !foundEmails.includes(email),
-        )
+      // if (students.length !== studentEmails.length) {
+      //   const foundEmails = students.map((s) => s.email)
+      //   const missingEmails = studentEmails.filter(
+      //     (email) => !foundEmails.includes(email),
+      //   )
 
-        return res.status(404).json({
-          success: false,
-          message: 'Étudiants non trouvés',
-          missingEmails,
-        })
-      }
+      //   return res.status(404).json({
+      //     success: false,
+      //     message: 'Étudiants non trouvés',
+      //     missingEmails,
+      //   })
+      // }
 
       // Ajout des nouveaux étudiants
       await PFA.findByIdAndUpdate(
@@ -628,54 +631,58 @@ export const togglePublishPFA = async (req, res) => {
 // services/pfaValidationService.js
 export const sendEmailToRecipients = async (req, res) => {
   try {
-    const students = await Student.find({ role: 'student', level: '2' });
-    const teachers = await Teacher.find({});
+    const students = await Student.find({ role: 'student', level: '2' })
+    const teachers = await Teacher.find({})
 
     if (!students.length || !teachers.length) {
-      return res.status(404).json({ message: 'Aucun étudiant ou enseignant trouvé.' });
+      return res
+        .status(404)
+        .json({ message: 'Aucun étudiant ou enseignant trouvé.' })
     }
 
     // Automatically decide type
-    const existingSend = await PFA.findOne({ send: true });
-    const type = existingSend ? 'update' : 'first';
+    const existingSend = await PFA.findOne({ send: true })
+    const type = existingSend ? 'update' : 'first'
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: "benboubakerchiraz054@gmail.com",
-        pass: "brqd tlgs naoy rkwe", // 🔒 Move this to .env before production
+        user: 'benboubakerchiraz054@gmail.com',
+        pass: 'brqd tlgs naoy rkwe', // 🔒 Move this to .env before production
       },
-    });
+    })
 
-    const htmlContent = generateEmailTemplate(type);
-    const allRecipients = [...students, ...teachers];
+    const htmlContent = generateEmailTemplate(type)
+    const allRecipients = [...students, ...teachers]
 
     const emailPromises = allRecipients.map((user) =>
       transporter.sendMail({
         from: '"Équipe PFA" <votre_email@gmail.com>',
         to: user.email,
-        subject: type === 'first' ? 'Choix du sujet PFA' : 'Mise à jour : Liste des sujets PFA',
+        subject:
+          type === 'first'
+            ? 'Choix du sujet PFA'
+            : 'Mise à jour : Liste des sujets PFA',
         html: htmlContent,
-      })
-    );
+      }),
+    )
 
-    await Promise.all(emailPromises);
+    await Promise.all(emailPromises)
 
     if (type === 'first') {
-      await PFA.updateMany({}, { send: true });
+      await PFA.updateMany({}, { send: true })
     }
 
     return res.status(200).json({
       message: `Emails envoyés avec succès (${type === 'first' ? 'premier envoi' : 'mise à jour'}).`,
-    });
+    })
   } catch (error) {
     return res.status(500).json({
       message: "Erreur lors de l'envoi des emails.",
       error: error.message,
-    });
+    })
   }
-};
-
+}
 
 // Fonction pour générer le contenu HTML de l'email
 const generateEmailTemplate = (isFirstSend) => `
@@ -766,5 +773,3 @@ const generateEmailTemplate = (isFirstSend) => `
   </div>
 </body>
 </html>`
-
-

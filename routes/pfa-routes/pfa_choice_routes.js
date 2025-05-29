@@ -85,7 +85,7 @@ choice_pfa_route.get(
   fetchStudentChoices,
 )
 choice_pfa_route.post('/allocate', accessByRole(['admin']), autoAllocatePFA)
-choice_pfa_route.post('/assign/:pfaId', accessByRole(['admin']), manualAssignPFA)
+choice_pfa_route.post('/:pfaId/assign', accessByRole(['admin']), manualAssignPFA)
 // Add the new route for manualAssignPFA2
 choice_pfa_route.post('/assign2', accessByRole(['admin']), manualAssignPFA2)
 
