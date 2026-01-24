@@ -13,7 +13,7 @@
   "description": "",
   "type": "module",
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -25,7 +25,7 @@
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "jwt-decode": "^4.0.0",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "mongoose": "^8.9.2",
     "mongoose-id-validator": "^0.6.0",
     "morgan": "^1.10.0",
